@@ -1,10 +1,10 @@
+
 import { ServiceUnavailableException } from '@nestjs/common';
 import type OpenAI from 'openai';
 
 import { Product } from 'src/modules/products/entities/product.entity';
 import { ProductService } from 'src/modules/products/services/product.service';
 import { SupportChatService } from '../services/support-chat.service';
-import { beforeEach, describe } from 'node:test';
 
 describe('SupportChatService', () => {
   let service: SupportChatService;
@@ -74,7 +74,6 @@ describe('SupportChatService', () => {
       );
 
       expect(productServiceMock.findAllForSupportChat).not.toHaveBeenCalled();
-
       expect(result.reply).toBe('پاسخ آزمایشی چت‌بات');
     });
 
@@ -138,7 +137,3 @@ describe('SupportChatService', () => {
     });
   });
 });
-function expect(findAllForSupportChat: any) {
-    throw new Error('Function not implemented.');
-}
-
