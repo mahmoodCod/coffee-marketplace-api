@@ -180,6 +180,8 @@ export class SupportChatService {
       'بگید',
       'بگین',
       'الان',
+      'خودت',
+      'بهم',
     ]);
 
     const hasCatalogWord = tokens.some(isCatalogWord);
