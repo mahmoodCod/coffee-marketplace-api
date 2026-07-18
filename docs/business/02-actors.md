@@ -73,7 +73,7 @@ System Administrator.
 -----------------------------------
 
 ## 4.Seller
-Vendor System
+A vendor who can manage and sell products on the platform.
 
 ### Permissions
 
