@@ -6,6 +6,9 @@
 ## 4. Payment Gateway
 ## 5. Notification Service
 
+--------------------------------
+
+## 1.Guest:
 A user who has not yet logged into their account.
 
 ### Permissions
@@ -14,5 +17,56 @@ A user who has not yet logged into their account.
 - Search products
 - View product details
 - Contact Support
+- View articles
+- View user reviews
 - Register
 - Login
+
+---------------------------------
+
+## 2.Customer:
+Has a user account.
+
+### Permissions
+
+- Browse products
+- Search for products
+- Add product to cart
+- Remove product from cart
+- Manage cart
+- Place order
+- Pay for order
+- View order history
+- Submit a review
+- Manage profile
+- Manage addresses
+- View product details
+- View notifications
+- View articles
+- View user reviews
+- Apply discount code
+
+----------------------------------
+
+## 3. Admin:
+System Administrator.
+
+### Permissions
+
+- User management
+- Vendor management
+- Management of categories
+- Product management
+- Management of orders
+- Management of reviews
+- Management of reports
+- Suspension of users
+- Manage comments
+- Management of articles
+- Manage filters
+- Management of discounts
+- Management of roles
+- Warehouse management
+- Dashboard statistics and sales analytics
+
+-----------------------------------
