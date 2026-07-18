@@ -3,8 +3,9 @@
 ## 1. Guest
 ## 2. Customer
 ## 3. Admin
-## 4. Payment Gateway
-## 5. Notification Service
+## 4. Seller
+## 5. Payment Gateway
+## 6. Notification Service
 
 --------------------------------
 
@@ -71,7 +72,22 @@ System Administrator.
 
 -----------------------------------
 
-## 4.Payment Gateway
+## 4.Seller
+Vendor System
+
+### Permissions
+
+- Create products
+- Update own products
+- Delete own products
+- Manage inventory
+- View own orders
+- View sales reports
+- Manage discounts
+
+-----------------------------------
+
+## 5.Payment Gateway
 External payment system
 
 ### Responsibilities
@@ -82,7 +98,7 @@ External payment system
 
 -----------------------------------
 
-## 5. Notification Service
+## 6. Notification Service
 Message sending system
 
 ### Responsibilities

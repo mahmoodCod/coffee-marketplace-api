@@ -4,8 +4,8 @@
 
 The goal of this project is to design and develop an API for an online marketplace dedicated to coffee and related equipment.
 
-The system facilitates the buying and selling of coffee products, enabling customers to browse items, place orders, and complete payments.
+The system enables customers to browse products, place orders, and complete payments securely and efficiently.
 
-while the system administrator is responsible for monitoring, user management, and controlling various system components.
+The platform also provides administrative capabilities for user management, product management, order processing, and overall system monitoring.
 
-The primary objective is to create an extensible, secure, and scalable platform for managing sales processes, order placement, and interactions between customers.
+The primary objective is to build a secure, scalable, and maintainable platform that simplifies the management of products, orders, payments, and customer interactions.
