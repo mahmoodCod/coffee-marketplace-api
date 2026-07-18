@@ -48,7 +48,7 @@ Has a user account.
 
 ----------------------------------
 
-## 3. Admin:
+## 3.Admin:
 System Administrator.
 
 ### Permissions
@@ -70,3 +70,23 @@ System Administrator.
 - Dashboard statistics and sales analytics
 
 -----------------------------------
+
+## 4.Payment Gateway
+External payment system
+
+### Responsibilities
+
+- Verify payment
+- Confirm payment
+- Reject payment
+
+-----------------------------------
+
+## 5. Notification Service
+Message sending system
+
+### Responsibilities
+
+- Send email
+- Send SMS
+- Send notifications
