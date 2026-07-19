@@ -63,3 +63,32 @@
 - An order item belongs to one product.
 
 --------------------------------------------
+
+## Payment
+
+- A payment belongs to one order.
+
+--------------------------------------------
+
+## Review
+
+- A review belongs to one user.
+- A review belongs to one product.
+
+--------------------------------------------
+
+## Discount
+
+- A discount can belong to many products.
+
+--------------------------------------------
+
+## Address
+
+- An address belongs to one user.
+
+--------------------------------------------
+
+## Notification
+
+- A notification belongs to one user.
