@@ -26,3 +26,40 @@
 - A product can have many discounts.
 - A product can appear in many cart items.
 - A product can appear in many order items.
+
+--------------------------------------------
+
+## Category
+
+- A category has many products.
+
+--------------------------------------------
+
+## Cart
+
+- A cart belongs to one user.
+- A cart has many cart items.
+
+--------------------------------------------
+
+## CartItem
+
+- A cart item belongs to one cart.
+- A cart item belongs to one product.
+
+--------------------------------------------
+
+## Order
+
+- An order belongs to one user.
+- An order has many order items.
+- An order has one payment.
+
+--------------------------------------------
+
+## OrderItem
+
+- An order item belongs to one order.
+- An order item belongs to one product.
+
+--------------------------------------------
