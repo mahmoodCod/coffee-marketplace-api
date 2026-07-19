@@ -10,9 +10,10 @@
 
 ## Products
 
-- Products with zero inventory cannot be purchased.
-- Product prices cannot be negative.
-- Every product must belong to at least one category.
+- Products with zero stock cannot be purchased.
+- Product prices cannot be left blank.
+- Each product must belong to at least one category.
+- Products cannot be purchased without registering.
 
 ---
 
@@ -50,5 +51,6 @@
 
 ## Notifications
 
-- Users receive notifications after successful payment.
-- Users receive notifications when the order status changes.
+- Users receive a notification after a successful payment.
+- Users receive a notification when their order status changes.
+- Users receive a notification upon successful registration.
