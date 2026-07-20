@@ -6,6 +6,7 @@
 - Role
 - Product
 - Category
+- Inventory
 - Cart
 - CartItem
 - Order
@@ -15,6 +16,7 @@
 - Notification
 - Address
 - Discount
+- Coupon
 - Article
 
 -------------------------------
@@ -35,6 +37,10 @@ User ── Notification
 
 Product ── Category
 
+Product ── Inventory
+
 Product ── Discount
+
+Order ── Coupon
 
 Order ── Payment
