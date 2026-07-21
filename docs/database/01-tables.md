@@ -108,3 +108,32 @@
 - updated_at
 
 --------------------------
+
+## cart_items
+
+- id
+- cart_id
+- product_id
+- quantity
+- unit_price
+- created_at
+- updated_at
+
+--------------------------
+
+## orders
+
+- id
+- user_id
+- coupon_id
+- status
+- total_price
+- shipping_address_id
+- tracking_code
+- shipped_at
+- delivered_at
+- paid_at
+- created_at
+- updated_at
+
+--------------------------
