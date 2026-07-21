@@ -80,3 +80,31 @@
 - deleted_at
 
 --------------------------
+
+## product_categories
+
+- product_id
+- category_id
+
+--------------------------
+
+## inventories
+
+- id
+- product_id
+- stock
+- reserved_stock
+- created_at
+- updated_at
+
+--------------------------
+
+## carts
+
+- id
+- user_id
+- status
+- created_at
+- updated_at
+
+--------------------------
