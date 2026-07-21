@@ -128,6 +128,7 @@
 - coupon_id
 - status
 - total_price
+- final_price
 - shipping_address_id
 - tracking_code
 - shipped_at
@@ -169,6 +170,7 @@
 - user_id
 - product_id
 - rating
+- is_approved
 - comment
 - created_at
 - updated_at
@@ -180,6 +182,7 @@
 - id
 - user_id
 - title
+- type
 - message
 - is_read
 - created_at
@@ -219,6 +222,8 @@
 - type
 - value
 - usage_limit
+- is_active
+- used_count
 - expires_at
 - created_at
 - updated_at
