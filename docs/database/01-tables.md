@@ -185,3 +185,65 @@
 - created_at
 
 ---------------------------
+
+## discounts
+
+- id
+- name
+- type
+- value
+- description
+- minimum_order_amount
+- maximum_discount_amount
+- usage_limit
+- used_count
+- is_active
+- start_date
+- end_date
+- created_at
+- updated_at
+
+---------------------------
+
+## product_discounts
+
+- product_id
+- discount_id
+
+---------------------------
+
+## coupons
+
+- id
+- code
+- type
+- value
+- usage_limit
+- expires_at
+- created_at
+- updated_at
+
+---------------------------
+
+## articles
+
+- id
+- author_id
+- title
+- slug
+- excerpt
+- content
+- thumbnail
+- badge
+- read_time
+- is_published
+- published_at
+- created_at
+- updated_at
+
+----------------------------
+
+## article_products
+
+- article_id
+- product_id
