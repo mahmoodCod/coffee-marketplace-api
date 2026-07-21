@@ -14,15 +14,19 @@ coupons.code
 
 articles.slug
 
+payments.order_id
+
 ----------------------------------------
 
 ## Foreign Key Indexes
 
 users.role_id
 
+addresses.user_id
+
 products.seller_id
 
-addresses.user_id
+categories.parent_id
 
 inventories.product_id
 
@@ -42,8 +46,6 @@ order_items.order_id
 
 order_items.product_id
 
-payments.order_id
-
 reviews.user_id
 
 reviews.product_id
@@ -54,11 +56,7 @@ articles.author_id
 
 ----------------------------------------
 
-## Composite Indexes
-
-cart_items (cart_id, product_id)
-
-order_items (order_id, product_id)
+## Unique Composite Indexes
 
 reviews (user_id, product_id)
 
@@ -67,6 +65,22 @@ product_categories (product_id, category_id)
 product_discounts (product_id, discount_id)
 
 article_products (article_id, product_id)
+
+----------------------------------------
+
+## Composite Indexes
+
+cart_items (cart_id, product_id)
+
+order_items (order_id, product_id)
+
+orders (user_id, created_at)
+
+orders (status, created_at)
+
+products (status, created_at)
+
+products (seller_id, status)
 
 ----------------------------------------
 
