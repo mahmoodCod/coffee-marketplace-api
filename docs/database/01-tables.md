@@ -45,6 +45,8 @@
 - slug
 - description
 - parent_id
+- sort_order
+- is_active
 - created_at
 - updated_at
 
@@ -54,16 +56,17 @@
 
 - id
 - seller_id
-- stock
 - original_price
-- discount
-- type
+- product_type
 - weight
-- relatedProducts
-- image
-- warrantyDescription
-- hasWarranty
-- howToUse
+- caffeine_level
+- flavor_notes
+- origin_country
+- sold_count
+- recommended
+- warranty_description
+- has_warranty
+- how_to_use
 - benefits
 - ingredients
 - rating
