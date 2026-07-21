@@ -137,3 +137,51 @@
 - updated_at
 
 --------------------------
+
+## order_items
+
+- id
+- order_id
+- product_id
+- quantity
+- unit_price
+- created_at
+- updated_at
+
+--------------------------
+
+## payments
+
+- id
+- order_id
+- authority
+- transaction_id
+- amount
+- status
+- paid_at
+- created_at
+
+--------------------------
+
+## reviews
+
+- id
+- user_id
+- product_id
+- rating
+- comment
+- created_at
+- updated_at
+
+---------------------------
+
+## notifications
+
+- id
+- user_id
+- title
+- message
+- is_read
+- created_at
+
+---------------------------
