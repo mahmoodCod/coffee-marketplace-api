@@ -6,6 +6,7 @@
 - Each migration must contain both up and down methods.
 - Migrations must be versioned and stored in the repository.
 - Direct modifications to the production database are not allowed.
+- Indexes and unique constraints must be created within the corresponding table migrations.
 
 ----------------------------------------
 
@@ -39,6 +40,24 @@
 
 ----------------------------------------
 
+## Constraints and Indexes
+
+The following constraints and indexes must be created during migrations:
+
+- Unique indexes.
+- Composite indexes.
+- Foreign key indexes.
+- Unique composite indexes.
+
+Examples:
+
+- users.phone
+- reviews (user_id, product_id)
+- payments.order_id
+- product_categories (product_id, category_id)
+
+----------------------------------------
+
 ## Naming Convention
 
 Migration files should follow this format:
@@ -58,6 +77,20 @@ Examples:
 - Every migration must support rollback.
 - Rollbacks must restore the previous database state.
 - Failed migrations must not leave partial changes.
+- Rollbacks must remove dependent foreign keys in the correct order.
+- Tables should be dropped in reverse migration order.
+
+----------------------------------------
+
+## ORM
+
+This project uses:
+
+- NestJS
+- TypeORM
+- PostgreSQL
+
+All migrations must follow TypeORM conventions.
 
 ----------------------------------------
 
@@ -69,3 +102,9 @@ The following data should be seeded:
 - Admin account
 - Initial categories
 - Sample products
+
+Optional seed data:
+
+- Coupons
+- Discounts
+- Articles
