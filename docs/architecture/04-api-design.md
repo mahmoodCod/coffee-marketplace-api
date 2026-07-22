@@ -12,6 +12,58 @@ POST   /auth/logout
 
 ---------------------------
 
+## Roles
+
+GET    /roles
+
+POST   /roles
+
+PATCH  /roles/:id
+
+DELETE /roles/:id
+
+----------------------------
+
+## Sellers
+
+GET    /seller/profile
+
+PATCH  /seller/profile
+
+GET    /seller/products
+
+GET    /seller/orders
+
+GET    /seller/reports
+
+----------------------------
+
+## Admin - User Management
+
+GET    /admin/users
+
+GET    /admin/users/:id
+
+PATCH  /admin/users/:id
+
+PATCH  /admin/users/:id/suspend
+
+PATCH  /admin/users/:id/activate
+
+----------------------------
+
+## Admin - Order Management
+
+GET    /admin/orders
+
+PATCH  /admin/orders/:id/status
+
+PATCH  /admin/orders/:id/ship
+
+PATCH  /admin/orders/:id/deliver
+
+----------------------------
+
 ## Users
 
 GET    /users/profile
@@ -40,7 +92,7 @@ PATCH  /products/:id
 
 DELETE /products/:id
 
-GET    /products/search
+GET /products?q=coffee
 
 -----------------------------
 
@@ -76,6 +128,8 @@ PATCH  /cart/items/:id
 
 DELETE /cart/items/:id
 
+DELETE /cart/clear
+
 ------------------------------
 
 ## Orders
@@ -96,6 +150,8 @@ POST   /payments/:orderId
 
 GET    /payments/verify
 
+POST   /payments/callback
+
 -------------------------------
 
 ## Reviews
@@ -107,6 +163,16 @@ POST   /products/:id/reviews
 PATCH  /reviews/:id
 
 DELETE /reviews/:id
+
+--------------------------------
+
+## Review Moderation
+
+GET    /admin/reviews
+
+PATCH  /admin/reviews/:id/approve
+
+PATCH  /admin/reviews/:id/reject
 
 --------------------------------
 
@@ -124,11 +190,15 @@ DELETE /discounts/:id
 
 ## Coupons
 
-POST   /coupons/apply
-
 GET    /coupons
 
 POST   /coupons
+
+PATCH  /coupons/:id
+
+DELETE /coupons/:id
+
+POST   /coupons/apply
 
 --------------------------------
 
