@@ -19,3 +19,29 @@ src/
 │   ├── migrations/
 │   ├── seeds/
 │   └── factories/
+
+├── modules/
+
+│   ├── auth/
+│   │   ├── controllers/
+│   │   ├── services/
+|   |   |-- module/
+│   │   ├── dto/
+│   │   └── entities/
+│
+│   ├── users/
+│   ├── roles/
+│   ├── sellers/
+│   ├── products/
+│   ├── categories/
+│   ├── inventories/
+│   ├── carts/
+│   ├── orders/
+│   ├── payments/
+│   ├── reviews/
+│   ├── notifications/
+│   ├── discounts/
+│   ├── coupons/
+│   ├── articles/
+│   ├── dashboard/
+│   └── reports/
