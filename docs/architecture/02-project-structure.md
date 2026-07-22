@@ -53,5 +53,6 @@ src/
 │   └── storage/
 
 ├── app.module.ts
-
+|-- app.controller.ts
+|-- app.service.ts
 └── main.ts
