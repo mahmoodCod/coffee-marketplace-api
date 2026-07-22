@@ -22,8 +22,9 @@ The architecture is designed to be scalable, maintainable, and extensible.
 
 - PostgreSQL
 - TypeORM
+- Database Migrations
 
-### Cache & Queue
+### Cache
 
 - Redis
 
@@ -35,7 +36,7 @@ The architecture is designed to be scalable, maintainable, and extensible.
 
 - Docker
 - Docker Compose
-- Docker File
+- Dockerfile
 
 ---
 
