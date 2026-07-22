@@ -10,15 +10,19 @@ The project supports the following environments:
 
 --------------------------------
 
-## Services
-
-The application consists of the following services:
+## Internal Services
 
 - API Server
 - PostgreSQL
 - Redis
+
+--------------------------------
+
+## External Services
+
 - Payment Gateway
-- Notification Service
+- SMS Provider
+- Email Provider
 
 --------------------------------
 
@@ -55,9 +59,31 @@ JWT_ACCESS_SECRET=your-access-secret
 
 JWT_REFRESH_SECRET=your-refresh-secret
 
+JWT_ACCESS_EXPIRES_IN=15m
+
+JWT_REFRESH_EXPIRES_IN=30d
+
+OTP_TTL=120
+
+PAYMENT_GATEWAY_CALLBACK_URL=http://localhost:3000/payments/callback
+
+APP_URL=http://localhost:3000
+
 SMS_API_KEY=your-sms-key
 
 PAYMENT_GATEWAY_API_KEY=your-payment-key
+
+---------------------------------
+
+## Database Migrations
+
+Database migrations are executed during deployment.
+
+Migrations can be executed:
+
+- During CI/CD pipelines
+- During container startup
+- Manually by administrators
 
 ---------------------------------
 
