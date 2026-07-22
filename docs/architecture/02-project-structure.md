@@ -45,3 +45,13 @@ src/
 │   ├── articles/
 │   ├── dashboard/
 │   └── reports/
+
+├── infrastructure/
+│   ├── sms/
+│   ├── mail/
+│   ├── payment/
+│   └── storage/
+
+├── app.module.ts
+
+└── main.ts
