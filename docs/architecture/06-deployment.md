@@ -87,6 +87,25 @@ Migrations can be executed:
 
 ---------------------------------
 
+## Secrets Management
+
+Sensitive information must not be stored in the repository.
+
+Examples:
+
+- Database passwords
+- JWT secrets
+- API keys
+- Payment credentials
+
+Secrets should be stored using:
+
+- .env files
+- Secret managers
+- Deployment platform variables
+
+----------------------------------
+
 ## Docker Containers
 
 ### API
@@ -113,10 +132,12 @@ Migrations can be executed:
 
 --------------------------------
 
-## CI/CD
+## CI/CD Pipeline
 
-Recommended tools:
+Deployment pipeline:
 
-- GitHub Actions
-- Docker Hub
-- VPS / Cloud Server
+1. Run tests
+2. Build the application
+3. Execute database migrations
+4. Build Docker images
+5. Deploy containers
