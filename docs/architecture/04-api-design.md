@@ -97,3 +97,75 @@ POST   /payments/:orderId
 GET    /payments/verify
 
 -------------------------------
+
+## Reviews
+
+GET    /products/:id/reviews
+
+POST   /products/:id/reviews
+
+PATCH  /reviews/:id
+
+DELETE /reviews/:id
+
+--------------------------------
+
+## Discounts
+
+GET    /discounts
+
+POST   /discounts
+
+PATCH  /discounts/:id
+
+DELETE /discounts/:id
+
+--------------------------------
+
+## Coupons
+
+POST   /coupons/apply
+
+GET    /coupons
+
+POST   /coupons
+
+--------------------------------
+
+## Notifications
+
+GET    /notifications
+
+PATCH  /notifications/:id/read
+
+--------------------------------
+
+## Articles
+
+GET    /articles
+
+GET    /articles/:slug
+
+POST   /articles
+
+PATCH  /articles/:id
+
+DELETE /articles/:id
+
+--------------------------------
+
+## Dashboard
+
+GET    /dashboard/statistics
+
+GET    /dashboard/sales
+
+--------------------------------
+
+## Reports
+
+GET    /reports/orders
+
+GET    /reports/products
+
+GET    /reports/users
