@@ -1,30 +1,82 @@
 # Authentication Flow
 
-## User Registration
+## Registration Request
+
+Endpoint:
+
+POST /auth/register
+
+Flow:
 
 1. The user enters their phone number.
 2. The system validates the phone number.
-3. An OTP code is generated.
-4. The OTP code is sent via SMS.
-5. The user submits the OTP code.
-6. The system verifies the OTP.
-7. A new user account is created.
-8. Access and refresh tokens are generated.
+3. The system checks whether the phone number already exists.
+4. An OTP code is generated and stored in Redis.
+5. The OTP code is sent via SMS.
 
-----------------------------------------------
+----------------------------------------
 
-## User Login
+## Login Request
+
+Endpoint:
+
+POST /auth/login
+
+Flow:
 
 1. The user enters their phone number.
-2. The system generates an OTP code.
-3. The OTP code is sent via SMS.
-4. The user submits the OTP code.
-5. The system verifies the OTP.
-6. Access and refresh tokens are generated.
+2. The system checks whether the account exists.
+3. An OTP code is generated and stored in Redis.
+4. The OTP code is sent via SMS.
 
-----------------------------------------------
+----------------------------------------
+
+## OTP Verification
+
+Endpoint:
+
+POST /auth/verify-otp
+
+Flow:
+
+1. The user submits the OTP code.
+2. The system validates the OTP code.
+3. The OTP expiration time is checked.
+4. The system verifies that the OTP has not been used before.
+
+If the request originated from registration:
+
+* A new user account is created.
+* The default role is set to Customer.
+
+If the request originated from login:
+
+* The existing account is authenticated.
+
+After successful verification:
+
+* Access token is generated.
+* Refresh token is generated.
+
+------------------------------------------
+
+## Token Refresh
+
+Endpoint:
+
+POST /auth/refresh
+
+Flow:
+
+1. The user sends the refresh token.
+2. The system validates the refresh token.
+3. A new access token is generated.
+
+------------------------------------------
 
 ## Authentication
+
+Protected endpoints require authentication.
 
 The client includes the access token in the request headers.
 
@@ -32,29 +84,38 @@ Example:
 
 Authorization: Bearer <access_token>
 
-----------------------------------------------
+------------------------------------------
 
 ## Authorization
 
 The system validates:
 
-- User authentication
-- User role
-- User permissions
+* User authentication
+* User role
+* User permissions
 
-----------------------------------------------
+------------------------------------------
 
 ## Logout
+
+Endpoint:
+
+POST /auth/logout
+
+Flow:
 
 1. The refresh token is revoked.
 2. The user session is terminated.
 
-----------------------------------------------
+------------------------------------------
 
 ## Security Rules
 
-- OTP codes expire after a limited time.
-- OTP codes can only be used once.
-- Access tokens have a short lifetime.
-- Refresh tokens have a longer lifetime.
-- Protected endpoints require authentication.
+* OTP codes expire after a limited time.
+* OTP codes can only be used once.
+* OTP codes are stored in Redis.
+* Access tokens have a short lifetime.
+* Refresh tokens have a longer lifetime.
+* OTP requests are rate-limited.
+* The number of incorrect attempts is limited.
+* Protected endpoints require authentication.
