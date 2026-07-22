@@ -56,3 +56,5 @@ src/
 |-- app.controller.ts
 |-- app.service.ts
 └── main.ts
+
+All modules follow the same internal structure as the Authentication module and may contain controllers, services, DTOs, entities, and repositories.

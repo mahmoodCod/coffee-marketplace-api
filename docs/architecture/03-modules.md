@@ -8,7 +8,7 @@ Responsible for:
 - User registration
 - OTP verification
 - JWT token generation
-- Authentication and authorization
+- User authorization
 
 -------------------------------------
 
@@ -27,7 +27,8 @@ Responsible for:
 Responsible for:
 
 - Managing system roles
-- Assigning roles to users
+- Role permissions
+- Authorization rules
 
 -------------------------------------
 
@@ -94,9 +95,10 @@ Responsible for:
 
 Responsible for:
 
-- Payment processing
-- Payment verification
-- Payment status management
+- Creating payment records
+- Managing payment status
+- Communicating with the payment gateway
+- Verifying payment results
 
 -------------------------------------
 
@@ -123,8 +125,9 @@ Responsible for:
 
 Responsible for:
 
-- Sending notifications
-- Managing user notifications
+- Creating notifications
+- Managing notification history
+- Communicating with external SMS and email providers
 
 -------------------------------------
 
