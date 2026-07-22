@@ -1,0 +1,60 @@
+# Project Structure
+
+src/
+
+├── common/
+│   ├── decorators/
+│   ├── guards/
+│   ├── interceptors/
+│   ├── filters/
+|   |-- pipes/
+|   |-- middlewares/
+│   ├── exceptions/
+│   ├── constants/
+│   └── utils/
+
+├── config/
+
+├── database/
+│   ├── migrations/
+│   ├── seeds/
+│   └── factories/
+
+├── modules/
+
+│   ├── auth/
+│   │   ├── controllers/
+│   │   ├── services/
+|   |   |-- module/
+│   │   ├── dto/
+│   │   └── entities/
+│
+│   ├── users/
+│   ├── roles/
+│   ├── sellers/
+│   ├── products/
+│   ├── categories/
+│   ├── inventories/
+│   ├── carts/
+│   ├── orders/
+│   ├── payments/
+│   ├── reviews/
+│   ├── notifications/
+│   ├── discounts/
+│   ├── coupons/
+│   ├── articles/
+│   ├── dashboard/
+│   └── reports/
+
+├── infrastructure/
+│   ├── sms/
+│   ├── mail/
+│   ├── payment/
+│   └── storage/
+
+├── app.module.ts
+|-- app.controller.ts
+|-- app.service.ts
+└── main.ts
+
+All modules follow the same internal structure as the Authentication module and may contain controllers, services, DTOs, entities, and repositories.
