@@ -108,3 +108,66 @@ Responsible for:
 - Selecting shipping addresses
 
 -------------------------------------
+
+## Review Module
+
+Responsible for:
+
+- Creating reviews
+- Editing reviews
+- Viewing reviews
+
+-------------------------------------
+
+## Notification Module
+
+Responsible for:
+
+- Sending notifications
+- Managing user notifications
+
+-------------------------------------
+
+## Discount Module
+
+Responsible for:
+
+- Product discounts
+- Discount management
+
+-------------------------------------
+
+## Coupon Module
+
+Responsible for:
+
+- Coupon generation
+- Coupon validation
+- Coupon usage tracking
+
+-------------------------------------
+
+## Article Module
+
+Responsible for:
+
+- Managing articles
+- Publishing content
+
+-------------------------------------
+
+## Dashboard Module
+
+Responsible for:
+
+- Dashboard statistics
+- Sales analytics
+
+-------------------------------------
+
+## Report Module
+
+Responsible for:
+
+- Generating reports
+- Monitoring system activity
