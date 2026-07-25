@@ -8,6 +8,7 @@ import { configuration, validationSchema } from './config';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env',
       load: [configuration],
       validationSchema: validationSchema,
       expandVariables: true,
