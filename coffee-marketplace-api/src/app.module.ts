@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { configuration, validationSchema } from './config';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { configuration, validationSchema } from './config';
       validationSchema: validationSchema,
       expandVariables: true,
     }),
+    DatabaseModule,
   ],
   controllers: [AppController],
   providers: [AppService],
