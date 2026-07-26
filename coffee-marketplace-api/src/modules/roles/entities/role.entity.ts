@@ -42,7 +42,7 @@ export class Role {
    * Optional description used by administrators
    * to explain the purpose of the role.
    */
-  @Column({ nullable: true, length: 255, type: 'text' })
+  @Column({ nullable: true, type: 'text' })
   description?: string;
 
   /**

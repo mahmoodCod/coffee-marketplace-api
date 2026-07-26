@@ -19,7 +19,7 @@ export default new DataSource({
 
   logging: false,
 
-  entities: ['dist/**/*.entity.ts'],
+  entities: ['src/modules/**/*.entity.ts'],
 
-  migrations: ['dist/database/migrations/*.ts'],
+  migrations: ['src/database/migrations/*.ts'],
 });
