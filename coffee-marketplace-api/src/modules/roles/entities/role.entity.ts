@@ -15,7 +15,7 @@ import {
  * throughout the Coffee Marketplace platform.
  */
 @Entity('roles')
-export class RoleEntity {
+export class Role {
   /**
    * Unique identifier for the role.
    *

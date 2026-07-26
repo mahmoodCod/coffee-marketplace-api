@@ -4,7 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { configuration, validationSchema } from './config';
 import { DatabaseModule } from './database/database.module';
-import { RolesModule } from './modules/roles/role.module';
+import { RolesModule } from './modules/roles/roles.module';
 
 @Module({
   imports: [
