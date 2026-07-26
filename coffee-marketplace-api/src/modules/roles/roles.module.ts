@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Role } from './entities/role.entity';
+import { RolesRepository } from './repositories/roles.repository';
 
 /**
  * Registers all dependencies related to the Roles feature.
@@ -10,5 +11,9 @@ import { Role } from './entities/role.entity';
  */
 @Module({
   imports: [TypeOrmModule.forFeature([Role])],
+
+  providers: [RolesRepository],
+
+  exports: [RolesRepository],
 })
 export class RolesModule {}
