@@ -1,11 +1,43 @@
 import { NestFactory } from '@nestjs/core';
+
+import { ValidationPipe } from '@nestjs/common';
+
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+
 import { AppModule } from './app.module';
-import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  const configService = app.get(ConfigService);
 
-  await app.listen(configService.get<number>('app.port') ?? 3000);
+  /**
+   * Global Validation
+   */
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
+
+  /**
+   * Swagger Configuration
+   */
+  const config = new DocumentBuilder()
+    .setTitle('Coffee Marketplace API')
+    .setDescription('RESTful API for Coffee Marketplace Platform')
+    .setVersion('1.0.0')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+
+  SwaggerModule.setup('api/docs', app, document);
+
+  await app.listen(3000);
+
+  console.log(`🚀 Server running: http://localhost:3000`);
+
+  console.log(`📘 Swagger: http://localhost:3000/api/docs`);
 }
+
 bootstrap();
