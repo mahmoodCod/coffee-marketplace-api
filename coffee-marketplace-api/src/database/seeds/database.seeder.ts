@@ -20,4 +20,7 @@ class DatabaseSeeder {
   }
 }
 
-new DatabaseSeeder().run();
+new DatabaseSeeder().run().catch((error) => {
+  console.error('❌ Database seeding failed:', error);
+  process.exit(1);
+});
