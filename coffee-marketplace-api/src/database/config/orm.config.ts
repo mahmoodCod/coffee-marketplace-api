@@ -18,5 +18,9 @@ export const getTypeOrmConfig = (
 
   synchronize: false,
 
-  logging: false,
+  logging: true,
+
+  entities: ['dist/**/*.entity.ts'],
+
+  migrations: ['dist/database/migrations/*.ts'],
 });
