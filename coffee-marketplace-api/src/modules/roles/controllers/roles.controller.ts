@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
 } from '@nestjs/common';
@@ -67,7 +68,7 @@ export class RolesController {
   @ApiOkResponse({
     type: RoleResponseDto,
   })
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.rolesService.findById(id);
   }
 
@@ -93,7 +94,7 @@ export class RolesController {
     summary: 'Update role',
   })
   async update(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
 
     @Body() dto: UpdateRoleDto,
   ) {
@@ -107,7 +108,7 @@ export class RolesController {
   @ApiOperation({
     summary: 'Delete role',
   })
-  async delete(@Param('id') id: string) {
+  async delete(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.rolesService.delete(id);
   }
 }
