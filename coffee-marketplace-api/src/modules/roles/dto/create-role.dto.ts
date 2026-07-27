@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsNotEmpty,
   IsOptional,
@@ -25,6 +26,12 @@ export class CreateRoleDto {
    * - seller
    * - customer
    */
+  @ApiProperty({
+    example: 'seller',
+    description: 'Unique name of the system role.',
+    minLength: 3,
+    maxLength: 50,
+  })
   @IsString()
   @IsNotEmpty()
   @MinLength(3)
@@ -34,6 +41,11 @@ export class CreateRoleDto {
   /**
    * Optional role description.
    */
+  @ApiPropertyOptional({
+    example: 'Coffee shop owner with product management permissions.',
+    description: 'Short description of the role.',
+    maxLength: 500,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(500)
