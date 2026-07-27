@@ -16,6 +16,8 @@ POST   /auth/logout
 
 GET    /roles
 
+GET    /roles/:id
+
 POST   /roles
 
 PATCH  /roles/:id

@@ -17,7 +17,9 @@ src/
 
 ├── database/
 │   ├── migrations/
+|   |-- config/
 │   ├── seeds/
+|   |-- subscribers/
 │   └── factories/
 
 ├── modules/
@@ -26,6 +28,7 @@ src/
 │   │   ├── controllers/
 │   │   ├── services/
 |   |   |-- module/
+|   |   |-- test/
 │   │   ├── dto/
 │   │   └── entities/
 │
