@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 
-import { JwtPayload } from '../interfaces/jwt-payload.interface';
+import { JwtPayload } from '.././interfaces/jwt-payload.interface';
+import { StringValue } from 'ms';
 
 /**
  * ------------------------------------------------------------------------
@@ -35,7 +36,7 @@ export class JwtTokenService {
     return this.jwtService.signAsync(payload, {
       secret: this.configService.getOrThrow<string>('jwt.secret'),
 
-      expiresIn: this.configService.getOrThrow<string>('jwt.expiresIn'),
+      expiresIn: this.configService.getOrThrow<StringValue>('jwt.expiresIn'),
     });
   }
 
@@ -46,7 +47,9 @@ export class JwtTokenService {
     return this.jwtService.signAsync(payload, {
       secret: this.configService.getOrThrow<string>('jwt.refreshSecret'),
 
-      expiresIn: this.configService.getOrThrow<string>('jwt.refreshExpiresIn'),
+      expiresIn: this.configService.getOrThrow<StringValue>(
+        'jwt.refreshExpiresIn',
+      ),
     });
   }
 
