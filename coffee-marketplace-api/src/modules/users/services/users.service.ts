@@ -9,6 +9,7 @@ import { User } from '../entities/user.entity';
 import { UsersRepository } from '../repositories/users.repository';
 
 import { RolesRepository } from '../../roles/repositories/roles.repository';
+import { CreateUserDto } from '../dto';
 
 /**
  * ------------------------------------------------------------------------
@@ -69,30 +70,28 @@ export class UsersService {
    * - ConflictException
    * - NotFoundException
    */
-  async create(payload: Partial<User>): Promise<User> {
+  async create(dto: CreateUserDto): Promise<User> {
     /**
      * Check duplicate phone number.
      */
-    const exists = await this.usersRepository.findByPhone(payload.phone!);
+    const exists = await this.usersRepository.findByPhone(dto.phone);
 
     if (exists) {
       throw new ConflictException(
-        `Phone number "${payload.phone}" already exists.`,
+        `Phone number "${dto.phone}" already exists.`,
       );
     }
 
     /**
      * Validate role.
      */
-    const role = await this.rolesRepository.findById(payload.role!.id);
+    const role = await this.rolesRepository.findById(dto.roleId);
 
     if (!role) {
       throw new NotFoundException('Selected role does not exist.');
     }
 
-    payload.role = role;
-
-    return this.usersRepository.create(payload);
+    return this.usersRepository.create(dto);
   }
 
   /**
