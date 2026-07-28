@@ -1,8 +1,10 @@
+import { User } from 'src/modules/users/entities/user.entity';
 import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -74,4 +76,10 @@ export class Role {
     nullable: true,
   })
   deletedAt?: Date;
+
+  /**
+   * Users that belong to this role.
+   */
+  @OneToMany(() => User, (user) => user.role)
+  users: User[];
 }
