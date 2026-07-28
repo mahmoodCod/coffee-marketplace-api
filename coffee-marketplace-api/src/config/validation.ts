@@ -18,4 +18,10 @@ export const validationSchema = Joi.object({
 
   JWT_ACCESS_SECRET: Joi.string().min(32).required(),
   JWT_REFRESH_SECRET: Joi.string().min(32).required(),
+
+  OTP_LENGTH: Joi.number().default(6),
+  OTP_EXPIRES_IN: Joi.number().default(120),
+
+  SMS_API_KEY: Joi.string().allow('').optional(),
+  SMS_SENDER: Joi.string().allow('').optional(),
 });
