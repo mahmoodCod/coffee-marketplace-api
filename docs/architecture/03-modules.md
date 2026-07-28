@@ -4,11 +4,13 @@
 
 Responsible for:
 
-- User login
-- User registration
+- Registration OTP requests
+- Login OTP requests
 - OTP verification
 - JWT token generation
-- User authorization
+- Refresh token management
+- Logout
+- User authentication
 
 -------------------------------------
 
@@ -16,9 +18,11 @@ Responsible for:
 
 Responsible for:
 
-- Managing user profiles
-- Updating personal information
-- User status management
+- Get current user profile
+- Update current user profile
+- Manage user addresses
+- Upload avatar (future)
+- Change profile information
 
 -------------------------------------
 
