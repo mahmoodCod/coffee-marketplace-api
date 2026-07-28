@@ -68,17 +68,17 @@ PATCH  /admin/orders/:id/deliver
 
 ## Users
 
-GET    /users/profile
+GET     /users/profile
 
-PATCH  /users/profile
+PATCH   /users/profile
 
-GET    /users/addresses
+GET     /users/addresses
 
-POST   /users/addresses
+POST    /users/addresses
 
-PATCH  /users/addresses/:id
+PATCH   /users/addresses/:id
 
-DELETE /users/addresses/:id
+DELETE  /users/addresses/:id
 
 ----------------------------
 
