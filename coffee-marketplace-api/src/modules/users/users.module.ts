@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { User } from './entities/user.entity';
+import { UsersRepository } from './repositories/users.repository';
 
 /**
  * ------------------------------------------------------------------------
@@ -29,8 +30,8 @@ import { User } from './entities/user.entity';
 
   controllers: [],
 
-  providers: [],
+  providers: [UsersRepository],
 
-  exports: [TypeOrmModule],
+  exports: [UsersRepository, TypeOrmModule],
 })
 export class UsersModule {}
