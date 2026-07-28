@@ -10,6 +10,8 @@ POST   /auth/verify-otp
 
 POST   /auth/logout
 
+POST /auth/refresh
+
 ---------------------------
 
 ## Roles

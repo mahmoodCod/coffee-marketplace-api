@@ -1,6 +1,6 @@
 # Authentication Flow
 
-## Registration Request
+## Registration OTP Request
 
 Endpoint:
 
@@ -57,6 +57,8 @@ After successful verification:
 
 * Access token is generated.
 * Refresh token is generated.
+* Refresh token is stored securely.
+* User session is created.
 
 ------------------------------------------
 
@@ -104,8 +106,8 @@ POST /auth/logout
 
 Flow:
 
-1. The refresh token is revoked.
-2. The user session is terminated.
+1. Stored refresh token is removed or revoked.
+2. User session is terminated.
 
 ------------------------------------------
 
@@ -119,3 +121,5 @@ Flow:
 * OTP requests are rate-limited.
 * The number of incorrect attempts is limited.
 * Protected endpoints require authentication.
+* Refresh tokens are stored securely.
+* JWT secrets are stored in environment variables.

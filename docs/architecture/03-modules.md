@@ -4,11 +4,13 @@
 
 Responsible for:
 
-- User login
-- User registration
+- Registration OTP requests
+- Login OTP requests
 - OTP verification
 - JWT token generation
-- User authorization
+- Refresh token management
+- Logout
+- User authentication
 
 -------------------------------------
 
