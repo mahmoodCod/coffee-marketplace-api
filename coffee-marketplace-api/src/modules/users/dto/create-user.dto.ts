@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsPhoneNumber, IsUUID } from 'class-validator';
+import { IsEnum, IsMobilePhone, IsNotEmpty, IsPhoneNumber, IsUUID } from 'class-validator';
 
 import { UserStatus } from '../enums/user-status.enum';
 
@@ -19,7 +19,7 @@ export class CreateUserDto {
     example: '989121234567',
     description: 'User phone number (E.164 format)',
   })
-  @IsPhoneNumber()
+  @IsMobilePhone('fa-IR')
   phone: string;
 
   @ApiProperty({
@@ -27,7 +27,7 @@ export class CreateUserDto {
     enum: UserStatus,
   })
   @IsEnum(UserStatus)
-  status: UserStatus;
+  status?: UserStatus;
 
   @ApiProperty({
     example: '9f9dbf3c-3db0-44ff-b4f4-5f7f48b84791',

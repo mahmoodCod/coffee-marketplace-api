@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 
-import { UsersService } from '../../users/services/users.service';
+import { UsersService } from '../../users/services/user.service';
 
 import { JwtTokenService } from './jwt-token.service';
 import { OtpService } from './otp.service';
