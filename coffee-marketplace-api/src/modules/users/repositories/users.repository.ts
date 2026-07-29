@@ -9,15 +9,16 @@ import { User } from '../entities/user.entity';
  * Users Repository
  * ------------------------------------------------------------------------
  *
- * Handles all database operations related to users.
+ * Responsible only for database communication related to User entity.
  *
- * Responsibilities:
- * - Reading users
- * - Creating users
+ * Repository responsibilities:
+ * - Querying users
+ * - Persisting users
  * - Updating users
  * - Removing users
  *
- * Business rules MUST NOT exist here.
+ * Business logic must NOT exist here.
+ * Business rules belong to UsersService.
  * ------------------------------------------------------------------------
  */
 @Injectable()
@@ -28,31 +29,37 @@ export class UsersRepository {
   ) {}
 
   /**
-   * Returns every user.
-   */
-  async findAll(): Promise<User[]> {
-    return this.repository.find();
-  }
-
-  /**
-   * Finds one user by UUID.
+   * Finds a user by UUID.
+   *
+   * Used for:
+   * - Loading current authenticated user
+   * - User profile operations
    */
   async findById(id: string): Promise<User | null> {
     return this.repository.findOne({
       where: {
         id,
       },
+      relations: ['role'],
     });
   }
 
   /**
-   * Finds one user by phone number.
+   * Finds a user by phone number.
+   *
+   * Used by Auth module during login.
+   *
+   * Example:
+   * User enters phone number
+   * AuthService calls this method
+   * User is validated
    */
   async findByPhone(phone: string): Promise<User | null> {
     return this.repository.findOne({
       where: {
         phone,
       },
+      relations: ['role'],
     });
   }
 
@@ -60,13 +67,17 @@ export class UsersRepository {
    * Creates a new user.
    */
   async create(payload: Partial<User>): Promise<User> {
-    const entity = this.repository.create(payload);
+    const user = this.repository.create(payload);
 
-    return this.repository.save(entity);
+    return this.repository.save(user);
   }
 
   /**
    * Saves an existing user.
+   *
+   * Used for:
+   * - Updating profile
+   * - Updating user state
    */
   async save(user: User): Promise<User> {
     return this.repository.save(user);
@@ -76,7 +87,10 @@ export class UsersRepository {
    * Removes a user.
    *
    * NOTE:
-   * Soft delete will be implemented later.
+   * Currently using hard delete.
+   *
+   * Soft delete will be implemented later
+   * when business requirements are defined.
    */
   async remove(user: User): Promise<User> {
     return this.repository.remove(user);
