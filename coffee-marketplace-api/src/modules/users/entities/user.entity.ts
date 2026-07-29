@@ -5,12 +5,14 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { Role } from '../../roles/entities/role.entity';
 import { UserStatus } from '../enums/user-status.enum';
+import { Address } from './address.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -20,43 +22,42 @@ import { UserStatus } from '../enums/user-status.enum';
  * Represents every authenticated person in the Coffee Marketplace.
  *
  * Responsibilities:
- * - Stores the user's identity.
- * - Stores authentication information.
- * - Connects the user to a system role.
+ * - Stores identity (phone, optional display name)
+ * - Stores account status
+ * - Links the user to exactly one Role
  *
  * Authentication:
- * Users authenticate using their mobile phone number.
+ * Users authenticate with mobile phone OTP (handled by Auth module).
  *
  * Notes:
- * - Mobile numbers are stored using E.164 format.
- * - Every user must have exactly one role.
- * - Soft delete is enabled.
+ * - Phone numbers are stored in E.164 without "+" (e.g. 989123456789)
+ * - Soft delete is enabled via deleted_at
  *
- * Future Relationships:
- * - User → Addresses
- * - User → Orders
- * - User → Reviews
- * - User → Notifications
+ * Relationships:
+ * - User → Role (ManyToOne)
+ * - User → Addresses (OneToMany)
  * ------------------------------------------------------------------------
  */
-
 @Entity({
   name: 'users',
 })
 export class User {
-  /**
-   * Primary UUID identifier.
-   */
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   /**
-   * Mobile phone number.
-   *
-   * Stored using E.164 format.
-   *
-   * Example:
-   * 989121234567
+   * Optional display name shown on the user profile.
+   */
+  @Column({
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  name: string | null;
+
+  /**
+   * Mobile phone number (unique).
+   * Example: 989123456789
    */
   @Column({
     unique: true,
@@ -65,7 +66,7 @@ export class User {
   phone: string;
 
   /**
-   * Current user account status.
+   * Current account lifecycle status.
    */
   @Column({
     type: 'enum',
@@ -75,7 +76,7 @@ export class User {
   status: UserStatus;
 
   /**
-   * Every user belongs to one role.
+   * Every user belongs to exactly one role.
    */
   @ManyToOne(() => Role, {
     nullable: false,
@@ -87,24 +88,21 @@ export class User {
   role: Role;
 
   /**
-   * Record creation timestamp.
+   * Delivery / billing addresses owned by this user.
    */
+  @OneToMany(() => Address, (address) => address.user)
+  addresses: Address[];
+
   @CreateDateColumn({
     name: 'created_at',
   })
   createdAt: Date;
 
-  /**
-   * Last update timestamp.
-   */
   @UpdateDateColumn({
     name: 'updated_at',
   })
   updatedAt: Date;
 
-  /**
-   * Soft delete timestamp.
-   */
   @DeleteDateColumn({
     name: 'deleted_at',
   })

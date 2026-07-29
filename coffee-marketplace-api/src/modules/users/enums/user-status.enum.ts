@@ -15,7 +15,6 @@
  * The account is suspended due to policy violations.
  * ------------------------------------------------------------------------
  */
-
 export enum UserStatus {
   ACTIVE = 'active',
 
