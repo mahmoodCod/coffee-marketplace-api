@@ -4,6 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { UsersRepository } from './repositories/users.repository';
 import { RolesModule } from '../roles/roles.module';
+import { UsersController } from './controllers/user.controller';
+import { UsersService } from './services/user.service';
 /**
  * ------------------------------------------------------------------------
  * Users Module
@@ -28,10 +30,10 @@ import { RolesModule } from '../roles/roles.module';
 @Module({
   imports: [TypeOrmModule.forFeature([User]), RolesModule],
 
-  controllers: [],
+  controllers: [UsersController],
 
-  providers: [UsersRepository],
+  providers: [UsersRepository, UsersService],
 
-  exports: [UsersRepository],
+  exports: [UsersRepository, UsersService],
 })
 export class UsersModule {}
