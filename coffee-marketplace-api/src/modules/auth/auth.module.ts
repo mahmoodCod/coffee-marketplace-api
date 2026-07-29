@@ -6,6 +6,7 @@ import { UsersModule } from '../users/users.module';
 import { RolesModule } from '../roles/roles.module';
 
 import { JwtTokenService } from './services/jwt-token.service';
+import { OtpService } from './services/otp.service';
 
 /**
  * ------------------------------------------------------------------------
@@ -42,8 +43,8 @@ import { JwtTokenService } from './services/jwt-token.service';
 
   controllers: [],
 
-  providers: [JwtTokenService],
+  providers: [JwtTokenService, OtpService],
 
-  exports: [JwtTokenService],
+  exports: [JwtTokenService, OtpService],
 })
 export class AuthModule {}
