@@ -20,6 +20,5 @@ export class VerifyOtpDto {
     example: '123456',
   })
   @IsString()
-  @Length(6, 6)
   otp: string;
 }
