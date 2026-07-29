@@ -5,6 +5,8 @@ import { StringValue } from 'ms';
 
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
 
+type TokenClaims = Omit<JwtPayload, 'tokenUse'>;
+
 /**
  * ------------------------------------------------------------------------
  * JWT Token Service
@@ -18,18 +20,17 @@ import { JwtPayload } from '../interfaces/jwt-payload.interface';
  *   jwt.refreshSecret     JWT_REFRESH_SECRET
  *   jwt.refreshExpiresIn  JWT_REFRESH_EXPIRES_IN  (e.g. "30d")
  *
- * Why this service exists:
- *   AuthService must not call Nest JwtService directly.
- *   Keeping secrets + expiry here avoids duplicated JWT logic.
+ * Security:
+ *   Every token embeds tokenUse = "access" | "refresh".
+ *   verifyAccessToken / JwtStrategy reject refresh tokens.
+ *   Prefer DIFFERENT values for JWT_ACCESS_SECRET and JWT_REFRESH_SECRET.
  *
  * Refresh token tracking:
  *   Newly issued refresh tokens are stored in an in-memory Set.
- *   verifyRefreshToken rejects tokens that are not in that Set
- *   (covers logout / unknown tokens).
+ *   verifyRefreshToken rejects tokens that are not in that Set.
  *
  * TODO before production:
- *   Replace in-memory Set with Redis (or DB) so tokens survive restarts
- *   and work across multiple app instances.
+ *   Replace in-memory Set with Redis so tokens survive restarts.
  * ------------------------------------------------------------------------
  */
 @Injectable()
@@ -48,8 +49,13 @@ export class JwtTokenService {
   /**
    * Creates a short-lived access token used on protected endpoints.
    */
-  async generateAccessToken(payload: JwtPayload): Promise<string> {
-    return this.jwtService.signAsync(payload, {
+  async generateAccessToken(payload: TokenClaims): Promise<string> {
+    const claims: JwtPayload = {
+      ...payload,
+      tokenUse: 'access',
+    };
+
+    return this.jwtService.signAsync(claims, {
       secret: this.configService.getOrThrow<string>('jwt.accessSecret'),
       expiresIn: this.configService.getOrThrow<StringValue>(
         'jwt.accessExpiresIn',
@@ -60,8 +66,13 @@ export class JwtTokenService {
   /**
    * Creates a long-lived refresh token and tracks it for later revoke/verify.
    */
-  async generateRefreshToken(payload: JwtPayload): Promise<string> {
-    const token = await this.jwtService.signAsync(payload, {
+  async generateRefreshToken(payload: TokenClaims): Promise<string> {
+    const claims: JwtPayload = {
+      ...payload,
+      tokenUse: 'refresh',
+    };
+
+    const token = await this.jwtService.signAsync(claims, {
       secret: this.configService.getOrThrow<string>('jwt.refreshSecret'),
       expiresIn: this.configService.getOrThrow<StringValue>(
         'jwt.refreshExpiresIn',
@@ -74,14 +85,22 @@ export class JwtTokenService {
   }
 
   /**
-   * Verifies access token signature + expiry.
+   * Verifies access token signature, expiry, and tokenUse === access.
    */
   async verifyAccessToken(token: string): Promise<JwtPayload> {
     try {
-      return await this.jwtService.verifyAsync<JwtPayload>(token, {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
         secret: this.configService.getOrThrow<string>('jwt.accessSecret'),
       });
-    } catch {
+
+      this.assertTokenUse(payload, 'access');
+
+      return payload;
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
       throw new UnauthorizedException('Invalid or expired access token.');
     }
   }
@@ -90,6 +109,7 @@ export class JwtTokenService {
    * Verifies refresh token is:
    *   1) still tracked (not logged out / unknown)
    *   2) cryptographically valid and not expired
+   *   3) tokenUse === refresh
    */
   async verifyRefreshToken(token: string): Promise<JwtPayload> {
     if (!this.refreshTokens.has(token)) {
@@ -97,11 +117,20 @@ export class JwtTokenService {
     }
 
     try {
-      return await this.jwtService.verifyAsync<JwtPayload>(token, {
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
         secret: this.configService.getOrThrow<string>('jwt.refreshSecret'),
       });
-    } catch {
+
+      this.assertTokenUse(payload, 'refresh');
+
+      return payload;
+    } catch (error) {
       this.refreshTokens.delete(token);
+
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+
       throw new UnauthorizedException('Invalid or expired refresh token.');
     }
   }
@@ -119,5 +148,16 @@ export class JwtTokenService {
    */
   decode(token: string): JwtPayload | null {
     return this.jwtService.decode(token) as JwtPayload | null;
+  }
+
+  private assertTokenUse(
+    payload: JwtPayload,
+    expected: JwtPayload['tokenUse'],
+  ): void {
+    if (payload.tokenUse !== expected) {
+      throw new UnauthorizedException(
+        `Invalid token type. Expected ${expected} token.`,
+      );
+    }
   }
 }

@@ -6,6 +6,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
+import { ConfigService } from '@nestjs/config';
+
 import { AuthService } from '../services/auth.service';
 import { OtpService } from '../services/otp.service';
 import { JwtTokenService } from '../services/jwt-token.service';
@@ -20,8 +22,9 @@ import { usersRepositoryMock } from './mocks/users.repository.mock';
 import { rolesRepositoryMock } from './mocks/roles.repository.mock';
 import { otpServiceMock } from './mocks/otp.service.mock';
 import { jwtTokenServiceMock } from './mocks/jwt-token.service.mock';
-import { NotificationService } from 'src/modules/notifications/services/notification.service';
-import { NotificationType } from 'src/modules/notifications/enums/notification-type.enum';
+import { NotificationService } from '../../../modules/notifications/services/notification.service';
+import { NotificationType } from '../../../modules/notifications/enums/notification-type.enum';
+import { User } from 'src/modules/users/entities/user.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -30,10 +33,17 @@ import { NotificationType } from 'src/modules/notifications/enums/notification-t
  *
  * Verifies every business rule implemented inside AuthService.
  *
- * UsersRepository, RolesRepository, OtpService, and JwtTokenService
- * are completely mocked.
+ * UsersRepository, RolesRepository, OtpService, JwtTokenService,
+ * and ConfigService are completely mocked.
  * ------------------------------------------------------------------------
  */
+
+const notificationServiceMock = {
+  createNotification: jest.fn().mockResolvedValue({ id: 'notif-id' }),
+  send: jest.fn().mockResolvedValue(undefined),
+  findAllForUser: jest.fn().mockResolvedValue([]),
+  markAsRead: jest.fn().mockResolvedValue(undefined),
+};
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -51,6 +61,13 @@ describe('AuthService', () => {
   };
 
   const phone = '09123456789';
+  /**
+   * Client may send local Iranian format.
+   * AuthService normalizes it to E.164 without "+".
+   */
+  const inputPhone = '09123456789';
+
+  const normalizedPhone = '989123456789';
 
   const customerRole = {
     id: 'role-1',
@@ -61,19 +78,21 @@ describe('AuthService', () => {
   const activeUser = {
     id: 'user-1',
 
-    phone,
+    phone: normalizedPhone,
 
     status: UserStatus.ACTIVE,
 
     role: customerRole,
   };
 
+  const configServiceMock = {
+    get: jest.fn().mockReturnValue('development'),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
-    notificationService = {
-      createNotification: jest.fn(),
-    };
+    configServiceMock.get.mockReturnValue('development');
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -101,7 +120,12 @@ describe('AuthService', () => {
 
         {
           provide: NotificationService,
-          useValue: notificationService,
+          useValue: notificationServiceMock,
+        },
+
+        {
+          provide: ConfigService,
+          useValue: configServiceMock,
         },
       ],
     }).compile();
@@ -141,14 +165,14 @@ describe('AuthService', () => {
 
       otpService.getExpiration.mockReturnValue(120);
 
-      const result = await service.register({ phone });
+      const result = await service.register({ phone: inputPhone });
 
-      expect(usersRepository.findByPhone).toHaveBeenCalledWith(phone);
+      expect(usersRepository.findByPhone).toHaveBeenCalledWith(normalizedPhone);
 
       expect(otpService.generate).toHaveBeenCalled();
 
       expect(otpService.save).toHaveBeenCalledWith(
-        phone,
+        normalizedPhone,
         '123456',
         OtpPurpose.REGISTER,
       );
@@ -165,7 +189,7 @@ describe('AuthService', () => {
     it('should throw ConflictException when phone already exists', async () => {
       usersRepository.findByPhone.mockResolvedValue(activeUser as any);
 
-      await expect(service.register({ phone })).rejects.toThrow(
+      await expect(service.register({ phone: inputPhone })).rejects.toThrow(
         ConflictException,
       );
 
@@ -187,10 +211,10 @@ describe('AuthService', () => {
 
       otpService.getExpiration.mockReturnValue(120);
 
-      const result = await service.login({ phone });
+      const result = await service.login({ phone: inputPhone });
 
       expect(otpService.save).toHaveBeenCalledWith(
-        phone,
+        normalizedPhone,
         '654321',
         OtpPurpose.LOGIN,
       );
@@ -201,7 +225,9 @@ describe('AuthService', () => {
     it('should throw NotFoundException when user does not exist', async () => {
       usersRepository.findByPhone.mockResolvedValue(null);
 
-      await expect(service.login({ phone })).rejects.toThrow(NotFoundException);
+      await expect(service.login({ phone: inputPhone })).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw UnauthorizedException when user is not active', async () => {
@@ -211,7 +237,7 @@ describe('AuthService', () => {
         status: UserStatus.BLOCKED,
       } as any);
 
-      await expect(service.login({ phone })).rejects.toThrow(
+      await expect(service.login({ phone: inputPhone })).rejects.toThrow(
         UnauthorizedException,
       );
     });
@@ -238,7 +264,7 @@ describe('AuthService', () => {
       jwtTokenService.generateRefreshToken.mockResolvedValue('refresh-token');
 
       const result = await service.verifyOtp({
-        phone,
+        phone: inputPhone,
 
         otp: '123456',
 
@@ -246,7 +272,7 @@ describe('AuthService', () => {
       });
 
       expect(otpService.verify).toHaveBeenCalledWith(
-        phone,
+        normalizedPhone,
         '123456',
         OtpPurpose.REGISTER,
       );
@@ -284,7 +310,7 @@ describe('AuthService', () => {
       jwtTokenService.generateRefreshToken.mockResolvedValue('refresh-token');
 
       const result = await service.verifyOtp({
-        phone,
+        phone: inputPhone,
 
         otp: '123456',
 
@@ -305,7 +331,7 @@ describe('AuthService', () => {
 
       await expect(
         service.verifyOtp({
-          phone,
+          phone: inputPhone,
 
           otp: '123456',
 
@@ -323,7 +349,7 @@ describe('AuthService', () => {
 
       await expect(
         service.verifyOtp({
-          phone,
+          phone: inputPhone,
 
           otp: '123456',
 
@@ -339,7 +365,7 @@ describe('AuthService', () => {
 
       await expect(
         service.verifyOtp({
-          phone,
+          phone: inputPhone,
 
           otp: '123456',
 
@@ -359,7 +385,7 @@ describe('AuthService', () => {
 
       await expect(
         service.verifyOtp({
-          phone,
+          phone: inputPhone,
 
           otp: '123456',
 
@@ -389,7 +415,7 @@ describe('AuthService', () => {
 
       usersRepository.create.mockResolvedValue(user);
 
-      notificationService.createNotification.mockResolvedValue({
+      notificationServiceMock.createNotification.mockResolvedValue({
         id: 'notification-id',
       });
 
@@ -403,7 +429,7 @@ describe('AuthService', () => {
         purpose: OtpPurpose.REGISTER,
       });
 
-      expect(notificationService.createNotification).toHaveBeenCalledWith(
+      expect(notificationServiceMock.createNotification).toHaveBeenCalledWith(
         user.id,
         'Registration Successful',
         NotificationType.REGISTRATION,
@@ -423,9 +449,11 @@ describe('AuthService', () => {
       jwtTokenService.verifyRefreshToken.mockResolvedValue({
         sub: activeUser.id,
 
-        phone,
+        phone: normalizedPhone,
 
         role: 'customer',
+
+        tokenUse: 'refresh',
       });
 
       usersRepository.findById.mockResolvedValue(activeUser as any);
@@ -445,9 +473,11 @@ describe('AuthService', () => {
       jwtTokenService.verifyRefreshToken.mockResolvedValue({
         sub: activeUser.id,
 
-        phone,
+        phone: normalizedPhone,
 
         role: 'customer',
+
+        tokenUse: 'refresh',
       });
 
       usersRepository.findById.mockResolvedValue(null);
@@ -467,9 +497,11 @@ describe('AuthService', () => {
       jwtTokenService.verifyRefreshToken.mockResolvedValue({
         sub: activeUser.id,
 
-        phone,
+        phone: normalizedPhone,
 
         role: 'customer',
+
+        tokenUse: 'refresh',
       });
 
       usersRepository.findById.mockResolvedValue({

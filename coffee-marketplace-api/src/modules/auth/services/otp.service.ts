@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomInt } from 'crypto';
 
 import { OtpPurpose } from '../enums/otp-purpose.enum';
 
@@ -15,6 +16,7 @@ interface StoredOtp {
   code: string;
   purpose: OtpPurpose;
   expiresAt: number;
+  attempts: number;
 }
 
 /**
@@ -30,11 +32,15 @@ interface StoredOtp {
  *
  * Storage key format:
  *   `${purpose}:${phone}`
- *   example: "register:09123456789"
+ *   example: "register:989121234567"
  *
  * Current storage:
  *   In-memory Map — fine for local development, lost on restart,
  *   and not shared across multiple server instances.
+ *
+ * Security:
+ *   - OTP generated with crypto.randomInt (not Math.random)
+ *   - Wrong guesses are counted; after MAX_ATTEMPTS the OTP is deleted
  *
  * TODO:
  *   Move save/verify to Redis with TTL = otp.expiresIn.
@@ -42,6 +48,8 @@ interface StoredOtp {
  */
 @Injectable()
 export class OtpService {
+  private static readonly MAX_ATTEMPTS = 5;
+
   private readonly store = new Map<string, StoredOtp>();
 
   constructor(private readonly configService: ConfigService) {}
@@ -55,7 +63,7 @@ export class OtpService {
     const min = Math.pow(10, length - 1);
     const max = Math.pow(10, length) - 1;
 
-    return Math.floor(min + Math.random() * (max - min)).toString();
+    return randomInt(min, max + 1).toString();
   }
 
   /**
@@ -87,6 +95,7 @@ export class OtpService {
       code,
       purpose,
       expiresAt: Date.now() + expiresInMs,
+      attempts: 0,
     });
   }
 
@@ -96,7 +105,8 @@ export class OtpService {
    * Failures:
    *   - missing / already used
    *   - expired
-   *   - wrong code
+   *   - wrong code (counts toward MAX_ATTEMPTS)
+   *   - too many wrong attempts
    */
   verify(phone: string, code: string, purpose: OtpPurpose): void {
     this.validateFormat(code);
@@ -114,6 +124,16 @@ export class OtpService {
     }
 
     if (stored.code !== code) {
+      stored.attempts += 1;
+
+      if (stored.attempts >= OtpService.MAX_ATTEMPTS) {
+        this.store.delete(key);
+        throw new UnauthorizedException(
+          'Too many invalid OTP attempts. Request a new code.',
+        );
+      }
+
+      this.store.set(key, stored);
       throw new UnauthorizedException('Invalid OTP code.');
     }
 

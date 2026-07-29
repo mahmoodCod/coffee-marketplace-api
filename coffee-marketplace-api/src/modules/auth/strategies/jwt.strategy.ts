@@ -4,6 +4,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 import { UsersRepository } from '../../users/repositories/users.repository';
+import { UserStatus } from '../../users/enums/user-status.enum';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
 
 /**
@@ -23,16 +24,13 @@ import { JwtPayload } from '../interfaces/jwt-payload.interface';
  *           +--> verify signature with jwt.accessSecret
  *           +--> reject if expired (ignoreExpiration=false)
  *           +--> validate(payload):
+ *                  reject if tokenUse !== access
  *                  load user by payload.sub
- *                  reject if user deleted
+ *                  reject if user missing or not ACTIVE
  *                  return JwtPayload -> attached as request.user
  *           |
  *           v
  *   Controller can read user via @CurrentUser()
- *
- * Important:
- *   Uses UsersRepository (not UsersService) so Auth stays independent
- *   from incomplete UsersService helpers.
  * ------------------------------------------------------------------------
  */
 @Injectable()
@@ -53,16 +51,25 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * Whatever we return becomes `request.user`.
    */
   async validate(payload: JwtPayload): Promise<JwtPayload> {
+    if (payload.tokenUse !== 'access') {
+      throw new UnauthorizedException('Invalid access token.');
+    }
+
     const user = await this.usersRepository.findById(payload.sub);
 
     if (!user) {
       throw new UnauthorizedException('User no longer exists.');
     }
 
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('User account is not active.');
+    }
+
     return {
       sub: user.id,
       phone: user.phone,
       role: user.role.name,
+      tokenUse: 'access',
     };
   }
 }

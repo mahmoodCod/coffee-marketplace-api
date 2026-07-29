@@ -4,6 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { UsersService } from '../../users/services/user.service';
 import { UsersRepository } from '../../users/repositories/users.repository';
@@ -39,6 +40,7 @@ import { NotificationType } from 'src/modules/notifications/enums/notification-t
  *        +--> RolesRepository    (resolve default "customer" role)
  *
  * Important business rules:
+ *   - Phones are normalized to E.164 without "+" (e.g. 989121234567)
  *   - Register rejects phones that already exist
  *   - Login rejects missing or non-ACTIVE users
  *   - verify-otp with purpose=register creates a customer account
@@ -58,38 +60,31 @@ export class AuthService {
     private readonly otpService: OtpService,
     private readonly jwtTokenService: JwtTokenService,
     private readonly notificationService: NotificationService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
    * Registration OTP request.
-   *
-   * Flow:
-   *   1. Ensure phone is not already registered
-   *   2. Generate OTP with purpose=register
-   *   3. Store OTP (temporary in-memory / later Redis)
-   *   4. Return OTP response (SMS TODO)
    */
   async register(dto: RegisterDto) {
-    const exists = await this.usersRepository.findByPhone(dto.phone);
+    const phone = this.normalizePhone(dto.phone);
+
+    const exists = await this.usersRepository.findByPhone(phone);
 
     if (exists) {
       throw new ConflictException('Phone number already exists.');
     }
 
-    return this.issueOtp(dto.phone, OtpPurpose.REGISTER);
+    return this.issueOtp(phone, OtpPurpose.REGISTER);
   }
 
   /**
    * Login OTP request.
-   *
-   * Flow:
-   *   1. Ensure user exists
-   *   2. Ensure account status is ACTIVE
-   *   3. Generate OTP with purpose=login
-   *   4. Store OTP and return response (SMS TODO)
    */
   async login(dto: LoginDto) {
-    const user = await this.usersRepository.findByPhone(dto.phone);
+    const phone = this.normalizePhone(dto.phone);
+
+    const user = await this.usersRepository.findByPhone(phone);
 
     if (!user) {
       throw new NotFoundException('User with this phone number was not found.');
@@ -99,7 +94,7 @@ export class AuthService {
       throw new UnauthorizedException('User account is not active.');
     }
 
-    return this.issueOtp(dto.phone, OtpPurpose.LOGIN);
+    return this.issueOtp(phone, OtpPurpose.LOGIN);
   }
 
   /**
@@ -107,16 +102,16 @@ export class AuthService {
    *
    * purpose=register -> create customer user, then issue tokens
    * purpose=login    -> authenticate existing user, then issue tokens
-   *
-   * OTP is consumed (deleted) after a successful verification.
    */
   async verifyOtp(dto: VerifyOtpDto) {
-    this.otpService.verify(dto.phone, dto.otp, dto.purpose);
+    const phone = this.normalizePhone(dto.phone);
+
+    this.otpService.verify(phone, dto.otp, dto.purpose);
 
     let user: User;
 
     if (dto.purpose === OtpPurpose.REGISTER) {
-      user = await this.createCustomer(dto.phone);
+      user = await this.createCustomer(phone);
 
       /**
        * Create a notification after
@@ -129,7 +124,7 @@ export class AuthService {
         'Your account has been created successfully.',
       );
     } else {
-      const existing = await this.usersRepository.findByPhone(dto.phone);
+      const existing = await this.usersRepository.findByPhone(phone);
 
       if (!existing) {
         throw new NotFoundException(
@@ -160,9 +155,6 @@ export class AuthService {
 
   /**
    * Issues a new access token from a still-valid refresh token.
-   *
-   * Does not rotate the refresh token in this version.
-   * Refresh token is revoked if the user is missing or inactive.
    */
   async refreshToken(dto: RefreshTokenDto) {
     const payload = await this.jwtTokenService.verifyRefreshToken(
@@ -182,7 +174,7 @@ export class AuthService {
     }
 
     const accessToken = await this.jwtTokenService.generateAccessToken(
-      this.toPayload(user),
+      this.toClaims(user),
     );
 
     return {
@@ -192,7 +184,6 @@ export class AuthService {
 
   /**
    * Ends the session by revoking the refresh token.
-   * Access tokens already issued remain valid until they expire.
    */
   async logout(dto: RefreshTokenDto) {
     this.jwtTokenService.revokeRefreshToken(dto.refreshToken);
@@ -205,20 +196,37 @@ export class AuthService {
   /**
    * Shared OTP issuance used by register + login.
    *
-   * TODO:
-   *   - Send OTP via SMS provider (sms.apiKey / sms.sender config)
-   *   - Stop returning `otp` in the API response for production
+   * OTP value is returned only outside production so local clients
+   * can complete the flow before SMS is wired.
    */
   private async issueOtp(phone: string, purpose: OtpPurpose) {
     const otp = this.otpService.generate();
 
     this.otpService.save(phone, otp, purpose);
 
-    return {
+    const response: {
+      message: string;
+      expiresIn: number;
+      otp?: string;
+    } = {
       message: 'OTP has been sent successfully.',
       expiresIn: this.otpService.getExpiration(),
-      otp,
     };
+
+    const environment = this.configService.get<string>(
+      'app.environment',
+      'development',
+    );
+
+    if (environment !== 'production') {
+      response.otp = otp;
+    }
+
+    /**
+     * TODO: Send SMS via SMS provider (sms.apiKey / sms.sender).
+     */
+
+    return response;
   }
 
   /**
@@ -247,14 +255,13 @@ export class AuthService {
 
   /**
    * Builds access + refresh tokens for an authenticated user.
-   * Refresh token is also tracked so logout/refresh can revoke/validate it.
    */
   private async issueTokens(user: User) {
-    const payload = this.toPayload(user);
+    const claims = this.toClaims(user);
 
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtTokenService.generateAccessToken(payload),
-      this.jwtTokenService.generateRefreshToken(payload),
+      this.jwtTokenService.generateAccessToken(claims),
+      this.jwtTokenService.generateRefreshToken(claims),
     ]);
 
     return {
@@ -264,14 +271,36 @@ export class AuthService {
   }
 
   /**
-   * Maps User entity -> JWT claims.
-   * `sub` is always the user UUID.
+   * Maps User entity -> JWT claims (tokenUse is added by JwtTokenService).
    */
-  private toPayload(user: User): JwtPayload {
+  private toClaims(user: User) {
     return {
       sub: user.id,
       phone: user.phone,
       role: user.role.name,
     };
+  }
+
+  /**
+   * Normalizes Iranian mobile numbers to E.164 without "+".
+   *
+   * Examples:
+   *   09123456789    -> 989121234567
+   *   +989121234567  -> 989121234567
+   *   989121234567   -> 989121234567
+   *   9123456789     -> 989121234567
+   */
+  private normalizePhone(phone: string): string {
+    let digits = phone.replace(/\D/g, '');
+
+    if (digits.startsWith('0') && digits.length === 11) {
+      digits = `98${digits.slice(1)}`;
+    }
+
+    if (digits.startsWith('9') && digits.length === 10) {
+      digits = `98${digits}`;
+    }
+
+    return digits;
   }
 }
