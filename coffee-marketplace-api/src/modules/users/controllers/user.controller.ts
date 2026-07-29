@@ -3,8 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  HttpCode,
-  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -13,29 +11,31 @@ import {
 
 import {
   ApiCreatedResponse,
-  ApiNoContentResponse,
+  ApiOkResponse,
   ApiOperation,
-  ApiResponse,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 
-import { UsersService } from '../services/user.service';
-
 import { CreateUserDto, UpdateUserDto, UserResponseDto } from '../dto';
+
+import { UsersService } from '../services/user.service';
 
 /**
  * ------------------------------------------------------------------------
  * Users Controller
  * ------------------------------------------------------------------------
  *
- * HTTP layer for User resource.
+ * Exposes RESTful endpoints for managing users.
  *
  * Responsibilities:
- * - Handle HTTP requests
- * - Validate route parameters
- * - Delegate operations to UsersService
+ * - Receive HTTP requests
+ * - Validate incoming DTOs
+ * - Delegate business logic to UsersService
+ * - Return API responses
  *
- * Business logic MUST NOT exist here.
+ * Notes:
+ * Controllers should never contain business logic.
  * ------------------------------------------------------------------------
  */
 
@@ -45,62 +45,63 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   /**
-   * Creates a new user.
-   */
-  @Post()
-  @ApiOperation({
-    summary: 'Create a new user',
-  })
-  @ApiCreatedResponse({
-    type: UserResponseDto,
-  })
-  async create(@Body() dto: CreateUserDto): Promise<UserResponseDto> {
-    return this.usersService.create(dto);
-  }
-
-  /**
-   * Returns all users.
+   * Returns every registered user.
    */
   @Get()
   @ApiOperation({
     summary: 'Get all users',
   })
-  @ApiResponse({
-    status: 200,
-    type: [UserResponseDto],
+  @ApiOkResponse({
+    type: UserResponseDto,
+    isArray: true,
   })
-  async findAll(): Promise<UserResponseDto[]> {
+  async findAll() {
     return this.usersService.findAll();
   }
 
   /**
-   * Returns one user by id.
+   * Returns one user.
    */
   @Get(':id')
   @ApiOperation({
     summary: 'Get user by id',
   })
-  @ApiResponse({
-    status: 200,
+  @ApiParam({
+    name: 'id',
+  })
+  @ApiOkResponse({
     type: UserResponseDto,
   })
   async findOne(
     @Param('id', new ParseUUIDPipe())
     id: string,
-  ): Promise<UserResponseDto> {
+  ) {
     return this.usersService.findById(id);
   }
 
   /**
-   * Updates user information.
+   * Creates a new user.
+   */
+  @Post()
+  @ApiOperation({
+    summary: 'Create user',
+  })
+  @ApiCreatedResponse({
+    type: UserResponseDto,
+  })
+  async create(
+    @Body()
+    dto: CreateUserDto,
+  ) {
+    return this.usersService.create(dto);
+  }
+
+  /**
+   * Updates an existing user.
    */
   @Patch(':id')
   @ApiOperation({
     summary: 'Update user',
-  })
-  @ApiResponse({
-    status: 200,
-    type: UserResponseDto,
   })
   async update(
     @Param('id', new ParseUUIDPipe())
@@ -108,25 +109,21 @@ export class UsersController {
 
     @Body()
     dto: UpdateUserDto,
-  ): Promise<UserResponseDto> {
+  ) {
     return this.usersService.update(id, dto);
   }
 
   /**
-   * Deletes user.
+   * Deletes a user.
    */
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete user',
   })
-  @ApiNoContentResponse({
-    description: 'User deleted successfully',
-  })
-  async remove(
+  async delete(
     @Param('id', new ParseUUIDPipe())
     id: string,
-  ): Promise<void> {
+  ) {
     return this.usersService.delete(id);
   }
 }
