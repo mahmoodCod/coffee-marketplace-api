@@ -6,7 +6,11 @@ import { IsString } from 'class-validator';
  * Refresh Token DTO
  * ------------------------------------------------------------------------
  *
- * Receives a refresh token and generates a new access token.
+ * Body for:
+ *   POST /auth/refresh  -> issue a new access token
+ *   POST /auth/logout   -> revoke this refresh token
+ *
+ * Client must send the refreshToken previously returned by verify-otp.
  * ------------------------------------------------------------------------
  */
 export class RefreshTokenDto {

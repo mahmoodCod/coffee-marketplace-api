@@ -6,7 +6,8 @@ import { IsMobilePhone } from 'class-validator';
  * Login DTO
  * ------------------------------------------------------------------------
  *
- * Requests an OTP for user authentication.
+ * Body for POST /auth/login.
+ * Starts login by requesting an OTP for an existing phone number.
  * ------------------------------------------------------------------------
  */
 export class LoginDto {

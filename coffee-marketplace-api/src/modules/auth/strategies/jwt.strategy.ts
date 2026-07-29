@@ -1,38 +1,68 @@
-import { Injectable } from '@nestjs/common';
-
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
-import { UsersService } from '../../users/services/user.service';
-
+import { UsersRepository } from '../../users/repositories/users.repository';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
 
+/**
+ * ------------------------------------------------------------------------
+ * JWT Strategy (Passport)
+ * ------------------------------------------------------------------------
+ *
+ * Used by JwtAuthGuard on protected routes.
+ *
+ * Runtime flow for a protected request:
+ *
+ *   Authorization: Bearer <accessToken>
+ *           |
+ *           v
+ *   JwtAuthGuard  -> Passport "jwt" strategy (this class)
+ *           |
+ *           +--> verify signature with jwt.accessSecret
+ *           +--> reject if expired (ignoreExpiration=false)
+ *           +--> validate(payload):
+ *                  load user by payload.sub
+ *                  reject if user deleted
+ *                  return JwtPayload -> attached as request.user
+ *           |
+ *           v
+ *   Controller can read user via @CurrentUser()
+ *
+ * Important:
+ *   Uses UsersRepository (not UsersService) so Auth stays independent
+ *   from incomplete UsersService helpers.
+ * ------------------------------------------------------------------------
+ */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly usersService: UsersService) {
+  constructor(
+    private readonly usersRepository: UsersRepository,
+    configService: ConfigService,
+  ) {
     super({
-      // Extract JWT token from Authorization Bearer header
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-
-      // Reject expired tokens automatically
       ignoreExpiration: false,
-
-      // Secret key used to verify JWT signature
-      secretOrKey: process.env.JWT_SECRET,
+      secretOrKey: configService.getOrThrow<string>('jwt.accessSecret'),
     });
   }
 
   /**
-   * Validate JWT payload after token verification.
-   *
-   * The returned user object will be attached
-   * to request.user.
+   * Called after Passport successfully verifies the JWT.
+   * Whatever we return becomes `request.user`.
    */
-  async validate(payload: JwtPayload) {
-    // Find user by ID stored in JWT subject
-    const user = await this.usersService.findById(payload.sub);
+  async validate(payload: JwtPayload): Promise<JwtPayload> {
+    const user = await this.usersRepository.findById(payload.sub);
 
-    return user;
+    if (!user) {
+      throw new UnauthorizedException('User no longer exists.');
+    }
+
+    return {
+      sub: user.id,
+      phone: user.phone,
+      role: user.role.name,
+    };
   }
 }
