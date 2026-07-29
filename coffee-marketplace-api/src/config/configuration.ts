@@ -23,4 +23,14 @@ export default () => ({
     host: process.env.REDIS_HOST,
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
   },
+
+  otp: {
+    length: parseInt(process.env.OTP_LENGTH ?? '6', 10),
+    expiresIn: parseInt(process.env.OTP_EXPIRES_IN ?? '120', 10),
+  },
+
+  sms: {
+    apiKey: process.env.SMS_API_KEY,
+    sender: process.env.SMS_SENDER,
+  },
 });

@@ -1,2 +1,2 @@
 export { default as configuration } from './configuration';
-export { validationSchema } from './validation';
+export * from './validation';
