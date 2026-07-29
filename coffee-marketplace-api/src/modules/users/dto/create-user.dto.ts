@@ -27,7 +27,7 @@ export class CreateUserDto {
     enum: UserStatus,
   })
   @IsEnum(UserStatus)
-  status: UserStatus;
+  status?: UserStatus;
 
   @ApiProperty({
     example: '9f9dbf3c-3db0-44ff-b4f4-5f7f48b84791',
