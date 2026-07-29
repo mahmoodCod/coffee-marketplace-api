@@ -5,7 +5,7 @@ import { UsersService } from '../../users/services/user.service';
 import { JwtTokenService } from './jwt-token.service';
 import { OtpService } from './otp.service';
 
-import { RegisterDto } from '../dto';
+import { LoginDto, RefreshTokenDto, RegisterDto, VerifyOtpDto } from '../dto';
 
 /**
  * ------------------------------------------------------------------------
@@ -32,6 +32,15 @@ import { RegisterDto } from '../dto';
 
 @Injectable()
 export class AuthService {
+  login(dto: LoginDto) {
+    throw new Error('Method not implemented.');
+  }
+  refreshToken(dto: RefreshTokenDto) {
+    throw new Error('Method not implemented.');
+  }
+  verifyOtp(dto: VerifyOtpDto) {
+    throw new Error('Method not implemented.');
+  }
   constructor(
     private readonly usersService: UsersService,
 
