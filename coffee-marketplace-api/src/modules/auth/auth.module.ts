@@ -7,6 +7,7 @@ import { RolesModule } from '../roles/roles.module';
 
 import { JwtTokenService } from './services/jwt-token.service';
 import { OtpService } from './services/otp.service';
+import { AuthService } from './services/auth.service';
 
 /**
  * ------------------------------------------------------------------------
@@ -43,8 +44,8 @@ import { OtpService } from './services/otp.service';
 
   controllers: [],
 
-  providers: [JwtTokenService, OtpService],
+  providers: [JwtTokenService, OtpService, AuthService],
 
-  exports: [JwtTokenService, OtpService],
+  exports: [JwtTokenService, OtpService, AuthService],
 })
 export class AuthModule {}

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsMobilePhone, IsNotEmpty, IsPhoneNumber, IsUUID } from 'class-validator';
+import { IsEnum, IsMobilePhone, IsNotEmpty, IsUUID } from 'class-validator';
 
 import { UserStatus } from '../enums/user-status.enum';
 
