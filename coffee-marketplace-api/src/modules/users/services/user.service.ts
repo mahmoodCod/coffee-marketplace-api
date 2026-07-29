@@ -4,59 +4,36 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { User } from '../entities/user.entity';
-
 import { UsersRepository } from '../repositories/users.repository';
+import { RolesService } from '../../roles/services/roles.service';
 
-import { RolesRepository } from '../../roles/repositories/roles.repository';
+import { User } from '../entities/user.entity';
+import { CreateUserDto } from '../dto/create-user.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
+import { UserResponseDto } from '../dto/user-response.dto';
 
 /**
  * ------------------------------------------------------------------------
  * Users Service
  * ------------------------------------------------------------------------
  *
- * Business logic layer for the Users module.
+ * Business logic layer for Users module.
  *
  * Responsibilities:
- * - Validate business rules
+ * - Validate user business rules
  * - Communicate with repositories
- * - Throw domain exceptions
- * - Prepare data for controllers
+ * - Manage user-role relationship
+ * - Transform entities into response models
  *
- * Notes:
- * Database queries MUST NOT be written here.
+ * Database operations MUST NOT exist here.
  * ------------------------------------------------------------------------
  */
 @Injectable()
 export class UsersService {
   constructor(
     private readonly usersRepository: UsersRepository,
-
-    private readonly rolesRepository: RolesRepository,
+    private readonly rolesService: RolesService,
   ) {}
-
-  /**
-   * Returns every registered user.
-   */
-  async findAll(): Promise<User[]> {
-    return this.usersRepository.findAll();
-  }
-
-  /**
-   * Returns one user.
-   *
-   * Throws:
-   * - NotFoundException
-   */
-  async findById(id: string): Promise<User> {
-    const user = await this.usersRepository.findById(id);
-
-    if (!user) {
-      throw new NotFoundException(`User with id "${id}" was not found.`);
-    }
-
-    return user;
-  }
 
   /**
    * Creates a new user.
@@ -64,60 +41,136 @@ export class UsersService {
    * Business Rules:
    * - Phone number must be unique.
    * - Role must exist.
-   *
-   * Throws:
-   * - ConflictException
-   * - NotFoundException
    */
-  async create(payload: Partial<User>): Promise<User> {
-    /**
-     * Check duplicate phone number.
-     */
-    const exists = await this.usersRepository.findByPhone(payload.phone!);
+  async create(dto: CreateUserDto): Promise<UserResponseDto> {
+    const existingUser = await this.usersRepository.findByPhone(dto.phone);
 
-    if (exists) {
+    if (existingUser) {
       throw new ConflictException(
-        `Phone number "${payload.phone}" already exists.`,
+        `User with phone "${dto.phone}" already exists.`,
       );
     }
 
-    /**
-     * Validate role.
-     */
-    const role = await this.rolesRepository.findById(payload.role!.id);
+    const role = await this.rolesService.findById(dto.roleId);
 
-    if (!role) {
-      throw new NotFoundException('Selected role does not exist.');
+    const user = await this.usersRepository.create({
+      phone: dto.phone,
+      status: dto.status,
+      role,
+    });
+
+    return this.toResponse(user);
+  }
+
+  /**
+   * Returns all users.
+   */
+  async findAll(): Promise<UserResponseDto[]> {
+    const users = await this.usersRepository.findAll();
+
+    return users.map((user) => this.toResponse(user));
+  }
+
+  /**
+   * Returns one user by UUID.
+   */
+  async findById(id: string): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findById(id);
+
+    if (!user) {
+      throw new NotFoundException(`User with id "${id}" was not found.`);
     }
 
-    payload.role = role;
+    return this.toResponse(user);
+  }
 
-    return this.usersRepository.create(payload);
+  /**
+   * Finds user by phone number.
+   *
+   * Used mostly by authentication flows.
+   */
+  async findByPhone(phone: string): Promise<User> {
+    const user = await this.usersRepository.findByPhone(phone);
+
+    if (!user) {
+      throw new NotFoundException(`User with phone "${phone}" was not found.`);
+    }
+
+    return user;
   }
 
   /**
    * Updates an existing user.
    *
-   * Throws:
-   * - NotFoundException
+   * Business Rules:
+   * - User must exist.
+   * - New role must exist if provided.
+   * - Phone duplication must be prevented.
    */
-  async update(id: string, payload: Partial<User>): Promise<User> {
-    const user = await this.findById(id);
+  async update(id: string, dto: UpdateUserDto): Promise<UserResponseDto> {
+    const user = await this.usersRepository.findById(id);
 
-    Object.assign(user, payload);
+    if (!user) {
+      throw new NotFoundException(`User with id "${id}" was not found.`);
+    }
 
-    return this.usersRepository.save(user);
+    if (dto.phone && dto.phone !== user.phone) {
+      const phoneExists = await this.usersRepository.findByPhone(dto.phone);
+
+      if (phoneExists) {
+        throw new ConflictException(
+          `User with phone "${dto.phone}" already exists.`,
+        );
+      }
+
+      user.phone = dto.phone;
+    }
+
+    if (dto.status) {
+      user.status = dto.status;
+    }
+
+    if (dto.roleId) {
+      const role = await this.rolesService.findById(dto.roleId);
+
+      user.role = role;
+    }
+
+    const updatedUser = await this.usersRepository.save(user);
+
+    return this.toResponse(updatedUser);
   }
 
   /**
    * Deletes a user.
    *
-   * Throws:
-   * - NotFoundException
+   * Currently performs hard delete because
+   * repository remove() uses TypeORM remove().
+   *
+   * Can be replaced with softRemove later.
    */
   async delete(id: string): Promise<void> {
-    const user = await this.findById(id);
+    const user = await this.usersRepository.findById(id);
+
+    if (!user) {
+      throw new NotFoundException(`User with id "${id}" was not found.`);
+    }
 
     await this.usersRepository.remove(user);
+  }
+
+  /**
+   * Maps User Entity to Response DTO.
+   *
+   * Prevents leaking internal entity structure.
+   */
+  private toResponse(user: User): UserResponseDto {
+    return {
+      id: user.id,
+      phone: user.phone,
+      status: user.status,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
   }
 }
