@@ -38,6 +38,10 @@ GET    /seller/products
 
 GET    /seller/orders
 
+GET    /seller/orders/:id
+
+PATCH  /orders/:id/received
+
 GET    /seller/reports
 
 ----------------------------
@@ -82,35 +86,51 @@ PATCH   /users/addresses/:id
 
 DELETE  /users/addresses/:id
 
-----------------------------
+-----------------------------
 
 ## Products
 
-GET    /products
+Customer
 
-GET    /products/:id
+GET   /products
 
-POST   /products
+GET   /products/:id
 
-PATCH  /products/:id
+-----------------------------
 
-DELETE /products/:id
+Seller
 
-GET /products?q=coffee
+POST   /seller/products
+
+PATCH  /seller/products/:id
+
+DELETE /seller/products/:id
+
+GET    /seller/products
+
+-----------------------------
+
+Admin
+
+GET    /admin/products
+
+PATCH  /admin/products/:id
+
+DELETE /admin/products/:id
 
 -----------------------------
 
 ## Categories
 
+POST   /admin/categories
+
 GET    /categories
 
 GET    /categories/:id
 
-POST   /categories
+PATCH  /admin/categories/:id
 
-PATCH  /categories/:id
-
-DELETE /categories/:id
+DELETE /admin/categories/:id
 
 ------------------------------
 
@@ -118,7 +138,9 @@ DELETE /categories/:id
 
 GET    /inventory/:productId
 
-PATCH  /inventory/:productId
+PATCH  /seller/inventory/:productId
+
+PATCH  /admin/inventory/:productId
 
 ------------------------------
 
@@ -160,13 +182,21 @@ POST   /payments/callback
 
 ## Reviews
 
-GET    /products/:id/reviews
+Customer
 
-POST   /products/:id/reviews
-
-PATCH  /reviews/:id
+PATCH /reviews/:id
 
 DELETE /reviews/:id
+
+-------------------------------
+
+Admin
+
+GET /admin/reviews
+
+PATCH /admin/reviews/:id/approve
+
+PATCH /admin/reviews/:id/reject
 
 --------------------------------
 
@@ -182,27 +212,31 @@ PATCH  /admin/reviews/:id/reject
 
 ## Discounts
 
-GET    /discounts
+GET    /admin/discounts
 
-POST   /discounts
+POST   /seller/discounts
 
-PATCH  /discounts/:id
+PATCH  /seller/discounts/:id
 
-DELETE /discounts/:id
+DELETE /seller/discounts/:id
 
 --------------------------------
 
 ## Coupons
 
-GET    /coupons
+GET /admin/coupons
 
-POST   /coupons
+POST /admin/coupons
 
-PATCH  /coupons/:id
+PATCH /admin/coupons/:id
 
-DELETE /coupons/:id
+DELETE /admin/coupons/:id
 
-POST   /coupons/apply
+--------------------------------
+
+Customer
+
+POST /coupons/apply
 
 --------------------------------
 
@@ -230,16 +264,20 @@ DELETE /articles/:id
 
 ## Dashboard
 
-GET    /dashboard/statistics
+GET  /admin/dashboard/statistics
 
-GET    /dashboard/sales
+GET  /admin/dashboard/sales
+
+--------------------------------
+
+GET  /seller/dashboard
 
 --------------------------------
 
 ## Reports
 
-GET    /reports/orders
+GET  /admin/reports/orders
 
-GET    /reports/products
+GET  /admin/reports/products
 
-GET    /reports/users
+GET  /admin/reports/users
