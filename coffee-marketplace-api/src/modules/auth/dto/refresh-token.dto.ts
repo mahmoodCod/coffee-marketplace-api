@@ -6,12 +6,17 @@ import { IsString } from 'class-validator';
  * Refresh Token DTO
  * ------------------------------------------------------------------------
  *
- * Receives a refresh token and issues a new access token.
+ * Body for:
+ *   POST /auth/refresh  -> issue a new access token
+ *   POST /auth/logout   -> revoke this refresh token
+ *
+ * Client must send the refreshToken previously returned by verify-otp.
  * ------------------------------------------------------------------------
  */
 export class RefreshTokenDto {
   @ApiProperty({
-    description: 'Refresh token',
+    example: 'eyJhbGciOiJIUzI1NiIs...',
+    description: 'JWT refresh token',
   })
   @IsString()
   refreshToken: string;
