@@ -6,7 +6,7 @@
 - Only authenticated users can submit reviews.
 - Users can only manage their own profiles.
 
----
+-------------------------------
 
 ## Products
 
@@ -15,7 +15,7 @@
 - Each product must belong to at least one category.
 - Products cannot be purchased without registering.
 
----
+-------------------------------
 
 ## Shopping Cart
 
@@ -23,7 +23,7 @@
 - An order cannot be created from an empty cart.
 - The quantity of products in the cart cannot exceed the inventory.
 
----
+-------------------------------
 
 ## Orders
 
@@ -32,7 +32,7 @@
 - Inventory decreases only after successful payment.
 - Orders cannot be canceled after shipment.
 
----
+-------------------------------
 
 ## Discounts
 
@@ -40,17 +40,25 @@
 - Expired discount codes cannot be applied.
 - A discount code cannot reduce the final price below zero.
 
----
+------------------------------
 
 ## Reviews
 
 - Customers can review a product only after purchasing it.
 - Users can only edit their own reviews.
 
----
+------------------------------
 
 ## Notifications
 
 - Users receive a notification after a successful payment.
 - Users receive a notification when their order status changes.
 - Users receive a notification upon successful registration.
+
+-------------------------------
+
+## Categories
+
+- A category name must be unique.
+- A category slug must be unique.
+- A category cannot be deleted if it contains products.
