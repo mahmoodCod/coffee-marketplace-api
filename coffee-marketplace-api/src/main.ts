@@ -45,6 +45,7 @@ async function bootstrap() {
     .setTitle('Coffee Marketplace API')
     .setDescription('RESTful API for Coffee Marketplace Platform')
     .setVersion('1.0.0')
+    .addBearerAuth()
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

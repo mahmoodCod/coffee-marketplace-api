@@ -9,16 +9,8 @@ import { User } from '../entities/user.entity';
  * Users Repository
  * ------------------------------------------------------------------------
  *
- * Responsible only for database communication related to User entity.
- *
- * Repository responsibilities:
- * - Querying users
- * - Persisting users
- * - Updating users
- * - Removing users
- *
- * Business logic must NOT exist here.
- * Business rules belong to UsersService.
+ * Database access for the User entity only.
+ * Business rules belong in UsersService.
  * ------------------------------------------------------------------------
  */
 @Injectable()
@@ -29,11 +21,7 @@ export class UsersRepository {
   ) {}
 
   /**
-   * Finds a user by UUID.
-   *
-   * Used for:
-   * - Loading current authenticated user
-   * - User profile operations
+   * Finds a user by UUID (with role relation).
    */
   async findById(id: string): Promise<User | null> {
     return this.repository.findOne({
@@ -45,14 +33,8 @@ export class UsersRepository {
   }
 
   /**
-   * Finds a user by phone number.
-   *
-   * Used by Auth module during login.
-   *
-   * Example:
-   * User enters phone number
-   * AuthService calls this method
-   * User is validated
+   * Finds a user by phone number (with role relation).
+   * Used heavily by the Auth module.
    */
   async findByPhone(phone: string): Promise<User | null> {
     return this.repository.findOne({
@@ -64,7 +46,7 @@ export class UsersRepository {
   }
 
   /**
-   * Creates a new user.
+   * Persists a new user.
    */
   async create(payload: Partial<User>): Promise<User> {
     const user = this.repository.create(payload);
@@ -73,26 +55,16 @@ export class UsersRepository {
   }
 
   /**
-   * Saves an existing user.
-   *
-   * Used for:
-   * - Updating profile
-   * - Updating user state
+   * Saves changes on an existing user entity.
    */
   async save(user: User): Promise<User> {
     return this.repository.save(user);
   }
 
   /**
-   * Removes a user.
-   *
-   * NOTE:
-   * Currently using hard delete.
-   *
-   * Soft delete will be implemented later
-   * when business requirements are defined.
+   * Soft-deletes a user (sets deleted_at).
    */
-  async remove(user: User): Promise<User> {
-    return this.repository.remove(user);
+  async softRemove(user: User): Promise<User> {
+    return this.repository.softRemove(user);
   }
 }

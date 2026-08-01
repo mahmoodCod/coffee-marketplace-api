@@ -1,38 +1,39 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { User } from './entities/user.entity';
-import { UsersRepository } from './repositories/users.repository';
 import { RolesModule } from '../roles/roles.module';
-import { UsersController } from './controllers/user.controller';
+
+import { User } from './entities/user.entity';
+import { Address } from './entities/address.entity';
+import { UsersRepository } from './repositories/users.repository';
+import { AddressesRepository } from './repositories/addresses.repository';
 import { UsersService } from './services/user.service';
+import { UsersController } from './controllers/user.controller';
+
 /**
  * ------------------------------------------------------------------------
  * Users Module
  * ------------------------------------------------------------------------
  *
  * Responsibilities:
- * - Register User entity
- * - Register Repository layer
- * - Register Service layer
- * - Register Controller layer
+ * - User profile (GET / PATCH /users/profile)
+ * - User addresses CRUD under /users/addresses
  *
- * Notes:
- * This module is responsible for user profile management.
+ * Exported for Auth and other modules:
+ * - UsersRepository
+ * - UsersService
  *
- * Future Extensions:
- * - Addresses
- * - User Settings
- * - Profile Images
+ * Future:
+ * - Avatar upload
+ * - User settings
  * ------------------------------------------------------------------------
  */
-
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), RolesModule],
+  imports: [TypeOrmModule.forFeature([User, Address]), RolesModule],
 
   controllers: [UsersController],
 
-  providers: [UsersRepository, UsersService],
+  providers: [UsersRepository, AddressesRepository, UsersService],
 
   exports: [UsersRepository, UsersService],
 })

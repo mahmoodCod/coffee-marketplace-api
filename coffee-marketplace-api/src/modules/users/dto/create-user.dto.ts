@@ -1,3 +1,11 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsEnum,
+  IsMobilePhone,
+  IsNotEmpty,
+  IsOptional,
+  IsUUID,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsMobilePhone, IsNotEmpty, IsPhoneNumber, IsUUID } from 'class-validator';
 import { IsEnum, IsMobilePhone, IsNotEmpty, IsUUID } from 'class-validator';
@@ -9,24 +17,23 @@ import { UserStatus } from '../enums/user-status.enum';
  * Create User DTO
  * ------------------------------------------------------------------------
  *
- * Used for creating a new user.
- *
- * Notes:
- * Phone numbers must follow the E.164 standard.
+ * Internal / admin-oriented payload for creating a user record.
+ * Public registration is handled by the Auth module (OTP flow).
  * ------------------------------------------------------------------------
  */
 export class CreateUserDto {
   @ApiProperty({
-    example: '989121234567',
-    description: 'User phone number (E.164 format)',
+    example: '09123456789',
+    description: 'User mobile phone number (fa-IR)',
   })
   @IsMobilePhone('fa-IR')
   phone: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: UserStatus.ACTIVE,
     enum: UserStatus,
   })
+  @IsOptional()
   @IsEnum(UserStatus)
   status?: UserStatus;
 
