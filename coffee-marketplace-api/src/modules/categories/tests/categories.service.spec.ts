@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 
 import { CategoriesService } from '../services/categories.service';
 import { CategoriesRepository } from '../repositories/categories.repository';
@@ -124,6 +124,105 @@ describe('CategoriesService', () => {
       mockCategoriesRepository.findById.mockResolvedValue(null);
 
       await expect(service.findById('1')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  /**
+   * ========================================================================
+   * create()
+   * ========================================================================
+   */
+
+  describe('create', () => {
+    /**
+     * Should create a new category successfully.
+     */
+    it('should create category', async () => {
+      // Arrange
+
+      const dto = {
+        name: 'Coffee',
+        slug: 'coffee',
+        description: 'Coffee category',
+        parentId: null,
+        sortOrder: 1,
+        isActive: true,
+      };
+
+      const createdCategory = {
+        id: '1',
+        ...dto,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockCategoriesRepository.findByName.mockResolvedValue(null);
+
+      mockCategoriesRepository.findBySlug.mockResolvedValue(null);
+
+      mockCategoriesRepository.create.mockResolvedValue(createdCategory);
+
+      // Act
+
+      const result = await service.create(dto);
+
+      // Assert
+
+      expect(result).toEqual(createdCategory);
+
+      expect(repository.findByName).toHaveBeenCalledWith(dto.name);
+
+      expect(repository.findBySlug).toHaveBeenCalledWith(dto.slug);
+
+      expect(repository.create).toHaveBeenCalledWith(dto);
+    });
+
+    /**
+     * Should throw ConflictException
+     * when category name already exists.
+     */
+    it('should throw ConflictException when category name already exists', async () => {
+      // Arrange
+
+      mockCategoriesRepository.findByName.mockResolvedValue({
+        id: '1',
+      });
+
+      // Act & Assert
+
+      await expect(
+        service.create({
+          name: 'Coffee',
+          slug: 'coffee',
+        } as any),
+      ).rejects.toThrow(ConflictException);
+
+      expect(repository.findByName).toHaveBeenCalled();
+    });
+
+    /**
+     * Should throw ConflictException
+     * when category slug already exists.
+     */
+    it('should throw ConflictException when category slug already exists', async () => {
+      // Arrange
+
+      mockCategoriesRepository.findByName.mockResolvedValue(null);
+
+      mockCategoriesRepository.findBySlug.mockResolvedValue({
+        id: '1',
+      });
+
+      // Act & Assert
+
+      await expect(
+        service.create({
+          name: 'Coffee',
+          slug: 'coffee',
+        } as any),
+      ).rejects.toThrow(ConflictException);
+
+      expect(repository.findBySlug).toHaveBeenCalled();
     });
   });
 });
