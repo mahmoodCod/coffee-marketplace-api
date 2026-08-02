@@ -356,4 +356,53 @@ describe('CategoriesService', () => {
       ).rejects.toThrow(ConflictException);
     });
   });
+
+  /**
+   * ========================================================================
+   * remove()
+   * ========================================================================
+   */
+
+  describe('remove', () => {
+    /**
+     * Should remove category successfully.
+     */
+    it('should remove category', async () => {
+      // Arrange
+
+      const category = {
+        id: '1',
+        name: 'Coffee',
+        slug: 'coffee',
+      };
+
+      mockCategoriesRepository.findById.mockResolvedValue(category);
+
+      mockCategoriesRepository.remove.mockResolvedValue(undefined);
+
+      // Act
+
+      await service.remove('1');
+
+      // Assert
+
+      expect(repository.findById).toHaveBeenCalledWith('1');
+
+      expect(repository.remove).toHaveBeenCalledWith(category);
+    });
+
+    /**
+     * Should throw NotFoundException
+     * when category does not exist.
+     */
+    it('should throw NotFoundException', async () => {
+      // Arrange
+
+      mockCategoriesRepository.findById.mockResolvedValue(null);
+
+      // Act & Assert
+
+      await expect(service.remove('1')).rejects.toThrow(NotFoundException);
+    });
+  });
 });
