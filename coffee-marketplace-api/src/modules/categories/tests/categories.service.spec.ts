@@ -30,7 +30,7 @@ const mockCategoriesRepository = {
 
   save: jest.fn(),
 
-  remove: jest.fn(),
+  softDelete: jest.fn(),
 };
 
 describe('CategoriesService', () => {
@@ -378,7 +378,7 @@ describe('CategoriesService', () => {
 
       mockCategoriesRepository.findById.mockResolvedValue(category);
 
-      mockCategoriesRepository.remove.mockResolvedValue(undefined);
+      mockCategoriesRepository.softDelete.mockResolvedValue(undefined);
 
       // Act
 
@@ -388,7 +388,7 @@ describe('CategoriesService', () => {
 
       expect(repository.findById).toHaveBeenCalledWith('1');
 
-      expect(repository.remove).toHaveBeenCalledWith(category);
+      expect(repository.softDelete).toHaveBeenCalledWith(category);
     });
 
     /**
