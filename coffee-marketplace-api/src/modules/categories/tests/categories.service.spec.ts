@@ -225,4 +225,135 @@ describe('CategoriesService', () => {
       expect(repository.findBySlug).toHaveBeenCalled();
     });
   });
+
+  /**
+   * ========================================================================
+   * update()
+   * ========================================================================
+   */
+
+  describe('update', () => {
+    /**
+     * Should update category successfully.
+     */
+    it('should update category', async () => {
+      // Arrange
+
+      const category = {
+        id: '1',
+        name: 'Coffee',
+        slug: 'coffee',
+        description: 'Old description',
+        parentId: null,
+        sortOrder: 1,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const dto = {
+        name: 'Espresso',
+        slug: 'espresso',
+        description: 'New description',
+        parentId: null,
+        sortOrder: 2,
+        isActive: true,
+      };
+
+      mockCategoriesRepository.findById.mockResolvedValue(category);
+
+      mockCategoriesRepository.findByName.mockResolvedValue(null);
+
+      mockCategoriesRepository.findBySlug.mockResolvedValue(null);
+
+      mockCategoriesRepository.save.mockResolvedValue({
+        ...category,
+        ...dto,
+      });
+
+      // Act
+
+      const result = await service.update('1', dto);
+
+      // Assert
+
+      expect(result.name).toEqual(dto.name);
+
+      expect(repository.findById).toHaveBeenCalledWith('1');
+
+      expect(repository.save).toHaveBeenCalled();
+    });
+
+    /**
+     * Should throw NotFoundException
+     * when category does not exist.
+     */
+    it('should throw NotFoundException', async () => {
+      // Arrange
+
+      mockCategoriesRepository.findById.mockResolvedValue(null);
+
+      // Act & Assert
+
+      await expect(service.update('1', {} as any)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    /**
+     * Should throw ConflictException
+     * when category name already exists.
+     */
+    it('should throw ConflictException when name already exists', async () => {
+      // Arrange
+
+      mockCategoriesRepository.findById.mockResolvedValue({
+        id: '1',
+        name: 'Coffee',
+        slug: 'coffee',
+      });
+
+      mockCategoriesRepository.findByName.mockResolvedValue({
+        id: '2',
+        name: 'Espresso',
+      });
+
+      // Act & Assert
+
+      await expect(
+        service.update('1', {
+          name: 'Espresso',
+        } as any),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    /**
+     * Should throw ConflictException
+     * when category slug already exists.
+     */
+    it('should throw ConflictException when slug already exists', async () => {
+      // Arrange
+
+      mockCategoriesRepository.findById.mockResolvedValue({
+        id: '1',
+        name: 'Coffee',
+        slug: 'coffee',
+      });
+
+      mockCategoriesRepository.findByName.mockResolvedValue(null);
+
+      mockCategoriesRepository.findBySlug.mockResolvedValue({
+        id: '2',
+        slug: 'espresso',
+      });
+
+      // Act & Assert
+
+      await expect(
+        service.update('1', {
+          slug: 'espresso',
+        } as any),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
 });
