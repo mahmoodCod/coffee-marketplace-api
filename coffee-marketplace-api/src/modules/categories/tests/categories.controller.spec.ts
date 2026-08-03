@@ -131,4 +131,41 @@ describe('CategoriesController', () => {
       expect(service.findById).toHaveBeenCalledWith('1');
     });
   });
+
+  /**
+   * ========================================================================
+   * create()
+   * ========================================================================
+   */
+  describe('create', () => {
+    it('should create category', async () => {
+      // Arrange
+
+      const dto = {
+        name: 'Coffee',
+        slug: 'coffee',
+        description: 'Coffee category',
+        parentId: null,
+        sortOrder: 1,
+        isActive: true,
+      };
+
+      const createdCategory = {
+        id: '1',
+        ...dto,
+      };
+
+      mockCategoriesService.create.mockResolvedValue(createdCategory);
+
+      // Act
+
+      const result = await controller.create(dto);
+
+      // Assert
+
+      expect(result).toEqual(createdCategory);
+
+      expect(service.create).toHaveBeenCalledWith(dto);
+    });
+  });
 });
