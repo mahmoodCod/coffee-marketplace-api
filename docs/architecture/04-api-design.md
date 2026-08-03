@@ -40,9 +40,11 @@ GET    /seller/orders
 
 GET    /seller/orders/:id
 
-PATCH  /orders/:id/received
+PATCH  /seller/orders/:id/received
 
 GET    /seller/reports
+
+GET    /seller/dashboard
 
 ----------------------------
 

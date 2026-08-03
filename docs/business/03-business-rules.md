@@ -62,3 +62,12 @@
 - A category name must be unique.
 - A category slug must be unique.
 - A category cannot be deleted if it contains products.
+
+-------------------------------
+
+## Seller
+
+- Sellers can manage only their own products.
+- Sellers can view only their own orders.
+- Sellers cannot access other sellers' information.
+- Sellers can confirm only delivered orders.
