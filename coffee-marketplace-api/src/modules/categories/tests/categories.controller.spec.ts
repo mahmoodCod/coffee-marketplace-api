@@ -70,36 +70,65 @@ describe('CategoriesController', () => {
   });
 
   /**
- * ========================================================================
- * findAll()
- * ========================================================================
- */
-describe('findAll', () => {
-  it('should return all categories', async () => {
-    // Arrange
+   * ========================================================================
+   * findAll()
+   * ========================================================================
+   */
+  describe('findAll', () => {
+    it('should return all categories', async () => {
+      // Arrange
 
-    const categories = [
-      {
+      const categories = [
+        {
+          id: '1',
+          name: 'Coffee',
+        },
+        {
+          id: '2',
+          name: 'Equipment',
+        },
+      ];
+
+      mockCategoriesService.findAll.mockResolvedValue(categories);
+
+      // Act
+
+      const result = await controller.findAll();
+
+      // Assert
+
+      expect(result).toEqual(categories);
+
+      expect(service.findAll).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  /**
+   * ========================================================================
+   * findById()
+   * ========================================================================
+   */
+  describe('findById', () => {
+    it('should return category by id', async () => {
+      // Arrange
+
+      const category = {
         id: '1',
         name: 'Coffee',
-      },
-      {
-        id: '2',
-        name: 'Equipment',
-      },
-    ];
+        slug: 'coffee',
+      };
 
-    mockCategoriesService.findAll.mockResolvedValue(categories);
+      mockCategoriesService.findById.mockResolvedValue(category);
 
-    // Act
+      // Act
 
-    const result = await controller.findAll();
+      const result = await controller.findById('1');
 
-    // Assert
+      // Assert
 
-    expect(result).toEqual(categories);
+      expect(result).toEqual(category);
 
-    expect(service.findAll).toHaveBeenCalledTimes(1);
+      expect(service.findById).toHaveBeenCalledWith('1');
+    });
   });
-});
 });
