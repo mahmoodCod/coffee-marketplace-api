@@ -2,7 +2,11 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 
 import { Reflector } from '@nestjs/core';
 
+import { JwtPayload } from '../../modules/auth/interfaces/jwt-payload.interface';
+
 import { ROLES_KEY } from '../decorators/roles.decorator';
+
+import { SystemRole } from '../constants/system-roles.constant';
 
 /**
  * ------------------------------------------------------------------------
@@ -13,12 +17,6 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
  * owns one of the required roles.
  *
  * This guard MUST be used after JwtAuthGuard.
- *
- * Example:
- *
- * @UseGuards(JwtAuthGuard, RolesGuard)
- *
- * @Roles('admin')
  * ------------------------------------------------------------------------
  */
 
@@ -27,13 +25,13 @@ export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>(
+    const requiredRoles = this.reflector.getAllAndOverride<SystemRole[]>(
       ROLES_KEY,
       [context.getHandler(), context.getClass()],
     );
 
     /**
-     * Endpoint does not require roles.
+     * Endpoint has no role restriction.
      */
     if (!requiredRoles) {
       return true;
@@ -41,12 +39,12 @@ export class RolesGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
 
-    const user = request.user;
+    const user = request.user as JwtPayload;
 
     if (!user) {
       return false;
     }
 
-    return requiredRoles.includes(user.role);
+    return requiredRoles.includes(user.role as SystemRole);
   }
 }
