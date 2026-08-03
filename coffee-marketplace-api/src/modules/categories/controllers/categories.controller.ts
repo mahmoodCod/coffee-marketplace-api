@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 
 import {
@@ -24,6 +25,11 @@ import {
   CreateCategoryDto,
   UpdateCategoryDto,
 } from '../dto';
+import { Public } from 'src/common/decorators/public.decorator';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { SYSTEM_ROLES } from 'src/common/constants/system-roles.constant';
 
 /**
  * ------------------------------------------------------------------------
@@ -66,6 +72,7 @@ export class CategoriesController {
    * Returns every active category.
    * ------------------------------------------------------------------------
    */
+  @Public()
   @Get()
   @ApiOperation({
     summary: 'Get all categories',
@@ -86,6 +93,7 @@ export class CategoriesController {
    * Returns category details.
    * ------------------------------------------------------------------------
    */
+  @Public()
   @Get(':id')
   @ApiOperation({
     summary: 'Get category by id',
@@ -111,6 +119,8 @@ export class CategoriesController {
    * and only accessible by administrators.
    * ------------------------------------------------------------------------
    */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(SYSTEM_ROLES.ADMIN)
   @Post()
   @ApiBearerAuth()
   @ApiOperation({
@@ -135,6 +145,8 @@ export class CategoriesController {
    * and only accessible by administrators.
    * ------------------------------------------------------------------------
    */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(SYSTEM_ROLES.ADMIN)
   @Patch(':id')
   @ApiBearerAuth()
   @ApiOperation({
@@ -162,6 +174,8 @@ export class CategoriesController {
    * and only accessible by administrators.
    * ------------------------------------------------------------------------
    */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(SYSTEM_ROLES.ADMIN)
   @Delete(':id')
   @ApiBearerAuth()
   @ApiOperation({
