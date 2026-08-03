@@ -68,4 +68,38 @@ describe('CategoriesController', () => {
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
+
+  /**
+ * ========================================================================
+ * findAll()
+ * ========================================================================
+ */
+describe('findAll', () => {
+  it('should return all categories', async () => {
+    // Arrange
+
+    const categories = [
+      {
+        id: '1',
+        name: 'Coffee',
+      },
+      {
+        id: '2',
+        name: 'Equipment',
+      },
+    ];
+
+    mockCategoriesService.findAll.mockResolvedValue(categories);
+
+    // Act
+
+    const result = await controller.findAll();
+
+    // Assert
+
+    expect(result).toEqual(categories);
+
+    expect(service.findAll).toHaveBeenCalledTimes(1);
+  });
+});
 });
