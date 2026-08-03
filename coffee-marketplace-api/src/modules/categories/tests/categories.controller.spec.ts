@@ -200,4 +200,25 @@ describe('CategoriesController', () => {
       expect(service.update).toHaveBeenCalledWith('1', dto);
     });
   });
+
+  /**
+   * ========================================================================
+   * remove()
+   * ========================================================================
+   */
+  describe('remove', () => {
+    it('should remove category', async () => {
+      // Arrange
+
+      mockCategoriesService.remove.mockResolvedValue(undefined);
+
+      // Act
+
+      await controller.remove('1');
+
+      // Assert
+
+      expect(service.remove).toHaveBeenCalledWith('1');
+    });
+  });
 });
