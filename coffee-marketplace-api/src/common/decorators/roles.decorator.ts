@@ -1,21 +1,26 @@
 import { SetMetadata } from '@nestjs/common';
 
+import { SystemRole } from '../constants/system-roles.constant';
+
 /**
  * ------------------------------------------------------------------------
  * Roles Decorator
  * ------------------------------------------------------------------------
  *
- * Declares which roles are allowed
- * to access an endpoint.
+ * Declares which system roles
+ * can access an endpoint.
  *
  * Example:
  *
- * @Roles('admin')
+ * @Roles(SYSTEM_ROLES.ADMIN)
  *
- * @Roles('admin', 'seller')
+ * @Roles(
+ *    SYSTEM_ROLES.ADMIN,
+ *    SYSTEM_ROLES.SELLER,
+ * )
  * ------------------------------------------------------------------------
  */
 
 export const ROLES_KEY = 'roles';
 
-export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles);
+export const Roles = (...roles: SystemRole[]) => SetMetadata(ROLES_KEY, roles);
