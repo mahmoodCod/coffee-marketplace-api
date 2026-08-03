@@ -168,4 +168,36 @@ describe('CategoriesController', () => {
       expect(service.create).toHaveBeenCalledWith(dto);
     });
   });
+
+  /**
+   * ========================================================================
+   * update()
+   * ========================================================================
+   */
+  describe('update', () => {
+    it('should update category', async () => {
+      // Arrange
+
+      const dto = {
+        name: 'Espresso',
+      };
+
+      const updatedCategory = {
+        id: '1',
+        name: 'Espresso',
+      };
+
+      mockCategoriesService.update.mockResolvedValue(updatedCategory);
+
+      // Act
+
+      const result = await controller.update('1', dto);
+
+      // Assert
+
+      expect(result).toEqual(updatedCategory);
+
+      expect(service.update).toHaveBeenCalledWith('1', dto);
+    });
+  });
 });
