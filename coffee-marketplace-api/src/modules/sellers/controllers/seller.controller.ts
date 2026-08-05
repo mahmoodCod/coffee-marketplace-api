@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 
 import {
   ApiBearerAuth,
@@ -19,7 +19,7 @@ import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
 
 import { SellerService } from '../services/seller.service';
 
-import { SellerProfileResponseDto } from '../dto';
+import { SellerProfileResponseDto, UpdateSellerProfileDto } from '../dto';
 
 /**
  * ------------------------------------------------------------------------
@@ -68,5 +68,27 @@ export class SellerController {
     @CurrentUser() currentUser: JwtPayload,
   ): Promise<SellerProfileResponseDto> {
     return this.sellerService.getProfile(currentUser);
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * PATCH /seller/profile
+   * ------------------------------------------------------------------------
+   *
+   * Updates the authenticated seller profile.
+   * ------------------------------------------------------------------------
+   */
+  @Patch('profile')
+  @ApiOperation({
+    summary: 'Update seller profile',
+  })
+  @ApiOkResponse({
+    type: SellerProfileResponseDto,
+  })
+  async updateProfile(
+    @CurrentUser() currentUser: JwtPayload,
+    @Body() dto: UpdateSellerProfileDto,
+  ): Promise<SellerProfileResponseDto> {
+    return this.sellerService.updateProfile(currentUser, dto);
   }
 }
