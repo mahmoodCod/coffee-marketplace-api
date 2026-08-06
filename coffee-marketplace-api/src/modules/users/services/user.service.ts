@@ -63,6 +63,22 @@ export class UsersService {
   }
 
   /**
+   * ------------------------------------------------------------------------
+   * Save User
+   * ------------------------------------------------------------------------
+   *
+   * Persists changes to an existing user.
+   *
+   * This method is intended for internal module communication,
+   * allowing other modules (e.g. Seller) to update User data
+   * without accessing the repository directly.
+   * ------------------------------------------------------------------------
+   */
+  async save(user: User): Promise<User> {
+    return this.usersRepository.save(user);
+  }
+
+  /**
    * GET /users/profile
    * Returns the authenticated user's profile.
    */
