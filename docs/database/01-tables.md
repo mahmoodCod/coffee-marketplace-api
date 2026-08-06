@@ -74,6 +74,8 @@
 - ingredients
 - rating
 - title
+- images
+- thumbnail
 - slug
 - description
 - price

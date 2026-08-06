@@ -14,6 +14,16 @@
 - Product prices cannot be left blank.
 - Each product must belong to at least one category.
 - Products cannot be purchased without registering.
+- Only sellers can create products.
+- Sellers can update only their own products.
+- Sellers can delete only their own products.
+- Product slug must be unique.
+- Product title cannot be empty.
+- Product price must be greater than zero.
+- Product rating is calculated from approved reviews.
+- Sold count increases only after successful payment.
+- Archived products cannot be purchased.
+- Inactive products are hidden from customers.
 
 -------------------------------
 
