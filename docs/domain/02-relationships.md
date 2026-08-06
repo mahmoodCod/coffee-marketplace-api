@@ -20,7 +20,8 @@
 ## Product
 
 - A product belongs to one seller.
-- A product belongs to one category.
+- A product belongs to many categories.
+- A category contains many products.
 - A product has one inventory.
 - A product can have many reviews.
 - A product can have many discounts.
