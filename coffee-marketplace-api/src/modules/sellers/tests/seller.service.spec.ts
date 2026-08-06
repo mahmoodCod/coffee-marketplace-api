@@ -208,4 +208,19 @@ describe('SellerService', () => {
 
     expect(result.name).toBeNull();
   });
+
+  it('should throw ForbiddenException when user is not seller', async () => {
+    /**
+     * Act & Assert
+     */
+    await expect(
+      service.updateProfile(customerPayload, {
+        name: 'Mahmood',
+      }),
+    ).rejects.toThrow(ForbiddenException);
+
+    expect(usersService.findById).not.toHaveBeenCalled();
+
+    expect(usersService.save).not.toHaveBeenCalled();
+  });
 });
