@@ -134,4 +134,47 @@ describe('SellerService', () => {
       expect(usersService.findById).not.toHaveBeenCalled();
     });
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * updateProfile()
+   * ------------------------------------------------------------------------
+   */
+  describe('updateProfile', () => {
+    it('should update seller profile', async () => {
+      /**
+       * Arrange
+       */
+      usersService.findById.mockResolvedValue(seller);
+
+      usersService.save.mockResolvedValue({
+        ...seller,
+        name: 'New Seller',
+      });
+
+      /**
+       * Act
+       */
+      const result = await service.updateProfile(sellerPayload, {
+        name: 'New Seller',
+      });
+
+      /**
+       * Assert
+       */
+      expect(usersService.findById).toHaveBeenCalledTimes(1);
+
+      expect(usersService.findById).toHaveBeenCalledWith(sellerPayload.sub);
+
+      expect(usersService.save).toHaveBeenCalledTimes(1);
+
+      expect(usersService.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'New Seller',
+        }),
+      );
+
+      expect(result.name).toBe('New Seller');
+    });
+  });
 });
