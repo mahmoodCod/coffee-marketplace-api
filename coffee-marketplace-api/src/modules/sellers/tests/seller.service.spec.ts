@@ -177,4 +177,35 @@ describe('SellerService', () => {
       expect(result.name).toBe('New Seller');
     });
   });
+
+  it('should convert empty name to null', async () => {
+    /**
+     * Arrange
+     */
+    usersService.findById.mockResolvedValue({
+      ...seller,
+    });
+
+    usersService.save.mockImplementation(async (user) => user);
+
+    /**
+     * Act
+     */
+    const result = await service.updateProfile(sellerPayload, {
+      name: '',
+    });
+
+    /**
+     * Assert
+     */
+    expect(usersService.save).toHaveBeenCalled();
+
+    expect(usersService.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: null,
+      }),
+    );
+
+    expect(result.name).toBeNull();
+  });
 });
