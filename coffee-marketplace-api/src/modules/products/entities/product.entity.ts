@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 
 import { User } from '../../users/entities/user.entity';
+import { ProductStatus, ProductType } from '../enums';
 
 /**
  * ------------------------------------------------------------------------
@@ -108,9 +109,10 @@ export class Product {
    */
   @Column({
     name: 'product_type',
-    length: 50,
+    type: 'enum',
+    enum: ProductType,
   })
-  productType: string;
+  productType: ProductType;
 
   /**
    * Product weight (grams).
@@ -230,10 +232,11 @@ export class Product {
    * Will become Enum later.
    */
   @Column({
-    length: 50,
-    default: 'draft',
+    type: 'enum',
+    enum: ProductStatus,
+    default: ProductStatus.DRAFT,
   })
-  status: string;
+  status: ProductStatus;
 
   /**
    * Creation timestamp.
