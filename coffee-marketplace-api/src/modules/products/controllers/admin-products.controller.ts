@@ -21,11 +21,7 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 
 import { Roles } from '../../../common/decorators/roles.decorator';
 
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-
 import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
-
-import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
 
 import { ProductResponseDto, UpdateProductDto } from '../dto';
 
