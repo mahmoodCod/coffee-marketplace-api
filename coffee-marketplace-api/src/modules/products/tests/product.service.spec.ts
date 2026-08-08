@@ -408,4 +408,99 @@ describe('ProductService', () => {
       expect(productsRepository.softRemove).not.toHaveBeenCalled();
     });
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * Find Products Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('findAll', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should return active products
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Customers can see available products.
+     * ------------------------------------------------------------------------
+     */
+    it('should return all active products', async () => {
+      productsRepository.find.mockResolvedValue([product]);
+
+      const result = await service.findAll();
+
+      expect(productsRepository.find).toHaveBeenCalledWith({
+        where: {
+          status: ProductStatus.ACTIVE,
+        },
+
+        order: {
+          createdAt: 'DESC',
+        },
+      });
+
+      expect(result).toEqual([product]);
+    });
+  });
+
+  /**
+   * ------------------------------------------------------------------------
+   * Find One Product Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('findOne', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should return product details
+     * ------------------------------------------------------------------------
+     */
+    it('should return product details', async () => {
+      productsRepository.findOne.mockResolvedValue(product);
+
+      const result = await service.findOne('product-id');
+
+      expect(productsRepository.findOne).toHaveBeenCalled();
+
+      expect(result).toEqual(product);
+    });
+  });
+
+  /**
+   * ------------------------------------------------------------------------
+   * Find Seller Products Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('findSellerProducts', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should return seller products
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Seller dashboard only shows
+     * products owned by seller.
+     * ------------------------------------------------------------------------
+     */
+    it('should return seller products', async () => {
+      productsRepository.find.mockResolvedValue([product]);
+
+      const result = await service.findSellerProducts('seller-id');
+
+      expect(productsRepository.find).toHaveBeenCalledWith({
+        where: {
+          seller: {
+            id: 'seller-id',
+          },
+        },
+
+        order: {
+          createdAt: 'DESC',
+        },
+      });
+
+      expect(result).toEqual([product]);
+    });
+  });
 });
