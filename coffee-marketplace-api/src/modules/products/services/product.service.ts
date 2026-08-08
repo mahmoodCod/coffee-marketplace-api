@@ -228,7 +228,49 @@ export class ProductService {
     /**
      * Apply changes.
      */
-    Object.assign(product, dto);
+    if (dto.title !== undefined) {
+      product.title = dto.title;
+    }
+
+    if (dto.slug !== undefined) {
+      product.slug = dto.slug;
+    }
+
+    if (dto.description !== undefined) {
+      product.description = dto.description;
+    }
+
+    if (dto.price !== undefined) {
+      product.price = dto.price;
+    }
+
+    if (dto.originalPrice !== undefined) {
+      product.originalPrice = dto.originalPrice;
+    }
+
+    if (dto.productType !== undefined) {
+      product.productType = dto.productType;
+    }
+
+    if (dto.weight !== undefined) {
+      product.weight = dto.weight;
+    }
+
+    if (dto.originCountry !== undefined) {
+      product.originCountry = dto.originCountry;
+    }
+
+    if (dto.hasWarranty !== undefined) {
+      product.hasWarranty = dto.hasWarranty;
+    }
+
+    if (dto.warrantyDescription !== undefined) {
+      product.warrantyDescription = dto.warrantyDescription;
+    }
+
+    if (dto.status !== undefined) {
+      product.status = dto.status;
+    }
 
     /**
      * Save changes.
