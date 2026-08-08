@@ -324,4 +324,88 @@ describe('ProductService', () => {
       expect(productsRepository.save).not.toHaveBeenCalled();
     });
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * Soft Delete Product Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('softDelete', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should soft delete product successfully
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Seller can delete only own products.
+     * ------------------------------------------------------------------------
+     */
+    it('should soft delete product successfully', async () => {
+      productsRepository.findOne.mockResolvedValue(product);
+
+      productsRepository.softRemove.mockResolvedValue(product);
+
+      await service.softDelete('product-id', sellerPayload);
+
+      expect(productsRepository.findOne).toHaveBeenCalledWith({
+        where: {
+          id: 'product-id',
+        },
+
+        relations: {
+          seller: true,
+        },
+      });
+
+      expect(productsRepository.softRemove).toHaveBeenCalledWith(product);
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Should reject customer delete
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Only sellers can delete products.
+     * ------------------------------------------------------------------------
+     */
+    it('should throw error when customer deletes product', async () => {
+      await expect(
+        service.softDelete('product-id', customerPayload),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(productsRepository.findOne).not.toHaveBeenCalled();
+
+      expect(productsRepository.softRemove).not.toHaveBeenCalled();
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Should reject deleting another seller product
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Seller cannot delete products
+     * belonging to another seller.
+     * ------------------------------------------------------------------------
+     */
+    it('should throw error when seller does not own product', async () => {
+      productsRepository.findOne.mockResolvedValue({
+        ...product,
+
+        seller: {
+          id: 'another-seller-id',
+        },
+      });
+
+      await expect(
+        service.softDelete('product-id', sellerPayload),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(productsRepository.softRemove).not.toHaveBeenCalled();
+    });
+  });
 });
