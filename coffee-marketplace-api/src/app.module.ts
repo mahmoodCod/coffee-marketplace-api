@@ -10,6 +10,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { SellerModule } from './modules/sellers/seller.module';
 import { ProductModule } from './modules/products/products.module';
+import { InventoryModule } from './modules/inventoryes/inventory.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ProductModule } from './modules/products/products.module';
     CategoriesModule,
     SellerModule,
     ProductModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
