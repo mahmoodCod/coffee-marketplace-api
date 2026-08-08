@@ -144,4 +144,38 @@ describe('AdminProductsController', () => {
       expect(result).toEqual(updatedProduct);
     });
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * DELETE /admin/products/:id Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('remove', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should delete product by admin
+     * ------------------------------------------------------------------------
+     *
+     * Controller Responsibility:
+     *
+     * - Receive product id
+     * - Delegate delete operation
+     *
+     * Admin can delete any product.
+     * ------------------------------------------------------------------------
+     */
+    it('should delete product successfully by admin', async () => {
+      const deletedProduct = {
+        id: 'product-id',
+      };
+
+      productService.adminDelete.mockResolvedValue(deletedProduct);
+
+      const result = await controller.remove('product-id');
+
+      expect(productService.adminDelete).toHaveBeenCalledWith('product-id');
+
+      expect(result).toEqual(deletedProduct);
+    });
+  });
 });
