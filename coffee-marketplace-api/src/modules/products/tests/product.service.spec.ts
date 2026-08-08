@@ -207,4 +207,121 @@ describe('ProductService', () => {
       expect(productsRepository.create).not.toHaveBeenCalled();
     });
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * Update Product Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('update', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should update product successfully
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Seller can update only own products.
+     * ------------------------------------------------------------------------
+     */
+    it('should update product successfully', async () => {
+      const dto = {
+        title: 'Updated Arabica Coffee',
+
+        price: 250000,
+      };
+
+      productsRepository.findOne.mockResolvedValue({
+        ...product,
+      });
+
+      productsRepository.save.mockResolvedValue({
+        ...product,
+
+        ...dto,
+      });
+
+      const result = await service.update(
+        'product-id',
+        sellerPayload,
+        dto as any,
+      );
+
+      expect(productsRepository.findOne).toHaveBeenCalled();
+
+      expect(productsRepository.save).toHaveBeenCalled();
+
+      expect(result.title).toBe(dto.title);
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Should reject customer update
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Customers cannot update products.
+     * ------------------------------------------------------------------------
+     */
+    it('should throw error when customer updates product', async () => {
+      await expect(
+        service.update('product-id', customerPayload, {} as any),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(productsRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Should reject updating another seller product
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Seller can manage only own products.
+     * ------------------------------------------------------------------------
+     */
+    it('should throw error when seller does not own product', async () => {
+      productsRepository.findOne.mockResolvedValue({
+        ...product,
+
+        seller: {
+          id: 'another-seller-id',
+        },
+      });
+
+      await expect(
+        service.update('product-id', sellerPayload, {
+          title: 'New title',
+        } as any),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(productsRepository.save).not.toHaveBeenCalled();
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Should reject duplicated slug update
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Product slug must remain unique.
+     * ------------------------------------------------------------------------
+     */
+    it('should throw error when updated slug already exists', async () => {
+      productsRepository.findOne.mockResolvedValue(product);
+
+      productsRepository.exists.mockResolvedValue(true);
+
+      await expect(
+        service.update('product-id', sellerPayload, {
+          slug: 'existing-slug',
+        } as any),
+      ).rejects.toThrow();
+
+      expect(productsRepository.save).not.toHaveBeenCalled();
+    });
+  });
 });
