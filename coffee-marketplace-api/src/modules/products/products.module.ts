@@ -11,6 +11,7 @@ import { ProductService } from './services/product.service';
 import { UsersModule } from '../users/users.module';
 import { ProductsController } from './controllers/products.controller';
 import { SellerProductsController } from './controllers/seller-products.controller';
+import { AdminProductsController } from './controllers/admin-products.controller';
 
 /**
  * ------------------------------------------------------------------------
@@ -40,7 +41,13 @@ import { SellerProductsController } from './controllers/seller-products.controll
 @Module({
   imports: [TypeOrmModule.forFeature([Product, ProductCategory]), UsersModule],
 
-  controllers: [ProductsController, SellerProductsController],
+  controllers: [
+    ProductsController,
+
+    SellerProductsController,
+
+    AdminProductsController,
+  ],
 
   providers: [ProductService],
 
