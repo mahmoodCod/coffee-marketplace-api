@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -65,5 +65,31 @@ export class ProductService {
     }
 
     return product;
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Ensure Slug Is Unique
+   * ------------------------------------------------------------------------
+   *
+   * Business Rule:
+   *
+   * Product slug must be unique.
+   *
+   * Throws:
+   *
+   * ConflictException
+   * ------------------------------------------------------------------------
+   */
+  private async ensureSlugUnique(slug: string): Promise<void> {
+    const exists = await this.productsRepository.exists({
+      where: {
+        slug,
+      },
+    });
+
+    if (exists) {
+      throw new ConflictException('Product slug already exists.');
+    }
   }
 }
