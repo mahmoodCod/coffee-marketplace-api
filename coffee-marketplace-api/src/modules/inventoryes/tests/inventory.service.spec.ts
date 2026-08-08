@@ -291,4 +291,93 @@ describe('InventoryService', () => {
       ).rejects.toThrow();
     });
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * getPublicInventory Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('getPublicInventory', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should return public inventory response
+     * ------------------------------------------------------------------------
+     *
+     * Scenario:
+     *
+     * Product has inventory.
+     *
+     * Expected:
+     *
+     * Service should map entity data
+     * into InventoryResponseDto.
+     * ------------------------------------------------------------------------
+     */
+    it('should return public inventory response successfully', async () => {
+      const inventory = {
+        id: 'inventory-id',
+
+        stock: 100,
+
+        reservedStock: 20,
+
+        product: {
+          id: 'product-id',
+        },
+
+        createdAt: new Date('2026-01-01'),
+
+        updatedAt: new Date('2026-01-02'),
+      };
+
+      jest
+        .spyOn(
+          service,
+
+          'findByProductId',
+        )
+        .mockResolvedValue(inventory as Inventory);
+
+      const result = await service.getPublicInventory('product-id');
+
+      expect(result).toEqual({
+        id: 'inventory-id',
+
+        productId: 'product-id',
+
+        stock: 100,
+
+        reservedStock: 20,
+
+        createdAt: inventory.createdAt,
+
+        updatedAt: inventory.updatedAt,
+      });
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Should throw error when product inventory is missing
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Product inventory must exist.
+     *
+     * ------------------------------------------------------------------------
+     */
+    it('should throw NotFoundException when inventory does not exist', async () => {
+      jest
+        .spyOn(
+          service,
+
+          'findByProductId',
+        )
+        .mockRejectedValue(new NotFoundException());
+
+      await expect(
+        service.getPublicInventory('invalid-product-id'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });
