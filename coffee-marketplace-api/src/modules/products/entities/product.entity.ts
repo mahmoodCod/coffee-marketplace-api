@@ -152,6 +152,7 @@ export class Product {
   @Column({
     name: 'origin_country',
     nullable: true,
+    type: 'varchar',
     length: 100,
   })
   originCountry: string | null;
@@ -189,6 +190,7 @@ export class Product {
    */
   @Column({
     name: 'has_warranty',
+    type: 'boolean',
     default: false,
   })
   hasWarranty: boolean;
@@ -209,6 +211,7 @@ export class Product {
    * Updated from reviews.
    */
   @Column({
+    type: 'decimal',
     default: 0,
   })
   rating: number;
@@ -218,6 +221,7 @@ export class Product {
    */
   @Column({
     name: 'sold_count',
+    type: 'integer',
     default: 0,
   })
   soldCount: number;
