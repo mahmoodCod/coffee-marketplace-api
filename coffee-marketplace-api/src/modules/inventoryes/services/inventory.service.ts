@@ -106,4 +106,33 @@ export class InventoryService {
       updatedAt: updated.updatedAt,
     };
   }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Get Public Inventory
+   * ------------------------------------------------------------------------
+   *
+   * Returns public inventory information.
+   *
+   * Used by customers to check product availability.
+   *
+   * ------------------------------------------------------------------------
+   */
+  async getPublicInventory(productId: string): Promise<InventoryResponseDto> {
+    const inventory = await this.findByProductId(productId);
+
+    return {
+      id: inventory.id,
+
+      productId: inventory.product.id,
+
+      stock: inventory.stock,
+
+      reservedStock: inventory.reservedStock,
+
+      createdAt: inventory.createdAt,
+
+      updatedAt: inventory.updatedAt,
+    };
+  }
 }
