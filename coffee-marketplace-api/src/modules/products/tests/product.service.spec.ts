@@ -110,4 +110,101 @@ describe('ProductService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * Create Product Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('create', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should create product successfully
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Only sellers can create products.
+     * ------------------------------------------------------------------------
+     */
+    it('should create product successfully', async () => {
+      const dto = {
+        title: 'Arabica Coffee',
+
+        slug: 'arabica-coffee',
+
+        price: 200000,
+      };
+
+      const seller = {
+        id: 'seller-id',
+
+        phone: '989121234567',
+      };
+
+      productsRepository.exists.mockResolvedValue(false);
+
+      usersService.findById.mockResolvedValue(seller);
+
+      productsRepository.create.mockReturnValue(product);
+
+      productsRepository.save.mockResolvedValue(product);
+
+      const result = await service.create(sellerPayload, dto as any);
+
+      expect(productsRepository.exists).toHaveBeenCalledWith({
+        where: {
+          slug: dto.slug,
+        },
+      });
+
+      expect(productsRepository.create).toHaveBeenCalled();
+
+      expect(result).toEqual(product);
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Should reject customer creating product
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Customers cannot create products.
+     * ------------------------------------------------------------------------
+     */
+    it('should throw error when customer creates product', async () => {
+      await expect(service.create(customerPayload, {} as any)).rejects.toThrow(
+        ForbiddenException,
+      );
+
+      expect(productsRepository.create).not.toHaveBeenCalled();
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Should reject duplicated slug
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * Product slug must be unique.
+     * ------------------------------------------------------------------------
+     */
+    it('should throw error when slug already exists', async () => {
+      const dto = {
+        title: 'Arabica Coffee',
+
+        slug: 'arabica-coffee',
+
+        price: 200000,
+      };
+
+      productsRepository.exists.mockResolvedValue(true);
+
+      await expect(service.create(sellerPayload, dto as any)).rejects.toThrow();
+
+      expect(productsRepository.create).not.toHaveBeenCalled();
+    });
+  });
 });
