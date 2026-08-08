@@ -316,4 +316,37 @@ export class ProductService {
      */
     await this.productsRepository.softRemove(product);
   }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Find All Products
+   * ------------------------------------------------------------------------
+   *
+   * Returns all active products.
+   *
+   * Used by:
+   *
+   * GET /products
+   *
+   * Notes
+   * ------------------------------------------------------------------------
+   *
+   * Soft deleted products are automatically excluded.
+   * ------------------------------------------------------------------------
+   */
+  async findAll(): Promise<Product[]> {
+    return this.productsRepository.find({
+      where: {
+        status: ProductStatus.ACTIVE,
+      },
+
+      relations: {
+        seller: true,
+      },
+
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
 }
