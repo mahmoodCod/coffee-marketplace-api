@@ -340,10 +340,6 @@ export class ProductService {
         status: ProductStatus.ACTIVE,
       },
 
-      relations: {
-        seller: true,
-      },
-
       order: {
         createdAt: 'DESC',
       },
