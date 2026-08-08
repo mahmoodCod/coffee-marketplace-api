@@ -72,4 +72,41 @@ describe('ProductsController', () => {
       expect(result).toEqual(products);
     });
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * GET /products/:id Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('findOne', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should return product details
+     * ------------------------------------------------------------------------
+     *
+     * Controller Responsibility:
+     *
+     * - Receive product identifier
+     * - Call service layer
+     * - Return service result
+     * ------------------------------------------------------------------------
+     */
+    it('should return product details', async () => {
+      const product = {
+        id: 'product-id',
+
+        title: 'Arabica Coffee',
+
+        price: 200000,
+      };
+
+      productService.findOne.mockResolvedValue(product);
+
+      const result = await controller.findOne('product-id');
+
+      expect(productService.findOne).toHaveBeenCalledWith('product-id');
+
+      expect(result).toEqual(product);
+    });
+  });
 });
