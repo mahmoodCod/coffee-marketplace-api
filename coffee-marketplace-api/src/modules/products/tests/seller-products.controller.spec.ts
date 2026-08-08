@@ -55,4 +55,51 @@ describe('SellerProductsController', () => {
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * POST /seller/products Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('create', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should create product
+     * ------------------------------------------------------------------------
+     *
+     * Controller Responsibility:
+     *
+     * - Receive authenticated seller
+     * - Pass DTO to service
+     * - Return created product
+     * ------------------------------------------------------------------------
+     */
+    it('should create product successfully', async () => {
+      const dto = {
+        title: 'Arabica Coffee',
+
+        slug: 'arabica-coffee',
+
+        price: 200000,
+      };
+
+      const createdProduct = {
+        id: 'product-id',
+
+        ...dto,
+      };
+
+      productService.create.mockResolvedValue(createdProduct);
+
+      const result = await controller.create(sellerPayload, dto as any);
+
+      expect(productService.create).toHaveBeenCalledWith(
+        sellerPayload,
+
+        dto,
+      );
+
+      expect(result).toEqual(createdProduct);
+    });
+  });
 });
