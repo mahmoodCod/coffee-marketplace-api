@@ -93,4 +93,55 @@ describe('AdminProductsController', () => {
       expect(result).toEqual(products);
     });
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * PATCH /admin/products/:id Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('update', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should update product by admin
+     * ------------------------------------------------------------------------
+     *
+     * Controller Responsibility:
+     *
+     * - Receive product id
+     * - Receive update DTO
+     * - Delegate update operation
+     *
+     * Admin can update any product.
+     * ------------------------------------------------------------------------
+     */
+    it('should update product successfully by admin', async () => {
+      const dto = {
+        title: 'Updated Coffee',
+
+        price: 300000,
+      };
+
+      const updatedProduct = {
+        id: 'product-id',
+
+        ...dto,
+      };
+
+      productService.adminUpdate.mockResolvedValue(updatedProduct);
+
+      const result = await controller.update(
+        'product-id',
+
+        dto as any,
+      );
+
+      expect(productService.adminUpdate).toHaveBeenCalledWith(
+        'product-id',
+
+        dto,
+      );
+
+      expect(result).toEqual(updatedProduct);
+    });
+  });
 });
