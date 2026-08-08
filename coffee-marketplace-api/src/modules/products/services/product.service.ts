@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -35,4 +35,35 @@ export class ProductService {
     @InjectRepository(Product)
     private readonly productsRepository: Repository<Product>,
   ) {}
+
+  /**
+   * ------------------------------------------------------------------------
+   * Find Product Or Fail
+   * ------------------------------------------------------------------------
+   *
+   * Loads a product by its identifier.
+   *
+   * Throws:
+   * NotFoundException
+   *
+   * if product does not exist.
+   * ------------------------------------------------------------------------
+   */
+  private async findProductOrFail(id: string): Promise<Product> {
+    const product = await this.productsRepository.findOne({
+      where: {
+        id,
+      },
+
+      relations: {
+        seller: true,
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found.');
+    }
+
+    return product;
+  }
 }
