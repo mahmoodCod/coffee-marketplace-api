@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Inventory } from './entities/inventory.entity';
 
 import { InventoryService } from './services/inventory.service';
+import { SellerInventoryController } from './controllers/seller-inventory.controller';
 
 /**
  * ------------------------------------------------------------------------
@@ -26,6 +27,8 @@ import { InventoryService } from './services/inventory.service';
  */
 @Module({
   imports: [TypeOrmModule.forFeature([Inventory])],
+
+  controllers: [SellerInventoryController],
 
   providers: [InventoryService],
 
