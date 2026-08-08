@@ -120,6 +120,7 @@ export class Product {
    * Product weight (grams).
    */
   @Column({
+    type: 'integer',
     nullable: true,
   })
   weight: number | null;

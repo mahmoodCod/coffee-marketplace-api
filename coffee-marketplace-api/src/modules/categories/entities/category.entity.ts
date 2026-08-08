@@ -1,4 +1,4 @@
-import { ProductCategory } from 'src/modules/products/entities/product-category.entity';
+import { ProductCategory } from '../../../modules/products/entities/product-category.entity';
 import {
   Column,
   CreateDateColumn,

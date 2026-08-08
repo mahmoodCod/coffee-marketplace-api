@@ -10,10 +10,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Product } from '../entities/product.entity';
-import { UsersService } from 'src/modules/users/services/user.service';
-import { JwtPayload } from 'src/modules/auth/interfaces/jwt-payload.interface';
+import { UsersService } from '../../../modules/users/services/user.service';
+import { JwtPayload } from '../../../modules/auth/interfaces/jwt-payload.interface';
 import { CreateProductDto, UpdateProductDto } from '../dto';
-import { SYSTEM_ROLES } from 'src/common/constants/system-roles.constant';
+import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 import { ProductStatus } from '../enums';
 
 /**
