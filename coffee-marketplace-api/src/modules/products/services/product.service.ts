@@ -348,6 +348,37 @@ export class ProductService {
 
   /**
    * ------------------------------------------------------------------------
+   * Find Seller Products
+   * ------------------------------------------------------------------------
+   *
+   * Returns products owned by a specific seller.
+   *
+   * Used by:
+   *
+   * GET /seller/products
+   *
+   * Business Rules:
+   *
+   * - Seller can only see products that belong to them.
+   * - Soft deleted products are excluded.
+   * ------------------------------------------------------------------------
+   */
+  async findSellerProducts(sellerId: string): Promise<Product[]> {
+    return this.productsRepository.find({
+      where: {
+        seller: {
+          id: sellerId,
+        },
+      },
+
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+
+  /**
+   * ------------------------------------------------------------------------
    * Find Product
    * ------------------------------------------------------------------------
    *
