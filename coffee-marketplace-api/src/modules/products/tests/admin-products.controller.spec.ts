@@ -53,4 +53,44 @@ describe('AdminProductsController', () => {
   it('should be defined', () => {
     expect(controller).toBeDefined();
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * GET /admin/products Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('findAll', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should return all products for admin
+     * ------------------------------------------------------------------------
+     *
+     * Controller Responsibility:
+     *
+     * - Call admin product service
+     * - Return service result
+     *
+     * Admin can see all products.
+     * ------------------------------------------------------------------------
+     */
+    it('should return all products for admin', async () => {
+      const products = [
+        {
+          id: 'product-id',
+
+          title: 'Arabica Coffee',
+
+          price: 200000,
+        },
+      ];
+
+      productService.findAllAdmin.mockResolvedValue(products);
+
+      const result = await controller.findAll();
+
+      expect(productService.findAllAdmin).toHaveBeenCalled();
+
+      expect(result).toEqual(products);
+    });
+  });
 });
