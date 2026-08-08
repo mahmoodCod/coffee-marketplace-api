@@ -197,4 +197,45 @@ describe('SellerProductsController', () => {
       expect(result).toEqual(resultData);
     });
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * GET /seller/products Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('findSellerProducts', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should return seller products
+     * ------------------------------------------------------------------------
+     *
+     * Controller Responsibility:
+     *
+     * - Extract seller identifier
+     * - Call product service
+     * - Return seller products
+     * ------------------------------------------------------------------------
+     */
+    it('should return seller products successfully', async () => {
+      const products = [
+        {
+          id: 'product-id',
+
+          title: 'Arabica Coffee',
+
+          price: 200000,
+        },
+      ];
+
+      productService.findSellerProducts.mockResolvedValue(products);
+
+      const result = await controller.findSellerProducts(sellerPayload);
+
+      expect(productService.findSellerProducts).toHaveBeenCalledWith(
+        sellerPayload.sub,
+      );
+
+      expect(result).toEqual(products);
+    });
+  });
 });
