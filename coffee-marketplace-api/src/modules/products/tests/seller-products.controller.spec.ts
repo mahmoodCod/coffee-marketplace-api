@@ -102,4 +102,58 @@ describe('SellerProductsController', () => {
       expect(result).toEqual(createdProduct);
     });
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * PATCH /seller/products/:id Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('update', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should update seller product
+     * ------------------------------------------------------------------------
+     *
+     * Controller Responsibility:
+     *
+     * - Receive product id
+     * - Receive authenticated seller
+     * - Pass update DTO
+     * - Return updated product
+     * ------------------------------------------------------------------------
+     */
+    it('should update seller product successfully', async () => {
+      const dto = {
+        title: 'Updated Arabica Coffee',
+
+        price: 250000,
+      };
+
+      const updatedProduct = {
+        id: 'product-id',
+
+        ...dto,
+      };
+
+      productService.update.mockResolvedValue(updatedProduct);
+
+      const result = await controller.update(
+        'product-id',
+
+        sellerPayload,
+
+        dto as any,
+      );
+
+      expect(productService.update).toHaveBeenCalledWith(
+        'product-id',
+
+        sellerPayload,
+
+        dto,
+      );
+
+      expect(result).toEqual(updatedProduct);
+    });
+  });
 });
