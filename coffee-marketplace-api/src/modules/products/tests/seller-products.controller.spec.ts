@@ -156,4 +156,45 @@ describe('SellerProductsController', () => {
       expect(result).toEqual(updatedProduct);
     });
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * DELETE /seller/products/:id Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('remove', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should delete seller product
+     * ------------------------------------------------------------------------
+     *
+     * Controller Responsibility:
+     *
+     * - Receive product id
+     * - Receive authenticated seller
+     * - Call service delete operation
+     * ------------------------------------------------------------------------
+     */
+    it('should soft delete seller product successfully', async () => {
+      const resultData = {
+        affected: 1,
+      };
+
+      productService.softDelete.mockResolvedValue(resultData);
+
+      const result = await controller.remove(
+        'product-id',
+
+        sellerPayload,
+      );
+
+      expect(productService.softDelete).toHaveBeenCalledWith(
+        'product-id',
+
+        sellerPayload,
+      );
+
+      expect(result).toEqual(resultData);
+    });
+  });
 });
