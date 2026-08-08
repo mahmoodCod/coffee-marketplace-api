@@ -277,4 +277,43 @@ export class ProductService {
      */
     return this.productsRepository.save(product);
   }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Soft Delete Product
+   * ------------------------------------------------------------------------
+   *
+   * Soft deletes an existing product.
+   *
+   * Business Rules
+   * ------------------------------------------------------------------------
+   *
+   * - Only sellers can delete products.
+   * - Seller can delete only their own products.
+   * - Product is soft deleted.
+   * ------------------------------------------------------------------------
+   */
+  async softDelete(id: string, currentUser: JwtPayload): Promise<void> {
+    /**
+     * Only sellers may delete products.
+     */
+    if (currentUser.role !== SYSTEM_ROLES.SELLER) {
+      throw new ForbiddenException('Only sellers can delete products.');
+    }
+
+    /**
+     * Load product.
+     */
+    const product = await this.findProductOrFail(id);
+
+    /**
+     * Verify ownership.
+     */
+    this.ensureSellerOwnsProduct(product, currentUser.sub);
+
+    /**
+     * Soft delete product.
+     */
+    await this.productsRepository.softRemove(product);
+  }
 }
