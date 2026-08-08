@@ -7,6 +7,7 @@ import { Inventory } from './entities/inventory.entity';
 import { InventoryService } from './services/inventory.service';
 import { SellerInventoryController } from './controllers/seller-inventory.controller';
 import { AdminInventoryController } from './controllers/admin-inventory.controller';
+import { InventoryController } from './controllers/inventory.controller';
 
 /**
  * ------------------------------------------------------------------------
@@ -29,7 +30,11 @@ import { AdminInventoryController } from './controllers/admin-inventory.controll
 @Module({
   imports: [TypeOrmModule.forFeature([Inventory])],
 
-  controllers: [SellerInventoryController, AdminInventoryController],
+  controllers: [
+    SellerInventoryController,
+    AdminInventoryController,
+    InventoryController,
+  ],
 
   providers: [InventoryService],
 
