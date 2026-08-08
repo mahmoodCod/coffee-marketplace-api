@@ -1,8 +1,10 @@
+import { ProductCategory } from 'src/modules/products/entities/product-category.entity';
 import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -96,6 +98,22 @@ export class Category {
     default: true,
   })
   isActive: boolean;
+
+  /**
+   * ------------------------------------------------------------------------
+   * Category Products
+   * ------------------------------------------------------------------------
+   *
+   * A category can contain multiple products.
+   *
+   * Relationship is managed through ProductCategory.
+   * ------------------------------------------------------------------------
+   */
+  @OneToMany(
+    () => ProductCategory,
+    (productCategory) => productCategory.category,
+  )
+  products: ProductCategory[];
 
   /**
    * Record creation timestamp.
