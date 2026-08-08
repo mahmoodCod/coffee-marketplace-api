@@ -131,6 +131,7 @@ export class Product {
   @Column({
     name: 'caffeine_level',
     nullable: true,
+    type: 'varchar',
     length: 50,
   })
   caffeineLevel: string | null;
