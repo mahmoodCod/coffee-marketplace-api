@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
 
@@ -90,6 +95,27 @@ export class ProductService {
 
     if (exists) {
       throw new ConflictException('Product slug already exists.');
+    }
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Ensure Seller Owns Product
+   * ------------------------------------------------------------------------
+   *
+   * Business Rule:
+   *
+   * Sellers may only manage
+   * their own products.
+   *
+   * Throws:
+   *
+   * ForbiddenException
+   * ------------------------------------------------------------------------
+   */
+  private ensureSellerOwnsProduct(product: Product, sellerId: string): void {
+    if (product.seller.id !== sellerId) {
+      throw new ForbiddenException('You cannot manage this product.');
     }
   }
 }
