@@ -62,6 +62,7 @@ export class Product {
    * Product title.
    */
   @Column({
+    type: 'varchar',
     length: 150,
   })
   title: string;
@@ -72,6 +73,7 @@ export class Product {
   @Column({
     unique: true,
     length: 180,
+    type: 'varchar',
   })
   slug: string;
 
