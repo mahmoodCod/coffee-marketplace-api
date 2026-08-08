@@ -5,12 +5,14 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { User } from '../../users/entities/user.entity';
 import { ProductStatus, ProductType } from '../enums';
+import { ProductCategory } from './product-category.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -237,6 +239,22 @@ export class Product {
     default: ProductStatus.DRAFT,
   })
   status: ProductStatus;
+
+  /**
+   * ------------------------------------------------------------------------
+   * Product Categories
+   * ------------------------------------------------------------------------
+   *
+   * A product can belong to multiple categories.
+   *
+   * Relationship is managed through ProductCategory.
+   * ------------------------------------------------------------------------
+   */
+  @OneToMany(
+    () => ProductCategory,
+    (productCategory) => productCategory.product,
+  )
+  categories: ProductCategory[];
 
   /**
    * Creation timestamp.
