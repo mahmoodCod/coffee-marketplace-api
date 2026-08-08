@@ -5,6 +5,7 @@ import { ProductService } from '../services/product.service';
 import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 
 import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
+import { ProductStatus } from '../enums';
 
 describe('ProductService', () => {
   let service: ProductService;
