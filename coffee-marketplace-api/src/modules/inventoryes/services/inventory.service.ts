@@ -63,4 +63,47 @@ export class InventoryService {
 
     return inventory;
   }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Update Inventory
+   * ------------------------------------------------------------------------
+   *
+   * Updates inventory quantities.
+   * ------------------------------------------------------------------------
+   */
+  async updateInventory(
+    productId: string,
+    dto: UpdateInventoryDto,
+  ): Promise<InventoryResponseDto> {
+    const inventory = await this.findByProductId(productId);
+
+    if (dto.stock !== undefined) {
+      inventory.stock = dto.stock;
+    }
+
+    if (dto.reservedStock !== undefined) {
+      inventory.reservedStock = dto.reservedStock;
+    }
+
+    if (inventory.reservedStock > inventory.stock) {
+      throw new BadRequestException('Reserved stock cannot exceed stock.');
+    }
+
+    const updated = await this.inventoriesRepository.save(inventory);
+
+    return {
+      id: updated.id,
+
+      productId: updated.product.id,
+
+      stock: updated.stock,
+
+      reservedStock: updated.reservedStock,
+
+      createdAt: updated.createdAt,
+
+      updatedAt: updated.updatedAt,
+    };
+  }
 }
