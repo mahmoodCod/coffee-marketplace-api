@@ -34,4 +34,33 @@ export class InventoryService {
     @InjectRepository(Inventory)
     private readonly inventoriesRepository: Repository<Inventory>,
   ) {}
+
+  /**
+   * ------------------------------------------------------------------------
+   * Find Inventory By Product
+   * ------------------------------------------------------------------------
+   *
+   * Returns inventory information
+   * of a specific product.
+   * ------------------------------------------------------------------------
+   */
+  async findByProductId(productId: string): Promise<Inventory> {
+    const inventory = await this.inventoriesRepository.findOne({
+      where: {
+        product: {
+          id: productId,
+        },
+      },
+
+      relations: {
+        product: true,
+      },
+    });
+
+    if (!inventory) {
+      throw new NotFoundException('Inventory not found.');
+    }
+
+    return inventory;
+  }
 }
