@@ -81,3 +81,15 @@
 - Sellers can view only their own orders.
 - Sellers cannot access other sellers' information.
 - Sellers can confirm only delivered orders.
+
+-------------------------------
+
+## Business Rules
+
+- Each product must have one inventory.
+- Stock cannot be negative.
+- Reserved stock cannot be greater than stock.
+- Products with zero available stock cannot be purchased.
+- Only product owner seller can update inventory.
+- Admin can update any inventory.
+- Inventory changes must be tracked.

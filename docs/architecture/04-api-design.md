@@ -138,7 +138,7 @@ DELETE /admin/categories/:id
 
 ## Inventory
 
-GET    /inventory/:productId
+GET    /products/:productId/inventory
 
 PATCH  /seller/inventory/:productId
 
