@@ -349,4 +349,20 @@ export class ProductService {
       },
     });
   }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Find Product
+   * ------------------------------------------------------------------------
+   *
+   * Returns one product by identifier.
+   *
+   * Used by:
+   *
+   * GET /products/:id
+   * ------------------------------------------------------------------------
+   */
+  async findOne(id: string): Promise<Product> {
+    return this.findProductOrFail(id);
+  }
 }
