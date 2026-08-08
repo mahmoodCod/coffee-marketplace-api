@@ -50,4 +50,74 @@ describe('InventoryService', () => {
 
     service = module.get<InventoryService>(InventoryService);
   });
+
+  /**
+   * ------------------------------------------------------------------------
+   * findByProductId Tests
+   * ------------------------------------------------------------------------
+   */
+  describe('findByProductId', () => {
+    /**
+     * ------------------------------------------------------------------------
+     * Should return inventory by product id
+     * ------------------------------------------------------------------------
+     *
+     * Service Responsibility:
+     *
+     * - Search inventory using product id
+     * - Return inventory entity
+     *
+     * ------------------------------------------------------------------------
+     */
+    it('should return inventory when product inventory exists', async () => {
+      const inventory = {
+        id: 'inventory-id',
+
+        stock: 100,
+
+        reservedStock: 10,
+
+        product: {
+          id: 'product-id',
+        },
+      };
+
+      repository.findOne.mockResolvedValue(inventory as Inventory);
+
+      const result = await service.findByProductId('product-id');
+
+      expect(repository.findOne).toHaveBeenCalledWith({
+        where: {
+          product: {
+            id: 'product-id',
+          },
+        },
+
+        relations: {
+          product: true,
+        },
+      });
+
+      expect(result).toEqual(inventory);
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Should throw error when inventory does not exist
+     * ------------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * - Every product should have inventory.
+     *
+     * ------------------------------------------------------------------------
+     */
+    it('should throw NotFoundException when inventory does not exist', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.findByProductId('invalid-product-id'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });
