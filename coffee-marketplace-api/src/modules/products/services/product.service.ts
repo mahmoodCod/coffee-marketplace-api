@@ -12,7 +12,7 @@ import { Repository } from 'typeorm';
 import { Product } from '../entities/product.entity';
 import { UsersService } from 'src/modules/users/services/user.service';
 import { JwtPayload } from 'src/modules/auth/interfaces/jwt-payload.interface';
-import { CreateProductDto } from '../dto';
+import { CreateProductDto, UpdateProductDto } from '../dto';
 import { SYSTEM_ROLES } from 'src/common/constants/system-roles.constant';
 import { ProductStatus } from '../enums';
 
@@ -175,6 +175,63 @@ export class ProductService {
 
     /**
      * Save product.
+     */
+    const created = await this.productsRepository.save(product);
+
+    return created;
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Update Product
+   * ------------------------------------------------------------------------
+   *
+   * Updates an existing product.
+   *
+   * Business Rules
+   * ------------------------------------------------------------------------
+   *
+   * - Only sellers can update products.
+   * - Seller can update only their own products.
+   * - Slug must remain unique.
+   * ------------------------------------------------------------------------
+   */
+  async update(
+    id: string,
+    currentUser: JwtPayload,
+    dto: UpdateProductDto,
+  ): Promise<Product> {
+    /**
+     * Only sellers may update products.
+     */
+    if (currentUser.role !== SYSTEM_ROLES.SELLER) {
+      throw new ForbiddenException('Only sellers can update products.');
+    }
+
+    /**
+     * Load product.
+     */
+    const product = await this.findProductOrFail(id);
+
+    /**
+     * Verify ownership.
+     */
+    this.ensureSellerOwnsProduct(product, currentUser.sub);
+
+    /**
+     * Validate slug if changed.
+     */
+    if (dto.slug && dto.slug !== product.slug) {
+      await this.ensureSlugUnique(dto.slug);
+    }
+
+    /**
+     * Apply changes.
+     */
+    Object.assign(product, dto);
+
+    /**
+     * Save changes.
      */
     return this.productsRepository.save(product);
   }
