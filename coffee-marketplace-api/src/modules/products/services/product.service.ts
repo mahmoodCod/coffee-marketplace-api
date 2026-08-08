@@ -392,4 +392,102 @@ export class ProductService {
   async findOne(id: string): Promise<Product> {
     return this.findProductOrFail(id);
   }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Find All Products For Admin
+   * ------------------------------------------------------------------------
+   *
+   * Returns all products for administration.
+   *
+   * Business Rule:
+   *
+   * Admin can see all products regardless of status.
+   *
+   * Includes:
+   *
+   * - Active products
+   * - Pending products
+   * - Inactive products
+   * ------------------------------------------------------------------------
+   */
+  async findAllAdmin(): Promise<Product[]> {
+    return this.productsRepository.find({
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Admin Update Product
+   * ------------------------------------------------------------------------
+   *
+   * Updates any product regardless of ownership.
+   *
+   * Business Rule:
+   *
+   * Admin can manage all products.
+   * ------------------------------------------------------------------------
+   */
+  async adminUpdate(
+    id: string,
+
+    dto: UpdateProductDto,
+  ): Promise<Product> {
+    const product = await this.productsRepository.findOne({
+      where: {
+        id,
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found.');
+    }
+
+    /**
+     * Update editable fields.
+     */
+    if (dto.title !== undefined) {
+      product.title = dto.title;
+    }
+
+    if (dto.description !== undefined) {
+      product.description = dto.description;
+    }
+
+    if (dto.price !== undefined) {
+      product.price = dto.price;
+    }
+
+    return this.productsRepository.save(product);
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Admin Delete Product
+   * ------------------------------------------------------------------------
+   *
+   * Soft deletes any product.
+   *
+   * Business Rule:
+   *
+   * Admin is allowed to remove
+   * any product from platform.
+   * ------------------------------------------------------------------------
+   */
+  async adminDelete(id: string): Promise<Product> {
+    const product = await this.productsRepository.findOne({
+      where: {
+        id,
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found.');
+    }
+
+    return this.productsRepository.softRemove(product);
+  }
 }
