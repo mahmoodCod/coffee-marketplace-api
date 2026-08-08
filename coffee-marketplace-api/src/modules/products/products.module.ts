@@ -9,6 +9,8 @@ import { ProductCategory } from './entities/product-category.entity';
 import { ProductService } from './services/product.service';
 
 import { UsersModule } from '../users/users.module';
+import { ProductsController } from './controllers/products.controller';
+import { SellerProductsController } from './controllers/seller-products.controller';
 
 /**
  * ------------------------------------------------------------------------
@@ -37,6 +39,8 @@ import { UsersModule } from '../users/users.module';
  */
 @Module({
   imports: [TypeOrmModule.forFeature([Product, ProductCategory]), UsersModule],
+
+  controllers: [ProductsController, SellerProductsController],
 
   providers: [ProductService],
 
