@@ -8,10 +8,14 @@ import { InventoryService } from '../services/inventory.service';
 
 import { Inventory } from '../entities/inventory.entity';
 
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Product } from 'src/modules/products/entities/product.entity';
+import { UpdateInventoryDto } from '../dto';
 
 describe('InventoryService', () => {
   let service: InventoryService;
+
+  let productRepository: jest.Mocked<Partial<Repository<Product>>>;
 
   let repository: jest.Mocked<Partial<Repository<Inventory>>>;
 
@@ -44,6 +48,11 @@ describe('InventoryService', () => {
           provide: getRepositoryToken(Inventory),
 
           useValue: repository,
+        },
+
+        {
+          provide: getRepositoryToken(Product),
+          useValue: productRepository,
         },
       ],
     }).compile();
@@ -378,6 +387,64 @@ describe('InventoryService', () => {
       await expect(
         service.getPublicInventory('invalid-product-id'),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('updateSellerInventory - ownership', () => {
+    /**
+     * ----------------------------------------------------------------------
+     * Should prevent seller from updating another seller's product
+     * ----------------------------------------------------------------------
+     *
+     * Business Rule:
+     *
+     * - A seller can only manage their own products.
+     * - A seller must not be able to modify another
+     *   seller's inventory.
+     *
+     * Expected:
+     *
+     * - Product ownership validation fails.
+     * - ForbiddenException is thrown.
+     * - Inventory must not be updated.
+     * ----------------------------------------------------------------------
+     */
+    it('should throw ForbiddenException when seller does not own the product', async () => {
+      const productId = 'product-id';
+
+      const sellerId = 'seller-id';
+
+      /**
+       * Simulate a product that does not belong
+       * to the authenticated seller.
+       *
+       * The service searches using both:
+       *
+       * - productId
+       * - sellerId
+       *
+       * Returning null means the seller does not
+       * have permission to manage this product.
+       */
+      productRepository.findOne.mockResolvedValue(null);
+
+      const updateDto: UpdateInventoryDto = {
+        stock: 100,
+      };
+
+      /**
+       * Verify that the service rejects
+       * the unauthorized inventory update.
+       */
+      await expect(
+        service.updateSellerInventory(productId, sellerId, updateDto),
+      ).rejects.toThrow(ForbiddenException);
+
+      /**
+       * Inventory must not be saved when
+       * ownership validation fails.
+       */
+      expect(inventoryRepository.save).not.toHaveBeenCalled();
     });
   });
 });
