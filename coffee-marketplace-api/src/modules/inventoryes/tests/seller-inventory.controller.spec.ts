@@ -6,20 +6,29 @@ import { InventoryService } from '../services/inventory.service';
 
 import { UpdateInventoryDto } from '../dto';
 
+import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
+
 describe('SellerInventoryController', () => {
   let controller: SellerInventoryController;
 
-  let service: jest.Mocked<Partial<InventoryService>>;
+  /**
+   * Mocked InventoryService used by the controller unit tests.
+   *
+   * Only the method used by this controller is mocked.
+   */
+  let service: {
+    updateSellerInventory: jest.Mock;
+  };
 
   beforeEach(async () => {
+    /**
+     * Create a mocked InventoryService.
+     *
+     * The controller should delegate seller inventory
+     * update operations to updateSellerInventory().
+     */
     service = {
-      /**
-       * Mock updateInventory method.
-       *
-       * Controller delegates
-       * business logic to service.
-       */
-      updateInventory: jest.fn(),
+      updateSellerInventory: jest.fn(),
     };
 
     const module = await Test.createTestingModule({
@@ -40,52 +49,79 @@ describe('SellerInventoryController', () => {
   });
 
   /**
-   * ------------------------------------------------------------------------
-   * Should update seller product inventory
-   * ------------------------------------------------------------------------
+   * --------------------------------------------------
+   * updateInventory
+   * --------------------------------------------------
    *
-   * Flow:
+   * Verifies that the controller:
    *
-   * Controller
-   *      |
-   *      |
-   * InventoryService
-   *
-   * ------------------------------------------------------------------------
+   * 1. Receives the product ID.
+   * 2. Receives the authenticated user's JWT payload.
+   * 3. Extracts the seller ID from user.sub.
+   * 4. Passes the correct arguments to the service.
+   * 5. Returns the service response.
    */
-  it('should update seller inventory successfully', async () => {
-    const dto: UpdateInventoryDto = {
-      stock: 100,
-    };
+  describe('updateInventory', () => {
+    it('should update seller inventory successfully', async () => {
+      /**
+       * Inventory update request body.
+       */
+      const dto: UpdateInventoryDto = {
+        stock: 100,
+      };
 
-    const response = {
-      id: 'inventory-id',
+      /**
+       * Authenticated seller JWT payload.
+       *
+       * user.sub is the seller/user ID that the controller
+       * must pass to the service.
+       */
+      const user = {
+        sub: 'seller-id',
+      } as JwtPayload;
 
-      productId: 'product-id',
+      /**
+       * Expected response returned by the service.
+       */
+      const response = {
+        id: 'inventory-id',
+        productId: 'product-id',
+        stock: 100,
+        reservedStock: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      stock: 100,
+      /**
+       * Configure the mocked service to return
+       * the expected inventory response.
+       */
+      service.updateSellerInventory.mockResolvedValue(response);
 
-      reservedStock: 0,
+      /**
+       * Call the controller directly.
+       *
+       * IMPORTANT:
+       * The second argument represents the authenticated
+       * user object, not just the seller ID.
+       */
+      const result = await controller.updateInventory('product-id', user, dto);
 
-      createdAt: new Date(),
+      /**
+       * Verify that the controller extracted user.sub
+       * and passed it to the service.
+       */
+      expect(service.updateSellerInventory).toHaveBeenCalledWith(
+        'product-id',
+        'seller-id',
+        dto,
+      );
 
-      updatedAt: new Date(),
-    };
-
-    service.updateInventory.mockResolvedValue(response);
-
-    const result = await controller.updateInventory(
-      'product-id',
-
-      dto,
-    );
-
-    expect(service.updateInventory).toHaveBeenCalledWith(
-      'product-id',
-
-      dto,
-    );
-
-    expect(result).toEqual(response);
+      /**
+       * Verify that the controller returns
+       * exactly what the service returned.
+       */
+      expect(result).toEqual(response);
+    });
   });
 });

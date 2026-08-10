@@ -17,10 +17,10 @@ describe('InventoryService', () => {
 
   let productRepository: jest.Mocked<Partial<Repository<Product>>>;
 
-  let repository: jest.Mocked<Partial<Repository<Inventory>>>;
+  let inventoriesRepository: jest.Mocked<Partial<Repository<Inventory>>>;
 
   beforeEach(async () => {
-    repository = {
+    inventoriesRepository = {
       /**
        * Mock findOne method.
        *
@@ -40,14 +40,17 @@ describe('InventoryService', () => {
       save: jest.fn(),
     };
 
+    productRepository = {
+      findOne: jest.fn(),
+    };
+
     const module = await Test.createTestingModule({
       providers: [
         InventoryService,
 
         {
           provide: getRepositoryToken(Inventory),
-
-          useValue: repository,
+          useValue: inventoriesRepository,
         },
 
         {
@@ -91,11 +94,11 @@ describe('InventoryService', () => {
         },
       };
 
-      repository.findOne.mockResolvedValue(inventory);
+      inventoriesRepository.findOne.mockResolvedValue(inventory);
 
       const result = await service.findByProductId('product-id');
 
-      expect(repository.findOne).toHaveBeenCalledWith({
+      expect(inventoriesRepository.findOne).toHaveBeenCalledWith({
         where: {
           product: {
             id: 'product-id',
@@ -122,7 +125,7 @@ describe('InventoryService', () => {
      * ------------------------------------------------------------------------
      */
     it('should throw NotFoundException when inventory does not exist', async () => {
-      repository.findOne.mockResolvedValue(null);
+      inventoriesRepository.findOne.mockResolvedValue(null);
 
       await expect(
         service.findByProductId('invalid-product-id'),
@@ -176,7 +179,7 @@ describe('InventoryService', () => {
         )
         .mockResolvedValue(inventory as Inventory);
 
-      repository.save.mockResolvedValue({
+        inventoriesRepository.save.mockResolvedValue({
         ...inventory,
 
         stock: 100,
@@ -190,7 +193,7 @@ describe('InventoryService', () => {
         },
       );
 
-      expect(repository.save).toHaveBeenCalled();
+      expect(inventoriesRepository.save).toHaveBeenCalled();
 
       expect(result.stock).toBe(100);
     });
@@ -235,7 +238,7 @@ describe('InventoryService', () => {
         )
         .mockResolvedValue(inventory as Inventory);
 
-      repository.save.mockResolvedValue({
+        inventoriesRepository.save.mockResolvedValue({
         ...inventory,
 
         reservedStock: 20,
@@ -444,7 +447,7 @@ describe('InventoryService', () => {
        * Inventory must not be saved when
        * ownership validation fails.
        */
-      expect(inventoryRepository.save).not.toHaveBeenCalled();
+      expect(inventoriesRepository.save).not.toHaveBeenCalled();
     });
   });
 });

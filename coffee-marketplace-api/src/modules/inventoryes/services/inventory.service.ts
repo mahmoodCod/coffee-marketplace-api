@@ -35,6 +35,7 @@ export class InventoryService {
   constructor(
     @InjectRepository(Inventory)
     private readonly inventoriesRepository: Repository<Inventory>,
+    @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
   ) {}
 
