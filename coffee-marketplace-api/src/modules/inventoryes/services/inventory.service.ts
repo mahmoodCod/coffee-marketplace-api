@@ -143,17 +143,13 @@ export class InventoryService {
     productId: string,
     sellerId: string,
     dto: UpdateInventoryDto,
-  ): Promise<Inventory> {
+  ): Promise<InventoryResponseDto> {
     /**
-     * Find the product by both product ID
-     * and seller ID.
+     * Find the product using both the product ID
+     * and the authenticated seller ID.
      *
-     * This is important for marketplace security:
-     * a seller must only be able to update
-     * the inventory of their own products.
-     *
-     * If the product exists but belongs to
-     * another seller, it will not be returned.
+     * This ensures that a seller can only
+     * manage inventory belonging to them.
      */
     const product = await this.productRepository.findOne({
       where: {
@@ -165,13 +161,9 @@ export class InventoryService {
     });
 
     /**
-     * If no product is found, either:
-     *
-     * 1. The product does not exist.
-     * 2. The product belongs to another seller.
-     *
-     * In both cases, we prevent the seller
-     * from modifying the inventory.
+     * If the product does not exist or does not
+     * belong to the authenticated seller,
+     * prevent the inventory update.
      */
     if (!product) {
       throw new ForbiddenException(
@@ -180,8 +172,8 @@ export class InventoryService {
     }
 
     /**
-     * Find the inventory associated with
-     * the requested product.
+     * Find the inventory associated
+     * with the product.
      */
     const inventory = await this.inventoriesRepository.findOne({
       where: {
@@ -192,40 +184,47 @@ export class InventoryService {
     });
 
     /**
-     * A product should have an inventory record.
-     *
-     * If the inventory does not exist,
-     * return a not-found error instead of
-     * trying to update a non-existing record.
+     * Every product should have an inventory record.
      */
     if (!inventory) {
       throw new NotFoundException('Inventory not found');
     }
 
     /**
-     * Update stock only when the field
-     * is explicitly provided in the DTO.
-     *
-     * This keeps the update operation
-     * partial and prevents undefined values
-     * from overwriting existing data.
+     * Update stock only when provided.
      */
     if (dto.stock !== undefined) {
       inventory.stock = dto.stock;
     }
 
     /**
-     * Update reserved stock only when
-     * it is explicitly provided.
+     * Update reserved stock only when provided.
      */
     if (dto.reservedStock !== undefined) {
       inventory.reservedStock = dto.reservedStock;
     }
 
     /**
-     * Persist the updated inventory
-     * and return the saved entity.
+     * Save the updated inventory.
      */
-    return this.inventoriesRepository.save(inventory);
+    const savedInventory = await this.inventoriesRepository.save(inventory);
+
+    /**
+     * Return the API response DTO instead
+     * of exposing the database entity directly.
+     */
+    return {
+      id: savedInventory.id,
+
+      productId: productId,
+
+      stock: savedInventory.stock,
+
+      reservedStock: savedInventory.reservedStock,
+
+      createdAt: savedInventory.createdAt,
+
+      updatedAt: savedInventory.updatedAt,
+    };
   }
 }
