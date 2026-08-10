@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,6 +12,7 @@ import { Repository } from 'typeorm';
 import { Inventory } from '../entities/inventory.entity';
 
 import { UpdateInventoryDto, InventoryResponseDto } from '../dto';
+import { Product } from 'src/modules/products/entities/product.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -33,6 +35,7 @@ export class InventoryService {
   constructor(
     @InjectRepository(Inventory)
     private readonly inventoriesRepository: Repository<Inventory>,
+    private readonly productRepository: Repository<Product>,
   ) {}
 
   /**
@@ -134,5 +137,95 @@ export class InventoryService {
 
       updatedAt: inventory.updatedAt,
     };
+  }
+
+  async updateSellerInventory(
+    productId: string,
+    sellerId: string,
+    dto: UpdateInventoryDto,
+  ): Promise<Inventory> {
+    /**
+     * Find the product by both product ID
+     * and seller ID.
+     *
+     * This is important for marketplace security:
+     * a seller must only be able to update
+     * the inventory of their own products.
+     *
+     * If the product exists but belongs to
+     * another seller, it will not be returned.
+     */
+    const product = await this.productRepository.findOne({
+      where: {
+        id: productId,
+        seller: {
+          id: sellerId,
+        },
+      },
+    });
+
+    /**
+     * If no product is found, either:
+     *
+     * 1. The product does not exist.
+     * 2. The product belongs to another seller.
+     *
+     * In both cases, we prevent the seller
+     * from modifying the inventory.
+     */
+    if (!product) {
+      throw new ForbiddenException(
+        'You do not have permission to update this product inventory',
+      );
+    }
+
+    /**
+     * Find the inventory associated with
+     * the requested product.
+     */
+    const inventory = await this.inventoriesRepository.findOne({
+      where: {
+        product: {
+          id: productId,
+        },
+      },
+    });
+
+    /**
+     * A product should have an inventory record.
+     *
+     * If the inventory does not exist,
+     * return a not-found error instead of
+     * trying to update a non-existing record.
+     */
+    if (!inventory) {
+      throw new NotFoundException('Inventory not found');
+    }
+
+    /**
+     * Update stock only when the field
+     * is explicitly provided in the DTO.
+     *
+     * This keeps the update operation
+     * partial and prevents undefined values
+     * from overwriting existing data.
+     */
+    if (dto.stock !== undefined) {
+      inventory.stock = dto.stock;
+    }
+
+    /**
+     * Update reserved stock only when
+     * it is explicitly provided.
+     */
+    if (dto.reservedStock !== undefined) {
+      inventory.reservedStock = dto.reservedStock;
+    }
+
+    /**
+     * Persist the updated inventory
+     * and return the saved entity.
+     */
+    return this.inventoriesRepository.save(inventory);
   }
 }
