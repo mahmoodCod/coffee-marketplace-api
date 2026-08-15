@@ -1,0 +1,231 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
+
+import { InjectRepository } from '@nestjs/typeorm';
+
+import { Repository } from 'typeorm';
+
+import { Inventory } from '../entities/inventory.entity';
+
+import { UpdateInventoryDto, InventoryResponseDto } from '../dto';
+import { Product } from 'src/modules/products/entities/product.entity';
+
+/**
+ * ------------------------------------------------------------------------
+ * Inventory Service
+ * ------------------------------------------------------------------------
+ *
+ * Handles inventory business logic.
+ *
+ * Responsibilities:
+ *
+ * - Retrieve inventory
+ * - Update stock
+ * - Check stock availability
+ * - Increase stock
+ * - Decrease stock
+ * ------------------------------------------------------------------------
+ */
+@Injectable()
+export class InventoryService {
+  constructor(
+    @InjectRepository(Inventory)
+    private readonly inventoriesRepository: Repository<Inventory>,
+    @InjectRepository(Product)
+    private readonly productRepository: Repository<Product>,
+  ) {}
+
+  /**
+   * ------------------------------------------------------------------------
+   * Find Inventory By Product
+   * ------------------------------------------------------------------------
+   *
+   * Returns inventory information
+   * of a specific product.
+   * ------------------------------------------------------------------------
+   */
+  async findByProductId(productId: string): Promise<Inventory> {
+    const inventory = await this.inventoriesRepository.findOne({
+      where: {
+        product: {
+          id: productId,
+        },
+      },
+
+      relations: {
+        product: true,
+      },
+    });
+
+    if (!inventory) {
+      throw new NotFoundException('Inventory not found.');
+    }
+
+    return inventory;
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Update Inventory
+   * ------------------------------------------------------------------------
+   *
+   * Updates inventory quantities.
+   * ------------------------------------------------------------------------
+   */
+  async updateInventory(
+    productId: string,
+    dto: UpdateInventoryDto,
+  ): Promise<InventoryResponseDto> {
+    const inventory = await this.findByProductId(productId);
+
+    if (dto.stock !== undefined) {
+      inventory.stock = dto.stock;
+    }
+
+    if (dto.reservedStock !== undefined) {
+      inventory.reservedStock = dto.reservedStock;
+    }
+
+    if (inventory.reservedStock > inventory.stock) {
+      throw new BadRequestException('Reserved stock cannot exceed stock.');
+    }
+
+    const updated = await this.inventoriesRepository.save(inventory);
+
+    return {
+      id: updated.id,
+
+      productId: updated.product.id,
+
+      stock: updated.stock,
+
+      reservedStock: updated.reservedStock,
+
+      createdAt: updated.createdAt,
+
+      updatedAt: updated.updatedAt,
+    };
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Get Public Inventory
+   * ------------------------------------------------------------------------
+   *
+   * Returns public inventory information.
+   *
+   * Used by customers to check product availability.
+   *
+   * ------------------------------------------------------------------------
+   */
+  async getPublicInventory(productId: string): Promise<InventoryResponseDto> {
+    const inventory = await this.findByProductId(productId);
+
+    return {
+      id: inventory.id,
+
+      productId: inventory.product.id,
+
+      stock: inventory.stock,
+
+      reservedStock: inventory.reservedStock,
+
+      createdAt: inventory.createdAt,
+
+      updatedAt: inventory.updatedAt,
+    };
+  }
+
+  async updateSellerInventory(
+    productId: string,
+    sellerId: string,
+    dto: UpdateInventoryDto,
+  ): Promise<InventoryResponseDto> {
+    /**
+     * Find the product using both the product ID
+     * and the authenticated seller ID.
+     *
+     * This ensures that a seller can only
+     * manage inventory belonging to them.
+     */
+    const product = await this.productRepository.findOne({
+      where: {
+        id: productId,
+        seller: {
+          id: sellerId,
+        },
+      },
+    });
+
+    /**
+     * If the product does not exist or does not
+     * belong to the authenticated seller,
+     * prevent the inventory update.
+     */
+    if (!product) {
+      throw new ForbiddenException(
+        'You do not have permission to update this product inventory',
+      );
+    }
+
+    /**
+     * Find the inventory associated
+     * with the product.
+     */
+    const inventory = await this.inventoriesRepository.findOne({
+      where: {
+        product: {
+          id: productId,
+        },
+      },
+    });
+
+    /**
+     * Every product should have an inventory record.
+     */
+    if (!inventory) {
+      throw new NotFoundException('Inventory not found');
+    }
+
+    /**
+     * Update stock only when provided.
+     */
+    if (dto.stock !== undefined) {
+      inventory.stock = dto.stock;
+    }
+
+    /**
+     * Update reserved stock only when provided.
+     */
+    if (dto.reservedStock !== undefined) {
+      inventory.reservedStock = dto.reservedStock;
+    }
+
+    /**
+     * Save the updated inventory.
+     */
+    const savedInventory = await this.inventoriesRepository.save(inventory);
+
+    /**
+     * Return the API response DTO instead
+     * of exposing the database entity directly.
+     */
+    return {
+      id: savedInventory.id,
+
+      productId: productId,
+
+      stock: savedInventory.stock,
+
+      reservedStock: savedInventory.reservedStock,
+
+      createdAt: savedInventory.createdAt,
+
+      updatedAt: savedInventory.updatedAt,
+    };
+  }
+}

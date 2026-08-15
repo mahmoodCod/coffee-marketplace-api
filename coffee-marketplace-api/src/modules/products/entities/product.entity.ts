@@ -6,6 +6,7 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -13,6 +14,7 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { ProductStatus, ProductType } from '../enums';
 import { ProductCategory } from './product-category.entity';
+import { Inventory } from '../../../modules/inventoryes/entities/inventory.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -263,6 +265,16 @@ export class Product {
     (productCategory) => productCategory.product,
   )
   categories: ProductCategory[];
+
+  /**
+   * Product inventory.
+   *
+   * Relationship:
+   *
+   * One product has one inventory.
+   */
+  @OneToOne(() => Inventory, (inventory) => inventory.product)
+  inventory: Inventory;
 
   /**
    * Creation timestamp.
