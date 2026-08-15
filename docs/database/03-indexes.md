@@ -66,11 +66,17 @@ product_discounts (product_id, discount_id)
 
 article_products (article_id, product_id)
 
+cart_items (cart_id, product_id)
+
+----------------------------------------
+
+## Partial Unique Indexes
+
+carts (user_id) WHERE status = 'ACTIVE'
+
 ----------------------------------------
 
 ## Composite Indexes
-
-cart_items (cart_id, product_id)
 
 order_items (order_id, product_id)
 
