@@ -11,6 +11,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { SellerModule } from './modules/sellers/seller.module';
 import { ProductModule } from './modules/products/products.module';
 import { InventoryModule } from './modules/inventoryes/inventory.module';
+import { CartModule } from './modules/cart/cart.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { InventoryModule } from './modules/inventoryes/inventory.module';
     SellerModule,
     ProductModule,
     InventoryModule,
+    CartModule,
   ],
   controllers: [AppController],
   providers: [AppService],

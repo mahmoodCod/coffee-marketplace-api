@@ -1,0 +1,174 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+
+import {
+  ApiBearerAuth,
+  ApiNoContentResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+
+import { CartService } from '../services/cart.service';
+
+import {
+  AddCartItemDto,
+  CartItemResponseDto,
+  CartResponseDto,
+  UpdateCartItemDto,
+} from '../dto';
+
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+
+import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
+
+/**
+ * Cart Controller
+ *
+ * Handles shopping cart HTTP requests.
+ *
+ * Responsibilities:
+ * - Retrieve the authenticated user's cart.
+ * - Add products to the cart.
+ * - Update cart item quantities.
+ * - Remove cart items.
+ * - Clear the active cart.
+ *
+ * All routes require a valid Bearer access token.
+ * Business logic is delegated to CartService.
+ */
+@ApiTags('Cart')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
+@Controller('cart')
+export class CartController {
+  constructor(private readonly cartService: CartService) {}
+
+  /**
+   * GET /cart
+   *
+   * Returns the authenticated user's active cart.
+   *
+   * If the user does not have an active cart,
+   * CartService creates one.
+   */
+  @Get()
+  @ApiOperation({
+    summary: 'Get current user cart',
+  })
+  @ApiOkResponse({
+    type: CartResponseDto,
+  })
+  async getCart(
+    @CurrentUser()
+    user: JwtPayload,
+  ): Promise<CartResponseDto> {
+    return this.cartService.getCart(user.sub);
+  }
+
+  /**
+   * POST /cart/items
+   *
+   * Adds a product to the authenticated user's cart.
+   */
+  @Post('items')
+  @ApiOperation({
+    summary: 'Add product to cart',
+  })
+  @ApiOkResponse({
+    type: CartItemResponseDto,
+  })
+  async addItem(
+    @CurrentUser()
+    user: JwtPayload,
+
+    @Body()
+    dto: AddCartItemDto,
+  ): Promise<CartItemResponseDto> {
+    return this.cartService.addItem(user.sub, dto);
+  }
+
+  /**
+   * PATCH /cart/items/:id
+   *
+   * Updates the quantity of an existing
+   * cart item belonging to the authenticated user.
+   */
+  @Patch('items/:id')
+  @ApiOperation({
+    summary: 'Update cart item quantity',
+  })
+  @ApiOkResponse({
+    type: CartItemResponseDto,
+  })
+  async updateItem(
+    @Param('id', new ParseUUIDPipe())
+    itemId: string,
+
+    @CurrentUser()
+    user: JwtPayload,
+
+    @Body()
+    dto: UpdateCartItemDto,
+  ): Promise<CartItemResponseDto> {
+    return this.cartService.updateItem(user.sub, itemId, dto);
+  }
+
+  /**
+   * DELETE /cart/items/:id
+   *
+   * Removes a cart item from the authenticated
+   * user's active cart.
+   */
+  @Delete('items/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Remove cart item',
+  })
+  @ApiNoContentResponse({
+    description: 'Cart item removed successfully.',
+  })
+  async removeItem(
+    @Param('id', new ParseUUIDPipe())
+    itemId: string,
+
+    @CurrentUser()
+    user: JwtPayload,
+  ): Promise<void> {
+    return this.cartService.removeItem(user.sub, itemId);
+  }
+
+  /**
+   * DELETE /cart/clear
+   *
+   * Removes all items from the authenticated
+   * user's active cart.
+   */
+  @Delete('clear')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Clear current cart',
+  })
+  @ApiNoContentResponse({
+    description: 'Cart cleared successfully.',
+  })
+  async clearCart(
+    @CurrentUser()
+    user: JwtPayload,
+  ): Promise<void> {
+    return this.cartService.clearCart(user.sub);
+  }
+}

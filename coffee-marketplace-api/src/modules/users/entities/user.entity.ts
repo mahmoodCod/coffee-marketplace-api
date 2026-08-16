@@ -13,6 +13,7 @@ import {
 import { Role } from '../../roles/entities/role.entity';
 import { UserStatus } from '../enums/user-status.enum';
 import { Address } from './address.entity';
+import { Cart } from '../../../modules/cart/entities';
 
 /**
  * ------------------------------------------------------------------------
@@ -96,6 +97,18 @@ export class User {
   @CreateDateColumn({
     name: 'created_at',
   })
+
+  /**
+   * Shopping carts owned by this user.
+   *
+   * A user can have multiple carts throughout
+   * the lifetime of the account.
+   *
+   * However, the business rule allows only
+   * one ACTIVE cart at a time.
+   */
+  @OneToMany(() => Cart, (cart) => cart.user)
+  carts: Cart[];
   createdAt: Date;
 
   @UpdateDateColumn({
