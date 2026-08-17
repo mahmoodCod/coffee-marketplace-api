@@ -11,7 +11,7 @@ import {
 
 import { User } from '../../users/entities/user.entity';
 
-import { CartItem } from './cart-item.entity';
+import { CartItem } from '../entities/cart-item.entity';
 
 import { CartStatus } from './cart-status.enum';
 
