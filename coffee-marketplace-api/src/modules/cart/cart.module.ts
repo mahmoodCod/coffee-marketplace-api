@@ -8,6 +8,7 @@ import { CartItem } from './entities/cart-item.entity';
 import { CartRepository } from './repositories/cart.repository';
 import { CartItemRepository } from './repositories/cart-item.repository';
 import { CartService } from './services/cart.service';
+import { Product } from '../products/entities/product.entity';
 
 /**
  * Cart Module
@@ -26,7 +27,7 @@ import { CartService } from './services/cart.service';
    * Register Cart and CartItem repositories
    * so they can be injected into services.
    */
-  imports: [TypeOrmModule.forFeature([Cart, CartItem])],
+  imports: [TypeOrmModule.forFeature([Cart, CartItem, Product])],
 
   /**
    * Controllers will be added in the controller layer.
