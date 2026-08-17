@@ -5,6 +5,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Cart } from './entities/cart.entity';
 
 import { CartItem } from './entities/cart-item.entity';
+import { CartRepository } from './repositories/cart.repository';
+import { CartItemRepository } from './repositories/cart-item.repository';
 
 /**
  * Cart Module
@@ -33,12 +35,12 @@ import { CartItem } from './entities/cart-item.entity';
   /**
    * Services will be added in the service layer.
    */
-  providers: [],
+  providers: [CartRepository, CartItemRepository],
 
   /**
    * Required exports will be added when
    * other modules need Cart functionality.
    */
-  exports: [],
+  exports: [CartRepository, CartItemRepository],
 })
 export class CartModule {}
