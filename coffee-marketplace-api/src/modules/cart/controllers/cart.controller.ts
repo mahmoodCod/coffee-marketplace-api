@@ -3,7 +3,10 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
@@ -92,7 +95,7 @@ export class CartController {
     summary: 'Update cart item quantity',
   })
   async updateItem(
-    @Param('id')
+    @Param('id', new ParseUUIDPipe())
     itemId: string,
 
     @CurrentUser()
@@ -111,11 +114,12 @@ export class CartController {
    * user's active cart.
    */
   @Delete('items/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Remove cart item',
   })
   async removeItem(
-    @Param('id')
+    @Param('id', new ParseUUIDPipe())
     itemId: string,
 
     @CurrentUser()
@@ -131,6 +135,7 @@ export class CartController {
    * user's active cart.
    */
   @Delete('clear')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Clear current cart',
   })
