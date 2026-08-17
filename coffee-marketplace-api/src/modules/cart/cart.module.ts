@@ -8,6 +8,7 @@ import { CartItem } from './entities/cart-item.entity';
 import { CartRepository } from './repositories/cart.repository';
 import { CartItemRepository } from './repositories/cart-item.repository';
 import { CartService } from './services/cart.service';
+import { CartController } from './controllers/cart.controller';
 import { Product } from '../products/entities/product.entity';
 
 /**
@@ -29,14 +30,8 @@ import { Product } from '../products/entities/product.entity';
    */
   imports: [TypeOrmModule.forFeature([Cart, CartItem, Product])],
 
-  /**
-   * Controllers will be added in the controller layer.
-   */
-  controllers: [],
+  controllers: [CartController],
 
-  /**
-   * Services will be added in the service layer.
-   */
   providers: [CartRepository, CartItemRepository, CartService],
 
   /**
