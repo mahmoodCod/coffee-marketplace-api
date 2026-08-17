@@ -15,6 +15,7 @@ import { User } from '../../users/entities/user.entity';
 import { ProductStatus, ProductType } from '../enums';
 import { ProductCategory } from './product-category.entity';
 import { Inventory } from '../../../modules/inventoryes/entities/inventory.entity';
+import { CartItem } from 'src/modules/cart/entities';
 
 /**
  * ------------------------------------------------------------------------
@@ -282,6 +283,15 @@ export class Product {
   @CreateDateColumn({
     name: 'created_at',
   })
+
+  /**
+   * Cart items that reference this product.
+   *
+   * A product can be added to many different
+   * customers' carts.
+   */
+  @OneToMany(() => CartItem, (cartItem) => cartItem.product)
+  cartItems: CartItem[];
   createdAt: Date;
 
   /**
