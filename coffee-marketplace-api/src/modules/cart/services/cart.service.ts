@@ -6,7 +6,7 @@ import {
 
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 
 import { Cart } from '../entities/cart.entity';
 
@@ -84,16 +84,39 @@ export class CartService {
     let cart = await this.cartRepository.findActiveByUserId(userId);
 
     if (!cart) {
-      cart = this.cartRepository.create({
-        user: {
-          id: userId,
-        } as Cart['user'],
-        status: CartStatus.ACTIVE,
-      });
+      try {
+        cart = this.cartRepository.create({
+          user: {
+            id: userId,
+          } as Cart['user'],
+          status: CartStatus.ACTIVE,
+        });
 
-      cart = await this.cartRepository.save(cart);
+        cart = await this.cartRepository.save(cart);
 
-      cart.items = [];
+        cart.items = [];
+      } catch (error) {
+        /**
+         * Concurrent requests may both try to create
+         * the first ACTIVE cart for the same user.
+         * The partial unique index rejects the duplicate,
+         * so we reload the cart created by the winner.
+         */
+        const isUniqueViolation =
+          error instanceof QueryFailedError &&
+          (error as { driverError?: { code?: string } }).driverError?.code ===
+            '23505';
+
+        if (!isUniqueViolation) {
+          throw error;
+        }
+
+        cart = await this.cartRepository.findActiveByUserId(userId);
+
+        if (!cart) {
+          throw error;
+        }
+      }
     }
 
     return cart;

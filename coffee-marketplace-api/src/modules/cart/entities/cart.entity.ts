@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -27,6 +28,10 @@ import { CartStatus } from './cart-status.enum';
  * - A cart can contain multiple cart items.
  */
 @Entity('carts')
+@Index('UQ_carts_one_active_per_user', ['user'], {
+  unique: true,
+  where: `"status" = 'ACTIVE'`,
+})
 export class Cart {
   /**
    * Unique identifier of the cart.
