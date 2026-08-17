@@ -1,3 +1,5 @@
+import { ApiProperty } from '@nestjs/swagger';
+
 import { Type } from 'class-transformer';
 
 import { IsInt, IsNotEmpty, IsUUID, Min } from 'class-validator';
@@ -17,6 +19,10 @@ export class AddCartItemDto {
   /**
    * ID of the product that should be added to the cart.
    */
+  @ApiProperty({
+    example: '8f9c9d10-1234-4567-8901-123456789abc',
+    description: 'UUID of the product to add to the cart',
+  })
   @IsNotEmpty()
   @IsUUID()
   productId: string;
@@ -26,6 +32,11 @@ export class AddCartItemDto {
    *
    * The minimum allowed quantity is 1.
    */
+  @ApiProperty({
+    example: 2,
+    description: 'Number of product units to add',
+    minimum: 1,
+  })
   @Type(() => Number)
   @IsInt()
   @Min(1)

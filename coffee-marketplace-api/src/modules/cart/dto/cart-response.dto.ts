@@ -47,12 +47,16 @@ export class CartResponseDto {
   /**
    * Timestamp when the cart was created.
    */
-  @ApiProperty()
+  @ApiProperty({
+    example: '2026-01-01T10:00:00.000Z',
+  })
   createdAt: Date;
 
   /**
    * Timestamp when the cart was last updated.
    */
-  @ApiProperty()
+  @ApiProperty({
+    example: '2026-01-02T12:30:00.000Z',
+  })
   updatedAt: Date;
 }
