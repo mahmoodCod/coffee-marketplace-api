@@ -166,18 +166,21 @@ describe('CartController', () => {
       /**
        * Execute controller method.
        *
-       * IMPORTANT:
-       * The real controller receives the authenticated
-       * user through the CurrentUser decorator.
+       * The parameter order must match
+       * the real controller method:
+       *
+       * itemId -> user -> dto
        */
       const result = await controller.updateItem(
-        user as any,
         'cart-item-id',
+        user as any,
         dto,
       );
 
       /**
-       * Verify the service call.
+       * Verify that the authenticated user's ID,
+       * cart item ID, and DTO are passed
+       * correctly to the service.
        */
       expect(service.updateItem).toHaveBeenCalledWith(
         'user-id',
@@ -205,25 +208,29 @@ describe('CartController', () => {
 
       /**
        * Execute controller method.
+       *
+       * The parameter order must match
+       * the real controller method:
+       *
+       * itemId -> user
        */
-      const result = await controller.removeItem(user as any, 'cart-item-id');
+      const result = await controller.removeItem('cart-item-id', user as any);
 
       /**
        * Verify that the authenticated user's ID
-       * and cart item ID are passed to the service.
+       * and cart item ID are passed correctly
+       * to the service.
        */
       expect(service.removeItem).toHaveBeenCalledWith(
         'user-id',
         'cart-item-id',
       );
-
       /**
        * Verify returned response.
        */
       expect(result).toEqual(response);
     });
   });
-
   // --------------------------------------------------
   // CLEAR CART
   // --------------------------------------------------
