@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import { CartController } from '../controllers/cart.controller';
 import { CartService } from '../services/cart.service';
 
-import { AddCartItemDto, CartResponseDto, UpdateCartItemDto } from '../dto';
+import { AddCartItemDto, CartItemResponseDto, CartResponseDto, UpdateCartItemDto } from '../dto';
 
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 
@@ -17,7 +17,7 @@ describe('CartController', () => {
    * the real service implementation.
    */
   let service: {
-    getOrCreateActiveCart: jest.Mock;
+    getCart: jest.Mock;
     addItem: jest.Mock;
     updateItem: jest.Mock;
     removeItem: jest.Mock;
@@ -32,7 +32,7 @@ describe('CartController', () => {
       /**
        * Mock active cart retrieval/creation.
        */
-      getOrCreateActiveCart: jest.fn(),
+      getCart: jest.fn(),
 
       /**
        * Mock adding an item to the cart.
@@ -87,7 +87,17 @@ describe('CartController', () => {
   const response: CartResponseDto = {
     id: 'cart-id',
     status: 'ACTIVE' as any,
+    userId: 'user-id',
     items: [],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const cartItemResponse: CartItemResponseDto = {
+    id: 'cart-item-id',
+    productId: 'product-id',
+    quantity: 2,
+    unitPrice: '150000.00',
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -101,7 +111,7 @@ describe('CartController', () => {
       /**
        * Mock service response.
        */
-      service.getOrCreateActiveCart.mockResolvedValue(response);
+      service.getCart.mockResolvedValue(response);
 
       /**
        * Execute controller method.
@@ -112,7 +122,7 @@ describe('CartController', () => {
        * Verify that the authenticated user's ID
        * is passed to the service.
        */
-      expect(service.getOrCreateActiveCart).toHaveBeenCalledWith('user-id');
+      expect(service.getCart).toHaveBeenCalledWith('user-id');
 
       /**
        * Verify returned response.
@@ -135,7 +145,7 @@ describe('CartController', () => {
       /**
        * Mock service response.
        */
-      service.addItem.mockResolvedValue(response);
+      service.addItem.mockResolvedValue(cartItemResponse);
 
       /**
        * Execute controller method.
@@ -151,7 +161,7 @@ describe('CartController', () => {
       /**
        * Verify returned response.
        */
-      expect(result).toEqual(response);
+      expect(result).toEqual(cartItemResponse);
     });
   });
 
@@ -168,7 +178,10 @@ describe('CartController', () => {
       /**
        * Mock service response.
        */
-      service.updateItem.mockResolvedValue(response);
+      service.updateItem.mockResolvedValue({
+        ...cartItemResponse,
+        quantity: 5,
+      });
 
       /**
        * Execute controller method.
@@ -198,7 +211,10 @@ describe('CartController', () => {
       /**
        * Verify returned response.
        */
-      expect(result).toEqual(response);
+      expect(result).toEqual({
+        ...cartItemResponse,
+        quantity: 5,
+      });
     });
   });
 
@@ -211,7 +227,7 @@ describe('CartController', () => {
       /**
        * Mock service response.
        */
-      service.removeItem.mockResolvedValue(response);
+      service.removeItem.mockResolvedValue(undefined);
 
       /**
        * Execute controller method.
@@ -232,12 +248,14 @@ describe('CartController', () => {
         'user-id',
         'cart-item-id',
       );
+
       /**
        * Verify returned response.
        */
-      expect(result).toEqual(response);
+      expect(result).toBeUndefined();
     });
   });
+
   // --------------------------------------------------
   // CLEAR CART
   // --------------------------------------------------
@@ -247,7 +265,7 @@ describe('CartController', () => {
       /**
        * Mock service response.
        */
-      service.clearCart.mockResolvedValue(response);
+      service.clearCart.mockResolvedValue(undefined);
 
       /**
        * Execute controller method.
@@ -262,7 +280,7 @@ describe('CartController', () => {
       /**
        * Verify returned response.
        */
-      expect(result).toEqual(response);
+      expect(result).toBeUndefined();
     });
   });
 });

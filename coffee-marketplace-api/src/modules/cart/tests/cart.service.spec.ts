@@ -167,6 +167,8 @@ describe('CartService', () => {
         product,
         quantity: 2,
         unitPrice: '150000',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
       } as unknown as CartItem;
 
       productRepository.findOne!.mockResolvedValue(product);
@@ -199,7 +201,14 @@ describe('CartService', () => {
 
       expect(cartItemRepository.save).toHaveBeenCalledWith(cartItem);
 
-      expect(result).toEqual(cartItem);
+      expect(result).toEqual({
+        id: 'cart-item-id',
+        productId: 'product-id',
+        quantity: 2,
+        unitPrice: '150000',
+        createdAt: cartItem.createdAt,
+        updatedAt: cartItem.updatedAt,
+      });
     });
 
     it('should increase quantity when product already exists in cart', async () => {
@@ -214,6 +223,8 @@ describe('CartService', () => {
         product,
         quantity: 2,
         unitPrice: '150000',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
       } as unknown as CartItem;
 
       productRepository.findOne!.mockResolvedValue(product);
@@ -230,7 +241,14 @@ describe('CartService', () => {
 
       expect(cartItemRepository.save).toHaveBeenCalledWith(existingItem);
 
-      expect(result).toEqual(existingItem);
+      expect(result).toEqual({
+        id: 'cart-item-id',
+        productId: 'product-id',
+        quantity: 5,
+        unitPrice: '150000',
+        createdAt: existingItem.createdAt,
+        updatedAt: existingItem.updatedAt,
+      });
     });
 
     it('should reject quantity greater than inventory', async () => {
@@ -332,6 +350,9 @@ describe('CartService', () => {
             stock: 10,
           },
         },
+        unitPrice: '150000',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-02T00:00:00.000Z'),
       } as unknown as CartItem;
 
       cartRepository.findActiveByUserId.mockResolvedValue(cart);
@@ -351,7 +372,14 @@ describe('CartService', () => {
 
       expect(cartItemRepository.save).toHaveBeenCalledWith(cartItem);
 
-      expect(result).toEqual(cartItem);
+      expect(result).toEqual({
+        id: 'item-id',
+        productId: 'product-id',
+        quantity: 5,
+        unitPrice: '150000',
+        createdAt: cartItem.createdAt,
+        updatedAt: cartItem.updatedAt,
+      });
     });
 
     it('should reject quantity greater than inventory', async () => {

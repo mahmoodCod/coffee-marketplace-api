@@ -20,7 +20,12 @@ import { CartRepository } from '../repositories/cart.repository';
 
 import { CartItemRepository } from '../repositories/cart-item.repository';
 
-import { AddCartItemDto, UpdateCartItemDto } from '../dto';
+import {
+  AddCartItemDto,
+  CartItemResponseDto,
+  CartResponseDto,
+  UpdateCartItemDto,
+} from '../dto';
 
 /**
  * Cart Service
@@ -43,6 +48,8 @@ import { AddCartItemDto, UpdateCartItemDto } from '../dto';
  *
  * Database access is delegated to CartRepository
  * and CartItemRepository.
+ * API responses are mapped to DTOs so entities
+ * are never exposed directly.
  */
 @Injectable()
 export class CartService {
@@ -56,7 +63,17 @@ export class CartService {
   ) {}
 
   /**
-   * Get the user's active cart.
+   * Returns the authenticated user's active cart
+   * as an API response DTO.
+   */
+  async getCart(userId: string): Promise<CartResponseDto> {
+    const cart = await this.getOrCreateActiveCart(userId);
+
+    return this.toCartResponse(cart, userId);
+  }
+
+  /**
+   * Get the user's active cart entity.
    *
    * If the user does not have an active cart,
    * a new one is created.
@@ -90,7 +107,10 @@ export class CartService {
    * - The same product cannot be duplicated
    *   inside the cart.
    */
-  async addItem(userId: string, dto: AddCartItemDto): Promise<CartItem> {
+  async addItem(
+    userId: string,
+    dto: AddCartItemDto,
+  ): Promise<CartItemResponseDto> {
     const product = await this.productRepository.findOne({
       where: {
         id: dto.productId,
@@ -136,7 +156,9 @@ export class CartService {
 
       existingItem.quantity = newQuantity;
 
-      return this.cartItemRepository.save(existingItem);
+      const saved = await this.cartItemRepository.save(existingItem);
+
+      return this.toCartItemResponse(saved);
     }
 
     const cartItem = this.cartItemRepository.create({
@@ -146,7 +168,9 @@ export class CartService {
       unitPrice: product.price.toString(),
     });
 
-    return this.cartItemRepository.save(cartItem);
+    const saved = await this.cartItemRepository.save(cartItem);
+
+    return this.toCartItemResponse(saved);
   }
 
   /**
@@ -156,7 +180,7 @@ export class CartService {
     userId: string,
     itemId: string,
     dto: UpdateCartItemDto,
-  ): Promise<CartItem> {
+  ): Promise<CartItemResponseDto> {
     const cart = await this.getOrCreateActiveCart(userId);
 
     const cartItem = await this.cartItemRepository.findByIdAndCartId(
@@ -184,7 +208,9 @@ export class CartService {
 
     cartItem.quantity = dto.quantity;
 
-    return this.cartItemRepository.save(cartItem);
+    const saved = await this.cartItemRepository.save(cartItem);
+
+    return this.toCartItemResponse(saved);
   }
 
   /**
@@ -212,5 +238,33 @@ export class CartService {
     const cart = await this.getOrCreateActiveCart(userId);
 
     await this.cartItemRepository.deleteByCartId(cart.id);
+  }
+
+  /**
+   * Maps a Cart entity to the public cart response DTO.
+   */
+  private toCartResponse(cart: Cart, userId: string): CartResponseDto {
+    return {
+      id: cart.id,
+      status: cart.status,
+      userId,
+      items: (cart.items ?? []).map((item) => this.toCartItemResponse(item)),
+      createdAt: cart.createdAt,
+      updatedAt: cart.updatedAt,
+    };
+  }
+
+  /**
+   * Maps a CartItem entity to the public cart item response DTO.
+   */
+  private toCartItemResponse(item: CartItem): CartItemResponseDto {
+    return {
+      id: item.id,
+      productId: item.product.id,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    };
   }
 }

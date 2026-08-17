@@ -12,11 +12,21 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { CartService } from '../services/cart.service';
 
-import { AddCartItemDto, UpdateCartItemDto } from '../dto';
+import {
+  AddCartItemDto,
+  CartItemResponseDto,
+  CartResponseDto,
+  UpdateCartItemDto,
+} from '../dto';
 
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 
@@ -58,11 +68,14 @@ export class CartController {
   @ApiOperation({
     summary: 'Get current user cart',
   })
+  @ApiOkResponse({
+    type: CartResponseDto,
+  })
   async getCart(
     @CurrentUser()
     user: JwtPayload,
-  ) {
-    return this.cartService.getOrCreateActiveCart(user.sub);
+  ): Promise<CartResponseDto> {
+    return this.cartService.getCart(user.sub);
   }
 
   /**
@@ -74,13 +87,16 @@ export class CartController {
   @ApiOperation({
     summary: 'Add product to cart',
   })
+  @ApiOkResponse({
+    type: CartItemResponseDto,
+  })
   async addItem(
     @CurrentUser()
     user: JwtPayload,
 
     @Body()
     dto: AddCartItemDto,
-  ) {
+  ): Promise<CartItemResponseDto> {
     return this.cartService.addItem(user.sub, dto);
   }
 
@@ -94,6 +110,9 @@ export class CartController {
   @ApiOperation({
     summary: 'Update cart item quantity',
   })
+  @ApiOkResponse({
+    type: CartItemResponseDto,
+  })
   async updateItem(
     @Param('id', new ParseUUIDPipe())
     itemId: string,
@@ -103,7 +122,7 @@ export class CartController {
 
     @Body()
     dto: UpdateCartItemDto,
-  ) {
+  ): Promise<CartItemResponseDto> {
     return this.cartService.updateItem(user.sub, itemId, dto);
   }
 
