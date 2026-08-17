@@ -14,6 +14,8 @@ import { CartItem } from '../entities/cart-item.entity';
 
 import { Product } from '../../products/entities/product.entity';
 
+import { ProductStatus } from '../../products/enums';
+
 import { CartStatus } from '../entities/cart-status.enum';
 
 import { CartRepository } from '../repositories/cart.repository';
@@ -102,6 +104,7 @@ export class CartService {
    *
    * Business Rules:
    * - Product must exist.
+   * - Product must be ACTIVE.
    * - Quantity must be greater than zero.
    * - Requested quantity must not exceed inventory.
    * - The same product cannot be duplicated
@@ -122,6 +125,12 @@ export class CartService {
 
     if (!product) {
       throw new NotFoundException('Product not found.');
+    }
+
+    if (product.status !== ProductStatus.ACTIVE) {
+      throw new BadRequestException(
+        'Product is not available for purchase.',
+      );
     }
 
     if (dto.quantity <= 0) {

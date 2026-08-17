@@ -16,6 +16,8 @@ import { CartItem } from '../entities/cart-item.entity';
 
 import { Product } from '../../products/entities/product.entity';
 
+import { ProductStatus } from '../../products/enums';
+
 import { AddCartItemDto, UpdateCartItemDto } from '../dto';
 
 describe('CartService', () => {
@@ -144,6 +146,7 @@ describe('CartService', () => {
     const product = {
       id: 'product-id',
       price: '150000',
+      status: ProductStatus.ACTIVE,
       inventory: {
         stock: 20,
       },
@@ -303,6 +306,26 @@ describe('CartService', () => {
       await expect(service.addItem('user-id', dto)).rejects.toThrow(
         'Product not found.',
       );
+    });
+
+    it('should reject a non-active product', async () => {
+      const dto: AddCartItemDto = {
+        productId: 'product-id',
+        quantity: 1,
+      };
+
+      const archivedProduct = {
+        ...product,
+        status: ProductStatus.ARCHIVED,
+      } as unknown as Product;
+
+      productRepository.findOne!.mockResolvedValue(archivedProduct);
+
+      await expect(service.addItem('user-id', dto)).rejects.toThrow(
+        'Product is not available for purchase.',
+      );
+
+      expect(cartRepository.findActiveByUserId).not.toHaveBeenCalled();
     });
 
     it('should reject product without inventory', async () => {
