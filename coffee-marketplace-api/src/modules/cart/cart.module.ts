@@ -7,6 +7,7 @@ import { Cart } from './entities/cart.entity';
 import { CartItem } from './entities/cart-item.entity';
 import { CartRepository } from './repositories/cart.repository';
 import { CartItemRepository } from './repositories/cart-item.repository';
+import { CartService } from './services/cart.service';
 
 /**
  * Cart Module
@@ -35,12 +36,12 @@ import { CartItemRepository } from './repositories/cart-item.repository';
   /**
    * Services will be added in the service layer.
    */
-  providers: [CartRepository, CartItemRepository],
+  providers: [CartRepository, CartItemRepository, CartService],
 
   /**
    * Required exports will be added when
    * other modules need Cart functionality.
    */
-  exports: [CartRepository, CartItemRepository],
+  exports: [CartRepository, CartItemRepository, CartService],
 })
 export class CartModule {}
