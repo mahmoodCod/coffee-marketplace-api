@@ -13,7 +13,7 @@ import {
 import { Role } from '../../roles/entities/role.entity';
 import { UserStatus } from '../enums/user-status.enum';
 import { Address } from './address.entity';
-import { Cart } from 'src/modules/cart/entities';
+import { Cart } from '../../../modules/cart/entities';
 
 /**
  * ------------------------------------------------------------------------

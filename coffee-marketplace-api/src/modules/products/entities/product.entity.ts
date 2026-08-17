@@ -15,7 +15,7 @@ import { User } from '../../users/entities/user.entity';
 import { ProductStatus, ProductType } from '../enums';
 import { ProductCategory } from './product-category.entity';
 import { Inventory } from '../../../modules/inventoryes/entities/inventory.entity';
-import { CartItem } from 'src/modules/cart/entities';
+import { CartItem } from '../../../modules/cart/entities';
 
 /**
  * ------------------------------------------------------------------------
