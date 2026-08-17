@@ -46,6 +46,31 @@ export class CartItemRepository {
   }
 
   /**
+   * Find a cart item by ID scoped to a specific cart.
+   *
+   * Product inventory is loaded because quantity updates
+   * must validate against available stock.
+   */
+  async findByIdAndCartId(
+    cartItemId: string,
+    cartId: string,
+  ): Promise<CartItem | null> {
+    return this.repository.findOne({
+      where: {
+        id: cartItemId,
+        cart: {
+          id: cartId,
+        },
+      },
+      relations: {
+        product: {
+          inventory: true,
+        },
+      },
+    });
+  }
+
+  /**
    * Find a product inside a specific cart.
    *
    * This is important when adding a product to a cart.
@@ -101,5 +126,19 @@ export class CartItemRepository {
    */
   async delete(cartItem: CartItem): Promise<void> {
     await this.repository.remove(cartItem);
+  }
+
+  /**
+   * Delete every item belonging to a cart.
+   *
+   * Uses the cart_id foreign key directly so clear-cart
+   * does not depend on nested relation criteria.
+   */
+  async deleteByCartId(cartId: string): Promise<void> {
+    await this.repository.delete({
+      cart: {
+        id: cartId,
+      },
+    });
   }
 }

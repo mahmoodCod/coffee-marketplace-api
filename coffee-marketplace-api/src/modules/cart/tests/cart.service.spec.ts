@@ -6,6 +6,10 @@ import { Repository } from 'typeorm';
 
 import { CartService } from '../services/cart.service';
 
+import { CartRepository } from '../repositories/cart.repository';
+
+import { CartItemRepository } from '../repositories/cart-item.repository';
+
 import { Cart } from '../entities/cart.entity';
 
 import { CartItem } from '../entities/cart-item.entity';
@@ -17,36 +21,39 @@ import { AddCartItemDto, UpdateCartItemDto } from '../dto';
 describe('CartService', () => {
   let service: CartService;
 
-  let cartRepository: jest.Mocked<Partial<Repository<Cart>>>;
+  let cartRepository: {
+    findActiveByUserId: jest.Mock;
+    create: jest.Mock;
+    save: jest.Mock;
+  };
 
-  let cartItemRepository: jest.Mocked<Partial<Repository<CartItem>>>;
+  let cartItemRepository: {
+    findByCartAndProduct: jest.Mock;
+    findByIdAndCartId: jest.Mock;
+    create: jest.Mock;
+    save: jest.Mock;
+    delete: jest.Mock;
+    deleteByCartId: jest.Mock;
+  };
 
   let productRepository: jest.Mocked<Partial<Repository<Product>>>;
 
   beforeEach(async () => {
-    /**
-     * Mock Cart repository methods used by CartService.
-     */
     cartRepository = {
-      findOne: jest.fn(),
+      findActiveByUserId: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
     };
 
-    /**
-     * Mock CartItem repository methods used by CartService.
-     */
     cartItemRepository = {
-      findOne: jest.fn(),
+      findByCartAndProduct: jest.fn(),
+      findByIdAndCartId: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
-      remove: jest.fn(),
       delete: jest.fn(),
+      deleteByCartId: jest.fn(),
     };
 
-    /**
-     * Mock Product repository methods used by CartService.
-     */
     productRepository = {
       findOne: jest.fn(),
     };
@@ -56,12 +63,12 @@ describe('CartService', () => {
         CartService,
 
         {
-          provide: getRepositoryToken(Cart),
+          provide: CartRepository,
           useValue: cartRepository,
         },
 
         {
-          provide: getRepositoryToken(CartItem),
+          provide: CartItemRepository,
           useValue: cartItemRepository,
         },
 
@@ -88,11 +95,11 @@ describe('CartService', () => {
         items: [],
       } as unknown as Cart;
 
-      cartRepository.findOne!.mockResolvedValue(cart);
+      cartRepository.findActiveByUserId.mockResolvedValue(cart);
 
       const result = await service.getOrCreateActiveCart('user-id');
 
-      expect(cartRepository.findOne).toHaveBeenCalled();
+      expect(cartRepository.findActiveByUserId).toHaveBeenCalledWith('user-id');
 
       expect(cartRepository.create).not.toHaveBeenCalled();
 
@@ -103,14 +110,13 @@ describe('CartService', () => {
       const newCart = {
         id: 'cart-id',
         status: 'ACTIVE',
-        items: [],
       } as unknown as Cart;
 
-      cartRepository.findOne!.mockResolvedValue(null);
+      cartRepository.findActiveByUserId.mockResolvedValue(null);
 
-      cartRepository.create!.mockReturnValue(newCart);
+      cartRepository.create.mockReturnValue(newCart);
 
-      cartRepository.save!.mockResolvedValue(newCart);
+      cartRepository.save.mockResolvedValue(newCart);
 
       const result = await service.getOrCreateActiveCart('user-id');
 
@@ -122,6 +128,8 @@ describe('CartService', () => {
       });
 
       expect(cartRepository.save).toHaveBeenCalledWith(newCart);
+
+      expect(result.items).toEqual([]);
 
       expect(result).toEqual(newCart);
     });
@@ -163,13 +171,13 @@ describe('CartService', () => {
 
       productRepository.findOne!.mockResolvedValue(product);
 
-      cartRepository.findOne!.mockResolvedValue(cart);
+      cartRepository.findActiveByUserId.mockResolvedValue(cart);
 
-      cartItemRepository.findOne!.mockResolvedValue(null);
+      cartItemRepository.findByCartAndProduct.mockResolvedValue(null);
 
-      cartItemRepository.create!.mockReturnValue(cartItem);
+      cartItemRepository.create.mockReturnValue(cartItem);
 
-      cartItemRepository.save!.mockResolvedValue(cartItem);
+      cartItemRepository.save.mockResolvedValue(cartItem);
 
       const result = await service.addItem('user-id', dto);
 
@@ -177,7 +185,10 @@ describe('CartService', () => {
         expect.any(Object),
       );
 
-      expect(cartItemRepository.findOne).toHaveBeenCalled();
+      expect(cartItemRepository.findByCartAndProduct).toHaveBeenCalledWith(
+        'cart-id',
+        'product-id',
+      );
 
       expect(cartItemRepository.create).toHaveBeenCalledWith({
         cart,
@@ -207,11 +218,11 @@ describe('CartService', () => {
 
       productRepository.findOne!.mockResolvedValue(product);
 
-      cartRepository.findOne!.mockResolvedValue(cart);
+      cartRepository.findActiveByUserId.mockResolvedValue(cart);
 
-      cartItemRepository.findOne!.mockResolvedValue(existingItem);
+      cartItemRepository.findByCartAndProduct.mockResolvedValue(existingItem);
 
-      cartItemRepository.save!.mockResolvedValue(existingItem);
+      cartItemRepository.save.mockResolvedValue(existingItem);
 
       const result = await service.addItem('user-id', dto);
 
@@ -234,7 +245,7 @@ describe('CartService', () => {
         'Requested quantity exceeds available inventory.',
       );
 
-      expect(cartRepository.findOne).not.toHaveBeenCalled();
+      expect(cartRepository.findActiveByUserId).not.toHaveBeenCalled();
     });
 
     it('should reject zero quantity', async () => {
@@ -323,15 +334,20 @@ describe('CartService', () => {
         },
       } as unknown as CartItem;
 
-      cartRepository.findOne!.mockResolvedValue(cart);
+      cartRepository.findActiveByUserId.mockResolvedValue(cart);
 
-      cartItemRepository.findOne!.mockResolvedValue(cartItem);
+      cartItemRepository.findByIdAndCartId.mockResolvedValue(cartItem);
 
-      cartItemRepository.save!.mockResolvedValue(cartItem);
+      cartItemRepository.save.mockResolvedValue(cartItem);
 
       const result = await service.updateItem('user-id', 'item-id', dto);
 
       expect(cartItem.quantity).toBe(5);
+
+      expect(cartItemRepository.findByIdAndCartId).toHaveBeenCalledWith(
+        'item-id',
+        'cart-id',
+      );
 
       expect(cartItemRepository.save).toHaveBeenCalledWith(cartItem);
 
@@ -357,9 +373,9 @@ describe('CartService', () => {
         },
       } as unknown as CartItem;
 
-      cartRepository.findOne!.mockResolvedValue(cart);
+      cartRepository.findActiveByUserId.mockResolvedValue(cart);
 
-      cartItemRepository.findOne!.mockResolvedValue(cartItem);
+      cartItemRepository.findByIdAndCartId.mockResolvedValue(cartItem);
 
       await expect(
         service.updateItem('user-id', 'item-id', dto),
@@ -375,9 +391,9 @@ describe('CartService', () => {
         id: 'cart-id',
       } as unknown as Cart;
 
-      cartRepository.findOne!.mockResolvedValue(cart);
+      cartRepository.findActiveByUserId.mockResolvedValue(cart);
 
-      cartItemRepository.findOne!.mockResolvedValue(null);
+      cartItemRepository.findByIdAndCartId.mockResolvedValue(null);
 
       await expect(
         service.updateItem('user-id', 'item-id', dto),
@@ -401,15 +417,15 @@ describe('CartService', () => {
         cart,
       } as unknown as CartItem;
 
-      cartRepository.findOne!.mockResolvedValue(cart);
+      cartRepository.findActiveByUserId.mockResolvedValue(cart);
 
-      cartItemRepository.findOne!.mockResolvedValue(cartItem);
+      cartItemRepository.findByIdAndCartId.mockResolvedValue(cartItem);
 
-      cartItemRepository.remove!.mockResolvedValue(cartItem);
+      cartItemRepository.delete.mockResolvedValue(undefined);
 
       await service.removeItem('user-id', 'item-id');
 
-      expect(cartItemRepository.remove).toHaveBeenCalledWith(cartItem);
+      expect(cartItemRepository.delete).toHaveBeenCalledWith(cartItem);
     });
 
     it('should reject removing a non-existing cart item', async () => {
@@ -417,9 +433,9 @@ describe('CartService', () => {
         id: 'cart-id',
       } as unknown as Cart;
 
-      cartRepository.findOne!.mockResolvedValue(cart);
+      cartRepository.findActiveByUserId.mockResolvedValue(cart);
 
-      cartItemRepository.findOne!.mockResolvedValue(null);
+      cartItemRepository.findByIdAndCartId.mockResolvedValue(null);
 
       await expect(service.removeItem('user-id', 'item-id')).rejects.toThrow(
         'Cart item not found.',
@@ -438,19 +454,13 @@ describe('CartService', () => {
         id: 'cart-id',
       } as unknown as Cart;
 
-      cartRepository.findOne!.mockResolvedValue(cart);
+      cartRepository.findActiveByUserId.mockResolvedValue(cart);
 
-      cartItemRepository.delete!.mockResolvedValue({
-        affected: 2,
-      });
+      cartItemRepository.deleteByCartId.mockResolvedValue(undefined);
 
       await service.clearCart('user-id');
 
-      expect(cartItemRepository.delete).toHaveBeenCalledWith({
-        cart: {
-          id: 'cart-id',
-        },
-      });
+      expect(cartItemRepository.deleteByCartId).toHaveBeenCalledWith('cart-id');
     });
   });
 });

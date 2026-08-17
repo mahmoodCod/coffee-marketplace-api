@@ -16,6 +16,10 @@ import { Product } from '../../products/entities/product.entity';
 
 import { CartStatus } from '../entities/cart-status.enum';
 
+import { CartRepository } from '../repositories/cart.repository';
+
+import { CartItemRepository } from '../repositories/cart-item.repository';
+
 import { AddCartItemDto, UpdateCartItemDto } from '../dto';
 
 /**
@@ -36,15 +40,16 @@ import { AddCartItemDto, UpdateCartItemDto } from '../dto';
  * - Cart quantity cannot exceed product inventory.
  * - The same product cannot appear more than once
  *   inside the same cart.
+ *
+ * Database access is delegated to CartRepository
+ * and CartItemRepository.
  */
 @Injectable()
 export class CartService {
   constructor(
-    @InjectRepository(Cart)
-    private readonly cartRepository: Repository<Cart>,
+    private readonly cartRepository: CartRepository,
 
-    @InjectRepository(CartItem)
-    private readonly cartItemRepository: Repository<CartItem>,
+    private readonly cartItemRepository: CartItemRepository,
 
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
@@ -57,29 +62,19 @@ export class CartService {
    * a new one is created.
    */
   async getOrCreateActiveCart(userId: string): Promise<Cart> {
-    let cart = await this.cartRepository.findOne({
-      where: {
-        user: {
-          id: userId,
-        },
-        status: CartStatus.ACTIVE,
-      },
-      relations: {
-        items: {
-          product: true,
-        },
-      },
-    });
+    let cart = await this.cartRepository.findActiveByUserId(userId);
 
     if (!cart) {
       cart = this.cartRepository.create({
         user: {
           id: userId,
-        },
+        } as Cart['user'],
         status: CartStatus.ACTIVE,
       });
 
       cart = await this.cartRepository.save(cart);
+
+      cart.items = [];
     }
 
     return cart;
@@ -125,16 +120,10 @@ export class CartService {
 
     const cart = await this.getOrCreateActiveCart(userId);
 
-    const existingItem = await this.cartItemRepository.findOne({
-      where: {
-        cart: {
-          id: cart.id,
-        },
-        product: {
-          id: product.id,
-        },
-      },
-    });
+    const existingItem = await this.cartItemRepository.findByCartAndProduct(
+      cart.id,
+      product.id,
+    );
 
     if (existingItem) {
       const newQuantity = existingItem.quantity + dto.quantity;
@@ -170,19 +159,10 @@ export class CartService {
   ): Promise<CartItem> {
     const cart = await this.getOrCreateActiveCart(userId);
 
-    const cartItem = await this.cartItemRepository.findOne({
-      where: {
-        id: itemId,
-        cart: {
-          id: cart.id,
-        },
-      },
-      relations: {
-        product: {
-          inventory: true,
-        },
-      },
-    });
+    const cartItem = await this.cartItemRepository.findByIdAndCartId(
+      itemId,
+      cart.id,
+    );
 
     if (!cartItem) {
       throw new NotFoundException('Cart item not found.');
@@ -213,20 +193,16 @@ export class CartService {
   async removeItem(userId: string, itemId: string): Promise<void> {
     const cart = await this.getOrCreateActiveCart(userId);
 
-    const cartItem = await this.cartItemRepository.findOne({
-      where: {
-        id: itemId,
-        cart: {
-          id: cart.id,
-        },
-      },
-    });
+    const cartItem = await this.cartItemRepository.findByIdAndCartId(
+      itemId,
+      cart.id,
+    );
 
     if (!cartItem) {
       throw new NotFoundException('Cart item not found.');
     }
 
-    await this.cartItemRepository.remove(cartItem);
+    await this.cartItemRepository.delete(cartItem);
   }
 
   /**
@@ -235,10 +211,6 @@ export class CartService {
   async clearCart(userId: string): Promise<void> {
     const cart = await this.getOrCreateActiveCart(userId);
 
-    await this.cartItemRepository.delete({
-      cart: {
-        id: cart.id,
-      },
-    });
+    await this.cartItemRepository.deleteByCartId(cart.id);
   }
 }
