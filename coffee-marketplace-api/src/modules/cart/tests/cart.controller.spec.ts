@@ -5,6 +5,8 @@ import { CartService } from '../services/cart.service';
 
 import { AddCartItemDto, CartResponseDto, UpdateCartItemDto } from '../dto';
 
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+
 describe('CartController', () => {
   let controller: CartController;
 
@@ -62,7 +64,12 @@ describe('CartController', () => {
           useValue: service,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({
+        canActivate: () => true,
+      })
+      .compile();
 
     controller = module.get<CartController>(CartController);
   });

@@ -6,15 +6,18 @@ import {
   Param,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CartService } from '../services/cart.service';
 
 import { AddCartItemDto, UpdateCartItemDto } from '../dto';
 
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 
 import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
 
@@ -30,9 +33,12 @@ import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
  * - Remove cart items.
  * - Clear the active cart.
  *
+ * All routes require a valid Bearer access token.
  * Business logic is delegated to CartService.
  */
 @ApiTags('Cart')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('cart')
 export class CartController {
   constructor(private readonly cartService: CartService) {}
