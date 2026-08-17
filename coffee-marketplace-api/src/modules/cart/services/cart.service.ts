@@ -224,6 +224,12 @@ export class CartService {
       throw new NotFoundException('Cart item not found.');
     }
 
+    if (cartItem.product.status !== ProductStatus.ACTIVE) {
+      throw new BadRequestException(
+        'Product is not available for purchase.',
+      );
+    }
+
     if (dto.quantity <= 0) {
       throw new BadRequestException('Quantity must be greater than zero.');
     }

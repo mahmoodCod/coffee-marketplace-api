@@ -14,30 +14,18 @@ import { Product } from '../products/entities/product.entity';
 /**
  * Cart Module
  *
- * Provides the infrastructure required
- * for the shopping cart feature.
- *
- * Responsibilities of this module will include:
- * - Cart management
- * - Cart item management
- * - Quantity management
- * - Cart validation
+ * Registers the shopping cart feature:
+ * - Cart and CartItem persistence
+ * - Cart business rules
+ * - Authenticated cart HTTP endpoints
  */
 @Module({
-  /**
-   * Register Cart and CartItem repositories
-   * so they can be injected into services.
-   */
   imports: [TypeOrmModule.forFeature([Cart, CartItem, Product])],
 
   controllers: [CartController],
 
   providers: [CartRepository, CartItemRepository, CartService],
 
-  /**
-   * Required exports will be added when
-   * other modules need Cart functionality.
-   */
   exports: [CartRepository, CartItemRepository, CartService],
 })
 export class CartModule {}

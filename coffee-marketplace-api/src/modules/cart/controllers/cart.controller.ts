@@ -14,6 +14,7 @@ import {
 
 import {
   ApiBearerAuth,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -137,13 +138,16 @@ export class CartController {
   @ApiOperation({
     summary: 'Remove cart item',
   })
+  @ApiNoContentResponse({
+    description: 'Cart item removed successfully.',
+  })
   async removeItem(
     @Param('id', new ParseUUIDPipe())
     itemId: string,
 
     @CurrentUser()
     user: JwtPayload,
-  ) {
+  ): Promise<void> {
     return this.cartService.removeItem(user.sub, itemId);
   }
 
@@ -158,10 +162,13 @@ export class CartController {
   @ApiOperation({
     summary: 'Clear current cart',
   })
+  @ApiNoContentResponse({
+    description: 'Cart cleared successfully.',
+  })
   async clearCart(
     @CurrentUser()
     user: JwtPayload,
-  ) {
+  ): Promise<void> {
     return this.cartService.clearCart(user.sub);
   }
 }

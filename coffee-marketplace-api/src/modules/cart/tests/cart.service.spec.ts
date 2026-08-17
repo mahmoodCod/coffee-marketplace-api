@@ -369,6 +369,7 @@ describe('CartService', () => {
         quantity: 2,
         product: {
           id: 'product-id',
+          status: ProductStatus.ACTIVE,
           inventory: {
             stock: 10,
           },
@@ -418,6 +419,7 @@ describe('CartService', () => {
         id: 'item-id',
         cart,
         product: {
+          status: ProductStatus.ACTIVE,
           inventory: {
             stock: 10,
           },
@@ -449,6 +451,36 @@ describe('CartService', () => {
       await expect(
         service.updateItem('user-id', 'item-id', dto),
       ).rejects.toThrow('Cart item not found.');
+    });
+
+    it('should reject updating a non-active product', async () => {
+      const dto: UpdateCartItemDto = {
+        quantity: 3,
+      };
+
+      const cart = {
+        id: 'cart-id',
+      } as unknown as Cart;
+
+      const cartItem = {
+        id: 'item-id',
+        cart,
+        product: {
+          id: 'product-id',
+          status: ProductStatus.ARCHIVED,
+          inventory: {
+            stock: 10,
+          },
+        },
+      } as unknown as CartItem;
+
+      cartRepository.findActiveByUserId.mockResolvedValue(cart);
+
+      cartItemRepository.findByIdAndCartId.mockResolvedValue(cartItem);
+
+      await expect(
+        service.updateItem('user-id', 'item-id', dto),
+      ).rejects.toThrow('Product is not available for purchase.');
     });
   });
 
