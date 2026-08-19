@@ -73,6 +73,8 @@
 - An order belongs to one user.
 - An order has many order items.
 - An order has one payment.
+- An order has one shipping address.
+- An order can have one coupon.
 
 --------------------------------------------
 
