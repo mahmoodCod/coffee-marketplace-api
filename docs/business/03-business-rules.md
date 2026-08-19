@@ -37,7 +37,12 @@
 
 ## Orders
 
+- Orders are created from the user's active cart.
+- After order creation, the active cart is marked COMPLETED.
 - Orders must contain at least one product.
+- An order must include a shipping address.
+- Users can only view their own orders.
+- Users can only cancel their own orders.
 - An order can only be paid once.
 - Inventory decreases only after successful payment.
 - Orders cannot be canceled after shipment.
