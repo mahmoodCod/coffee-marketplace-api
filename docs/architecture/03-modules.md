@@ -93,9 +93,10 @@ Responsible for:
 
 Responsible for:
 
-- Order creation
-- Order processing
-- Order history
+- Creating orders from cart
+- Viewing order history
+- Canceling orders
+- Managing order status
 
 -------------------------------------
 
