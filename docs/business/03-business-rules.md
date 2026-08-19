@@ -77,6 +77,7 @@
 
 ## Seller
 
+- Sellers can view and update only their own profile.
 - Sellers can manage only their own products.
 - Sellers can view only their own orders.
 - Sellers cannot access other sellers' information.

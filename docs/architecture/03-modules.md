@@ -41,10 +41,12 @@ Responsible for:
 Responsible for:
 
 - Managing seller profile
-- Viewing seller products
+- Managing seller products
+- Managing seller inventory
 - Viewing seller orders
 - Confirming delivered orders
-- Viewing seller reports and statistics
+- Viewing seller reports
+- Viewing seller dashboard
 
 -------------------------------------
 

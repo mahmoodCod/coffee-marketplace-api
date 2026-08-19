@@ -72,18 +72,23 @@ System Administrator.
 
 -----------------------------------
 
-## 4.Seller
+## 4. Seller
+
 A vendor who can manage and sell products on the platform.
 
 ### Permissions
 
+- View seller profile
+- Update seller profile
 - Create products
 - Update own products
 - Delete own products
-- Manage inventory
+- Manage own inventory
 - View own orders
+- Confirm delivered orders
 - View sales reports
 - Manage discounts
+- Access seller dashboard
 
 -----------------------------------
 
