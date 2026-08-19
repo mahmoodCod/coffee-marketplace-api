@@ -36,6 +36,8 @@ PATCH  /seller/profile
 
 GET    /seller/products
 
+PATCH  /seller/inventory/:productId
+
 GET    /seller/orders
 
 GET    /seller/orders/:id
