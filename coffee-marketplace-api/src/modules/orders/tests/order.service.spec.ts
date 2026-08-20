@@ -1,30 +1,27 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { OrderService } from '../services/order.service';
 
 import { OrderRepository } from '../repositories/order.repository';
-import { OrderItemRepository } from '../repositories/order-item.repository';
 
 import { CartRepository } from '../../cart/repositories/cart.repository';
 
-import { Repository } from 'typeorm';
-import { getRepositoryToken } from '@nestjs/typeorm';
-
-import { Address } from '../../users/entities/address.entity';
-import { User } from '../../users/entities/user.entity';
+import { AddressesRepository } from '../../users/repositories/addresses.repository';
 
 import { CartStatus } from '../../cart/entities/cart-status.enum';
+
 import { OrderStatus } from '../enums';
 
 describe('OrderService', () => {
   let service: OrderService;
 
   let orderRepository: jest.Mocked<OrderRepository>;
-  let orderItemRepository: jest.Mocked<OrderItemRepository>;
+
   let cartRepository: jest.Mocked<CartRepository>;
 
-  let addressRepository: jest.Mocked<Repository<Address>>;
+  let addressesRepository: jest.Mocked<AddressesRepository>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -43,27 +40,19 @@ describe('OrderService', () => {
         },
 
         {
-          provide: OrderItemRepository,
-          useValue: {
-            create: jest.fn(),
-            createMany: jest.fn(),
-            save: jest.fn(),
-            saveMany: jest.fn(),
-          },
-        },
-
-        {
           provide: CartRepository,
           useValue: {
             findActiveByUserId: jest.fn(),
+            findById: jest.fn(),
+            create: jest.fn(),
             save: jest.fn(),
           },
         },
 
         {
-          provide: getRepositoryToken(Address),
+          provide: AddressesRepository,
           useValue: {
-            findOne: jest.fn(),
+            findByIdAndUserId: jest.fn(),
           },
         },
       ],
@@ -72,10 +61,10 @@ describe('OrderService', () => {
     service = module.get<OrderService>(OrderService);
 
     orderRepository = module.get(OrderRepository);
-    orderItemRepository = module.get(OrderItemRepository);
+
     cartRepository = module.get(CartRepository);
 
-    addressRepository = module.get(getRepositoryToken(Address));
+    addressesRepository = module.get(AddressesRepository);
   });
 
   /**
@@ -90,12 +79,13 @@ describe('OrderService', () => {
       shippingAddressId: 'address-id',
     };
 
-    const address = {
+    const shippingAddress = {
       id: 'address-id',
+
       user: {
         id: userId,
       },
-    } as Address;
+    };
 
     const cart = {
       id: 'cart-id',
@@ -114,6 +104,7 @@ describe('OrderService', () => {
             id: 'product-id-1',
           },
         },
+
         {
           id: 'cart-item-id-2',
 
@@ -132,7 +123,9 @@ describe('OrderService', () => {
       /**
        * Mock the user's shipping address.
        */
-      addressRepository.findOne.mockResolvedValue(address);
+      addressesRepository.findByIdAndUserId.mockResolvedValue(
+        shippingAddress as any,
+      );
 
       /**
        * Mock the user's active cart.
@@ -149,7 +142,7 @@ describe('OrderService', () => {
           id: userId,
         },
 
-        shippingAddress: address,
+        shippingAddress,
 
         status: OrderStatus.PENDING_PAYMENT,
 
@@ -157,47 +150,41 @@ describe('OrderService', () => {
 
         finalPrice: '400.00',
 
+        couponId: null,
+
         items: [],
       };
 
+      /**
+       * Return the same order instance that
+       * OrderService will populate with items.
+       */
       orderRepository.create.mockReturnValue(createdOrder as any);
 
+      /**
+       * Mock order saving.
+       */
       orderRepository.save.mockResolvedValue(createdOrder as any);
 
       /**
-       * Mock order item creation.
+       * Mock cart saving after completion.
        */
-      const createdItems = [
-        {
-          id: 'order-item-id-1',
-        },
-        {
-          id: 'order-item-id-2',
-        },
-      ];
-
-      orderItemRepository.createMany.mockReturnValue(createdItems as any);
-
-      orderItemRepository.saveMany.mockResolvedValue(createdItems as any);
-
       cartRepository.save.mockResolvedValue({
         ...cart,
+
         status: CartStatus.COMPLETED,
       } as any);
 
       const result = await service.createOrder(userId, dto);
 
       /**
-       * Verify the shipping address belongs to the user.
+       * Verify the shipping address belongs
+       * to the authenticated user.
        */
-      expect(addressRepository.findOne).toHaveBeenCalledWith({
-        where: {
-          id: dto.shippingAddressId,
-          user: {
-            id: userId,
-          },
-        },
-      });
+      expect(addressesRepository.findByIdAndUserId).toHaveBeenCalledWith(
+        dto.shippingAddressId,
+        userId,
+      );
 
       /**
        * Verify the active cart was retrieved.
@@ -205,19 +192,46 @@ describe('OrderService', () => {
       expect(cartRepository.findActiveByUserId).toHaveBeenCalledWith(userId);
 
       /**
+       * Verify order creation data.
+       */
+      expect(orderRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: OrderStatus.PENDING_PAYMENT,
+
+          totalPrice: '400.00',
+
+          finalPrice: '400.00',
+
+          couponId: null,
+        }),
+      );
+
+      /**
        * Verify the order was saved.
        */
-      expect(orderRepository.save).toHaveBeenCalled();
+      expect(orderRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: OrderStatus.PENDING_PAYMENT,
 
-      /**
-       * Verify order items were created.
-       */
-      expect(orderItemRepository.createMany).toHaveBeenCalled();
+          totalPrice: '400.00',
 
-      /**
-       * Verify order items were saved.
-       */
-      expect(orderItemRepository.saveMany).toHaveBeenCalled();
+          finalPrice: '400.00',
+
+          items: expect.arrayContaining([
+            expect.objectContaining({
+              quantity: 2,
+
+              unitPrice: '100.00',
+            }),
+
+            expect.objectContaining({
+              quantity: 1,
+
+              unitPrice: '200.00',
+            }),
+          ]),
+        }),
+      );
 
       /**
        * Verify the cart was marked as completed.
@@ -231,36 +245,49 @@ describe('OrderService', () => {
       expect(result).toEqual(createdOrder);
     });
 
-    it('should throw NotFoundException when shipping address does not exist', async () => {
-      addressRepository.findOne.mockResolvedValue(null);
-
-      await expect(service.createOrder(userId, dto)).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-
     it('should throw NotFoundException when active cart does not exist', async () => {
-      addressRepository.findOne.mockResolvedValue(address);
-
       cartRepository.findActiveByUserId.mockResolvedValue(null);
 
       await expect(service.createOrder(userId, dto)).rejects.toThrow(
         NotFoundException,
       );
+
+      expect(cartRepository.findActiveByUserId).toHaveBeenCalledWith(userId);
+
+      expect(addressesRepository.findByIdAndUserId).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when cart is empty', async () => {
-      addressRepository.findOne.mockResolvedValue(address);
-
       cartRepository.findActiveByUserId.mockResolvedValue({
         id: 'cart-id',
+
         status: CartStatus.ACTIVE,
+
         items: [],
       } as any);
 
       await expect(service.createOrder(userId, dto)).rejects.toThrow(
         BadRequestException,
       );
+
+      expect(addressesRepository.findByIdAndUserId).not.toHaveBeenCalled();
+    });
+
+    it('should throw NotFoundException when shipping address does not exist', async () => {
+      cartRepository.findActiveByUserId.mockResolvedValue(cart as any);
+
+      addressesRepository.findByIdAndUserId.mockResolvedValue(null);
+
+      await expect(service.createOrder(userId, dto)).rejects.toThrow(
+        NotFoundException,
+      );
+
+      expect(addressesRepository.findByIdAndUserId).toHaveBeenCalledWith(
+        dto.shippingAddressId,
+        userId,
+      );
+
+      expect(orderRepository.create).not.toHaveBeenCalled();
     });
   });
 
@@ -277,6 +304,7 @@ describe('OrderService', () => {
         {
           id: 'order-id-1',
         },
+
         {
           id: 'order-id-2',
         },
@@ -349,6 +377,7 @@ describe('OrderService', () => {
 
       orderRepository.save.mockResolvedValue({
         ...order,
+
         status: OrderStatus.CANCELLED,
       } as any);
 

@@ -16,9 +16,9 @@ import { OrderStatus } from '../enums';
 
 import { OrderRepository } from '../repositories/order.repository';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Cart } from 'src/modules/cart/entities';
-import { Address } from 'src/modules/users/entities/address.entity';
-import { User } from 'src/modules/users/entities/user.entity';
+import { Cart } from '../../../modules/cart/entities';
+import { Address } from '../../../modules/users/entities/address.entity';
+import { User } from '../../../modules/users/entities/user.entity';
 import { OrderItem } from '../entities/order-item.entity';
 
 /**
