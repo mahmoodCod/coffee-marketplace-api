@@ -152,7 +152,57 @@ describe('OrderService', () => {
 
         couponId: null,
 
+        trackingCode: null,
+
+        paidAt: null,
+
+        shippedAt: null,
+
+        deliveredAt: null,
+
+        createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+        updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+
         items: [],
+      };
+
+      const completeOrder = {
+        ...createdOrder,
+
+        items: [
+          {
+            id: 'order-item-id-1',
+
+            quantity: 2,
+
+            unitPrice: '100.00',
+
+            product: {
+              id: 'product-id-1',
+            },
+
+            createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+            updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+          },
+
+          {
+            id: 'order-item-id-2',
+
+            quantity: 1,
+
+            unitPrice: '200.00',
+
+            product: {
+              id: 'product-id-2',
+            },
+
+            createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+            updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+          },
+        ],
       };
 
       /**
@@ -165,6 +215,11 @@ describe('OrderService', () => {
        * Mock order saving.
        */
       orderRepository.save.mockResolvedValue(createdOrder as any);
+
+      /**
+       * Mock reloading the saved order with relations.
+       */
+      orderRepository.findByIdAndUserId.mockResolvedValue(completeOrder as any);
 
       /**
        * Mock cart saving after completion.
@@ -242,7 +297,67 @@ describe('OrderService', () => {
         }),
       );
 
-      expect(result).toEqual(createdOrder);
+      expect(result).toEqual({
+        id: 'order-id',
+
+        status: OrderStatus.PENDING_PAYMENT,
+
+        userId,
+
+        shippingAddressId: 'address-id',
+
+        totalPrice: '400.00',
+
+        finalPrice: '400.00',
+
+        couponId: null,
+
+        trackingCode: null,
+
+        paidAt: null,
+
+        shippedAt: null,
+
+        deliveredAt: null,
+
+        items: [
+          {
+            id: 'order-item-id-1',
+
+            orderId: 'order-id',
+
+            productId: 'product-id-1',
+
+            quantity: 2,
+
+            unitPrice: '100.00',
+
+            createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+            updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+          },
+
+          {
+            id: 'order-item-id-2',
+
+            orderId: 'order-id',
+
+            productId: 'product-id-2',
+
+            quantity: 1,
+
+            unitPrice: '200.00',
+
+            createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+            updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+          },
+        ],
+
+        createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+        updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+      });
     });
 
     it('should throw NotFoundException when active cart does not exist', async () => {
@@ -303,10 +418,62 @@ describe('OrderService', () => {
       const orders = [
         {
           id: 'order-id-1',
+
+          status: OrderStatus.PENDING_PAYMENT,
+
+          shippingAddress: {
+            id: 'address-id-1',
+          },
+
+          totalPrice: '100.00',
+
+          finalPrice: '100.00',
+
+          couponId: null,
+
+          trackingCode: null,
+
+          paidAt: null,
+
+          shippedAt: null,
+
+          deliveredAt: null,
+
+          items: [],
+
+          createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+          updatedAt: new Date('2026-01-01T10:00:00.000Z'),
         },
 
         {
           id: 'order-id-2',
+
+          status: OrderStatus.PAID,
+
+          shippingAddress: {
+            id: 'address-id-2',
+          },
+
+          totalPrice: '200.00',
+
+          finalPrice: '200.00',
+
+          couponId: null,
+
+          trackingCode: null,
+
+          paidAt: new Date('2026-01-02T10:00:00.000Z'),
+
+          shippedAt: null,
+
+          deliveredAt: null,
+
+          items: [],
+
+          createdAt: new Date('2026-01-02T10:00:00.000Z'),
+
+          updatedAt: new Date('2026-01-02T10:00:00.000Z'),
         },
       ];
 
@@ -316,7 +483,67 @@ describe('OrderService', () => {
 
       expect(orderRepository.findAllByUserId).toHaveBeenCalledWith(userId);
 
-      expect(result).toEqual(orders);
+      expect(result).toEqual([
+        {
+          id: 'order-id-1',
+
+          status: OrderStatus.PENDING_PAYMENT,
+
+          userId,
+
+          shippingAddressId: 'address-id-1',
+
+          totalPrice: '100.00',
+
+          finalPrice: '100.00',
+
+          couponId: null,
+
+          trackingCode: null,
+
+          paidAt: null,
+
+          shippedAt: null,
+
+          deliveredAt: null,
+
+          items: [],
+
+          createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+          updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+        },
+
+        {
+          id: 'order-id-2',
+
+          status: OrderStatus.PAID,
+
+          userId,
+
+          shippingAddressId: 'address-id-2',
+
+          totalPrice: '200.00',
+
+          finalPrice: '200.00',
+
+          couponId: null,
+
+          trackingCode: null,
+
+          paidAt: new Date('2026-01-02T10:00:00.000Z'),
+
+          shippedAt: null,
+
+          deliveredAt: null,
+
+          items: [],
+
+          createdAt: new Date('2026-01-02T10:00:00.000Z'),
+
+          updatedAt: new Date('2026-01-02T10:00:00.000Z'),
+        },
+      ]);
     });
   });
 
@@ -333,6 +560,32 @@ describe('OrderService', () => {
 
       const order = {
         id: orderId,
+
+        status: OrderStatus.PENDING_PAYMENT,
+
+        shippingAddress: {
+          id: 'address-id',
+        },
+
+        totalPrice: '400.00',
+
+        finalPrice: '400.00',
+
+        couponId: null,
+
+        trackingCode: null,
+
+        paidAt: null,
+
+        shippedAt: null,
+
+        deliveredAt: null,
+
+        items: [],
+
+        createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+        updatedAt: new Date('2026-01-01T10:00:00.000Z'),
       };
 
       orderRepository.findByIdAndUserId.mockResolvedValue(order as any);
@@ -344,7 +597,35 @@ describe('OrderService', () => {
         userId,
       );
 
-      expect(result).toEqual(order);
+      expect(result).toEqual({
+        id: orderId,
+
+        status: OrderStatus.PENDING_PAYMENT,
+
+        userId,
+
+        shippingAddressId: 'address-id',
+
+        totalPrice: '400.00',
+
+        finalPrice: '400.00',
+
+        couponId: null,
+
+        trackingCode: null,
+
+        paidAt: null,
+
+        shippedAt: null,
+
+        deliveredAt: null,
+
+        items: [],
+
+        createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+        updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+      });
     });
 
     it('should throw NotFoundException when order does not exist', async () => {
@@ -371,6 +652,30 @@ describe('OrderService', () => {
         id: orderId,
 
         status: OrderStatus.PENDING_PAYMENT,
+
+        shippingAddress: {
+          id: 'address-id',
+        },
+
+        totalPrice: '400.00',
+
+        finalPrice: '400.00',
+
+        couponId: null,
+
+        trackingCode: null,
+
+        paidAt: null,
+
+        shippedAt: null,
+
+        deliveredAt: null,
+
+        items: [],
+
+        createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+        updatedAt: new Date('2026-01-01T10:00:00.000Z'),
       };
 
       orderRepository.findByIdAndUserId.mockResolvedValue(order as any);
@@ -394,7 +699,35 @@ describe('OrderService', () => {
         }),
       );
 
-      expect(result.status).toBe(OrderStatus.CANCELLED);
+      expect(result).toEqual({
+        id: orderId,
+
+        status: OrderStatus.CANCELLED,
+
+        userId,
+
+        shippingAddressId: 'address-id',
+
+        totalPrice: '400.00',
+
+        finalPrice: '400.00',
+
+        couponId: null,
+
+        trackingCode: null,
+
+        paidAt: null,
+
+        shippedAt: null,
+
+        deliveredAt: null,
+
+        items: [],
+
+        createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+        updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+      });
     });
 
     it('should throw NotFoundException when order does not exist', async () => {

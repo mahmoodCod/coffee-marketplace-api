@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { CartModule } from '../cart/cart.module';
+import { UsersModule } from '../users/users.module';
+
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
 
@@ -30,15 +33,20 @@ import { OrderController } from './controllers/order.controller';
   /**
    * Register Order and OrderItem entities
    * with TypeORM for this module.
+   *
+   * CartModule and UsersModule provide
+   * CartRepository and AddressesRepository
+   * required by OrderService.
    */
-  imports: [TypeOrmModule.forFeature([Order, OrderItem])],
+  imports: [
+    TypeOrmModule.forFeature([Order, OrderItem]),
+    CartModule,
+    UsersModule,
+  ],
 
   /**
-   * Controllers will handle HTTP requests
-   * related to orders.
-   *
-   * The controller will be added after
-   * the service layer is completed.
+   * Controllers handle HTTP requests
+   * related to customer orders.
    */
   controllers: [OrderController],
 

@@ -1,8 +1,25 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 
 import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
 
@@ -21,9 +38,12 @@ import { OrderService } from '../services/order.service';
  * - Retrieve a specific order belonging to the user.
  * - Cancel eligible orders.
  *
+ * All routes require a valid Bearer access token.
  * Business logic is delegated to OrderService.
  */
 @ApiTags('Orders')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('orders')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
@@ -38,15 +58,14 @@ export class OrderController {
   @ApiOperation({
     summary: 'Get current user orders',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'User orders retrieved successfully.',
-    type: [OrderResponseDto],
+  @ApiOkResponse({
+    type: OrderResponseDto,
+    isArray: true,
   })
   async getUserOrders(
     @CurrentUser()
     user: JwtPayload,
-  ) {
+  ): Promise<OrderResponseDto[]> {
     return this.orderService.getUserOrders(user.sub);
   }
 
@@ -60,22 +79,16 @@ export class OrderController {
   @ApiOperation({
     summary: 'Get order by ID',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Order retrieved successfully.',
+  @ApiOkResponse({
     type: OrderResponseDto,
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Order not found.',
-  })
   async getOrderById(
-    @Param('id')
+    @Param('id', new ParseUUIDPipe())
     orderId: string,
 
     @CurrentUser()
     user: JwtPayload,
-  ) {
+  ): Promise<OrderResponseDto> {
     return this.orderService.getOrderById(user.sub, orderId);
   }
 
@@ -89,18 +102,8 @@ export class OrderController {
   @ApiOperation({
     summary: 'Create order from active cart',
   })
-  @ApiResponse({
-    status: 201,
-    description: 'Order created successfully.',
+  @ApiCreatedResponse({
     type: OrderResponseDto,
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Cart is empty.',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Shipping address or active cart not found.',
   })
   async createOrder(
     @CurrentUser()
@@ -108,7 +111,7 @@ export class OrderController {
 
     @Body()
     dto: CreateOrderDto,
-  ) {
+  ): Promise<OrderResponseDto> {
     return this.orderService.createOrder(user.sub, dto);
   }
 
@@ -123,26 +126,16 @@ export class OrderController {
   @ApiOperation({
     summary: 'Cancel order',
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Order cancelled successfully.',
+  @ApiOkResponse({
     type: OrderResponseDto,
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Order cannot be cancelled.',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Order not found.',
-  })
   async cancelOrder(
-    @Param('id')
+    @Param('id', new ParseUUIDPipe())
     orderId: string,
 
     @CurrentUser()
     user: JwtPayload,
-  ) {
+  ): Promise<OrderResponseDto> {
     return this.orderService.cancelOrder(user.sub, orderId);
   }
 }

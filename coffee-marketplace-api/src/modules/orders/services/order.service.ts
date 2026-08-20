@@ -9,7 +9,7 @@ import { CartStatus } from '../../cart/entities/cart-status.enum';
 
 import { AddressesRepository } from '../../users/repositories/addresses.repository';
 
-import { CreateOrderDto } from '../dto';
+import { CreateOrderDto, OrderItemResponseDto, OrderResponseDto } from '../dto';
 
 import { Order } from '../entities/order.entity';
 import { OrderStatus } from '../enums';
@@ -43,6 +43,8 @@ import { OrderItem } from '../entities/order-item.entity';
  *
  * Database access is delegated to OrderRepository,
  * CartRepository, and AddressesRepository.
+ * API responses are mapped to DTOs so entities
+ * are never exposed directly.
  */
 @Injectable()
 export class OrderService {
@@ -66,7 +68,10 @@ export class OrderService {
    * 6. Convert cart items into order items.
    * 7. Mark the cart as completed.
    */
-  async createOrder(userId: string, dto: CreateOrderDto): Promise<Order> {
+  async createOrder(
+    userId: string,
+    dto: CreateOrderDto,
+  ): Promise<OrderResponseDto> {
     /**
      * Find the user's current active cart.
      */
@@ -155,7 +160,20 @@ export class OrderService {
 
     await this.cartRepository.save(cart);
 
-    return savedOrder;
+    /**
+     * Reload the order with relations required
+     * for the public API response.
+     */
+    const completeOrder = await this.orderRepository.findByIdAndUserId(
+      savedOrder.id,
+      userId,
+    );
+
+    if (!completeOrder) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    return this.toOrderResponse(completeOrder, userId);
   }
 
   /**
@@ -164,8 +182,10 @@ export class OrderService {
    * Orders are returned in descending creation order.
    * A user can only access their own order history.
    */
-  async getUserOrders(userId: string): Promise<Order[]> {
-    return this.orderRepository.findAllByUserId(userId);
+  async getUserOrders(userId: string): Promise<OrderResponseDto[]> {
+    const orders = await this.orderRepository.findAllByUserId(userId);
+
+    return orders.map((order) => this.toOrderResponse(order, userId));
   }
 
   /**
@@ -176,14 +196,17 @@ export class OrderService {
    * - An error is thrown when the order does not exist
    *   or does not belong to the authenticated user.
    */
-  async getOrderById(userId: string, orderId: string): Promise<Order> {
+  async getOrderById(
+    userId: string,
+    orderId: string,
+  ): Promise<OrderResponseDto> {
     const order = await this.orderRepository.findByIdAndUserId(orderId, userId);
 
     if (!order) {
       throw new NotFoundException('Order not found.');
     }
 
-    return order;
+    return this.toOrderResponse(order, userId);
   }
 
   /**
@@ -194,7 +217,10 @@ export class OrderService {
    * - Orders cannot be cancelled after shipment.
    * - Completed or delivered orders cannot be cancelled.
    */
-  async cancelOrder(userId: string, orderId: string): Promise<Order> {
+  async cancelOrder(
+    userId: string,
+    orderId: string,
+  ): Promise<OrderResponseDto> {
     /**
      * Find the order while ensuring that it belongs
      * to the authenticated user.
@@ -230,6 +256,50 @@ export class OrderService {
      */
     order.status = OrderStatus.CANCELLED;
 
-    return this.orderRepository.save(order);
+    const cancelledOrder = await this.orderRepository.save(order);
+
+    return this.toOrderResponse(cancelledOrder, userId);
+  }
+
+  /**
+   * Maps an Order entity to the public order response DTO.
+   */
+  private toOrderResponse(order: Order, userId: string): OrderResponseDto {
+    return {
+      id: order.id,
+      status: order.status,
+      userId,
+      shippingAddressId: order.shippingAddress.id,
+      totalPrice: order.totalPrice,
+      finalPrice: order.finalPrice,
+      couponId: order.couponId,
+      trackingCode: order.trackingCode,
+      paidAt: order.paidAt,
+      shippedAt: order.shippedAt,
+      deliveredAt: order.deliveredAt,
+      items: (order.items ?? []).map((item) =>
+        this.toOrderItemResponse(item, order.id),
+      ),
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    };
+  }
+
+  /**
+   * Maps an OrderItem entity to the public order item response DTO.
+   */
+  private toOrderItemResponse(
+    item: OrderItem,
+    orderId: string,
+  ): OrderItemResponseDto {
+    return {
+      id: item.id,
+      orderId,
+      productId: item.product.id,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    };
   }
 }
