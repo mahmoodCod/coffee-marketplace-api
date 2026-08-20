@@ -9,6 +9,7 @@ import { OrderRepository } from './repositories/order.repository';
 import { OrderItemRepository } from './repositories/order-item.repository';
 
 import { OrderService } from './services/order.service';
+import { OrderController } from './controllers/order.controller';
 
 /**
  * Orders Module
@@ -39,7 +40,7 @@ import { OrderService } from './services/order.service';
    * The controller will be added after
    * the service layer is completed.
    */
-  controllers: [],
+  controllers: [OrderController],
 
   /**
    * Providers required by the Orders module.
