@@ -16,6 +16,7 @@ import { ProductStatus, ProductType } from '../enums';
 import { ProductCategory } from './product-category.entity';
 import { Inventory } from '../../../modules/inventoryes/entities/inventory.entity';
 import { CartItem } from '../../../modules/cart/entities';
+import { OrderItem } from '../../../modules/orders/entities/order-item.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -292,6 +293,14 @@ export class Product {
    */
   @OneToMany(() => CartItem, (cartItem) => cartItem.product)
   cartItems: CartItem[];
+
+  /**
+   * Order items that reference this product.
+   *
+   * A product can appear in many different orders.
+   */
+  @OneToMany(() => OrderItem, (orderItem) => orderItem.product)
+  orderItems: OrderItem[];
   createdAt: Date;
 
   /**
