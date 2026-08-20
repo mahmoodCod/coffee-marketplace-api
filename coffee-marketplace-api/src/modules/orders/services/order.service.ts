@@ -158,4 +158,32 @@ export class OrderService {
 
     return savedOrder;
   }
+
+  /**
+   * Get all orders belonging to a specific user.
+   *
+   * Orders are returned in descending creation order.
+   * A user can only access their own order history.
+   */
+  async getUserOrders(userId: string): Promise<Order[]> {
+    return this.orderRepository.findAllByUserId(userId);
+  }
+
+  /**
+   * Get a specific order belonging to a user.
+   *
+   * Business Rules:
+   * - Users can only access their own orders.
+   * - An error is thrown when the order does not exist
+   *   or does not belong to the authenticated user.
+   */
+  async getOrderById(userId: string, orderId: string): Promise<Order> {
+    const order = await this.orderRepository.findByIdAndUserId(orderId, userId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    return order;
+  }
 }
