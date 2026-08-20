@@ -51,10 +51,7 @@ export class AddressesRepository {
   /**
    * Finds one address that belongs to a specific user.
    */
-  async findByIdForUser(
-    id: string,
-    userId: string,
-  ): Promise<Address | null> {
+  async findByIdForUser(id: string, userId: string): Promise<Address | null> {
     return this.repository.findOne({
       where: {
         id,
@@ -65,6 +62,25 @@ export class AddressesRepository {
     });
   }
 
+  /**
+   * Find an address belonging to a specific user.
+   *
+   * This method scopes the address lookup to the user
+   * to prevent one user from accessing another user's address.
+   */
+  async findByIdAndUserId(
+    addressId: string,
+    userId: string,
+  ): Promise<Address | null> {
+    return this.repository.findOne({
+      where: {
+        id: addressId,
+        user: {
+          id: userId,
+        },
+      },
+    });
+  }
   async create(payload: Partial<Address>): Promise<Address> {
     const address = this.repository.create(payload);
 
