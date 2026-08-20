@@ -15,10 +15,9 @@ import { Order } from '../entities/order.entity';
 import { OrderStatus } from '../enums';
 
 import { OrderRepository } from '../repositories/order.repository';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Cart } from '../../../modules/cart/entities';
-import { Address } from '../../../modules/users/entities/address.entity';
-import { User } from '../../../modules/users/entities/user.entity';
+
+import { User } from '../../users/entities/user.entity';
+
 import { OrderItem } from '../entities/order-item.entity';
 
 /**
@@ -41,17 +40,17 @@ import { OrderItem } from '../entities/order-item.entity';
  * - The active cart is completed after order creation.
  * - Inventory is not reduced during order creation.
  * - Inventory decreases only after successful payment.
+ *
+ * Database access is delegated to OrderRepository,
+ * CartRepository, and AddressesRepository.
  */
 @Injectable()
 export class OrderService {
   constructor(
-    @InjectRepository(Order)
     private readonly orderRepository: OrderRepository,
 
-    @InjectRepository(Cart)
     private readonly cartRepository: CartRepository,
 
-    @InjectRepository(Address)
     private readonly addressRepository: AddressesRepository,
   ) {}
 
