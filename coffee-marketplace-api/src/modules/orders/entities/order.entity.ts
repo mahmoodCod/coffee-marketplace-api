@@ -12,8 +12,9 @@ import {
 import { Address } from '../../users/entities/address.entity';
 import { User } from '../../users/entities/user.entity';
 
+import { OrderStatus } from '../enums';
+
 import { OrderItem } from './order-item.entity';
-import { OrderStatus } from './order-status.enum';
 
 /**
  * Order Entity
