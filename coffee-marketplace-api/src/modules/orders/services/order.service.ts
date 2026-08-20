@@ -186,4 +186,51 @@ export class OrderService {
 
     return order;
   }
+
+  /**
+   * Cancel an order belonging to the authenticated user.
+   *
+   * Business Rules:
+   * - Users can only cancel their own orders.
+   * - Orders cannot be cancelled after shipment.
+   * - Completed or delivered orders cannot be cancelled.
+   */
+  async cancelOrder(userId: string, orderId: string): Promise<Order> {
+    /**
+     * Find the order while ensuring that it belongs
+     * to the authenticated user.
+     */
+    const order = await this.orderRepository.findByIdAndUserId(orderId, userId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    /**
+     * An order cannot be cancelled after it has been shipped.
+     */
+    if (
+      order.status === OrderStatus.SHIPPED ||
+      order.status === OrderStatus.DELIVERED
+    ) {
+      throw new BadRequestException(
+        'Orders cannot be cancelled after shipment.',
+      );
+    }
+
+    /**
+     * Prevent cancelling an order that has already
+     * been cancelled.
+     */
+    if (order.status === OrderStatus.CANCELLED) {
+      throw new BadRequestException('Order is already cancelled.');
+    }
+
+    /**
+     * Update the order lifecycle status.
+     */
+    order.status = OrderStatus.CANCELLED;
+
+    return this.orderRepository.save(order);
+  }
 }
