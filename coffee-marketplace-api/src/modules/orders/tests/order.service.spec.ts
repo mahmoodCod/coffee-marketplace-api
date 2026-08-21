@@ -32,7 +32,10 @@ describe('OrderService', () => {
           provide: OrderRepository,
           useValue: {
             findAllByUserId: jest.fn(),
+            findAll: jest.fn(),
+            findAllBySellerId: jest.fn(),
             findByIdAndUserId: jest.fn(),
+            findByIdAndSellerId: jest.fn(),
             findById: jest.fn(),
             create: jest.fn(),
             save: jest.fn(),
@@ -772,6 +775,351 @@ describe('OrderService', () => {
       await expect(service.cancelOrder(userId, orderId)).rejects.toThrow(
         BadRequestException,
       );
+    });
+  });
+
+  /**
+   * ----------------------------------------------------------------
+   * Admin Orders
+   * ----------------------------------------------------------------
+   */
+  describe('admin orders', () => {
+    const orderId = 'order-id';
+
+    const baseOrder = {
+      id: orderId,
+
+      user: {
+        id: 'user-id',
+      },
+
+      shippingAddress: {
+        id: 'address-id',
+      },
+
+      totalPrice: '400.00',
+
+      finalPrice: '400.00',
+
+      couponId: null,
+
+      trackingCode: null,
+
+      paidAt: null,
+
+      shippedAt: null,
+
+      deliveredAt: null,
+
+      items: [],
+
+      createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+      updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+    };
+
+    it('should return all orders for admin', async () => {
+      orderRepository.findAll.mockResolvedValue([
+        {
+          ...baseOrder,
+
+          status: OrderStatus.PAID,
+        },
+      ] as any);
+
+      const result = await service.getAllOrders();
+
+      expect(orderRepository.findAll).toHaveBeenCalled();
+
+      expect(result).toEqual([
+        {
+          id: orderId,
+
+          status: OrderStatus.PAID,
+
+          userId: 'user-id',
+
+          shippingAddressId: 'address-id',
+
+          totalPrice: '400.00',
+
+          finalPrice: '400.00',
+
+          couponId: null,
+
+          trackingCode: null,
+
+          paidAt: null,
+
+          shippedAt: null,
+
+          deliveredAt: null,
+
+          items: [],
+
+          createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+          updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+        },
+      ]);
+    });
+
+    it('should update order status for admin', async () => {
+      const order = {
+        ...baseOrder,
+
+        status: OrderStatus.PENDING_PAYMENT,
+      };
+
+      orderRepository.findById.mockResolvedValue(order as any);
+
+      orderRepository.save.mockResolvedValue({
+        ...order,
+
+        status: OrderStatus.PAID,
+
+        paidAt: new Date('2026-01-02T10:00:00.000Z'),
+      } as any);
+
+      const result = await service.updateOrderStatus(orderId, {
+        status: OrderStatus.PAID,
+      });
+
+      expect(orderRepository.findById).toHaveBeenCalledWith(orderId);
+
+      expect(orderRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: OrderStatus.PAID,
+
+          paidAt: expect.any(Date),
+        }),
+      );
+
+      expect(result.status).toBe(OrderStatus.PAID);
+    });
+
+    it('should ship a paid order', async () => {
+      const order = {
+        ...baseOrder,
+
+        status: OrderStatus.PAID,
+      };
+
+      orderRepository.findById.mockResolvedValue(order as any);
+
+      orderRepository.save.mockResolvedValue({
+        ...order,
+
+        status: OrderStatus.SHIPPED,
+
+        shippedAt: new Date('2026-01-03T10:00:00.000Z'),
+      } as any);
+
+      const result = await service.shipOrder(orderId);
+
+      expect(orderRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: OrderStatus.SHIPPED,
+
+          shippedAt: expect.any(Date),
+        }),
+      );
+
+      expect(result.status).toBe(OrderStatus.SHIPPED);
+    });
+
+    it('should throw BadRequestException when shipping a non-paid order', async () => {
+      orderRepository.findById.mockResolvedValue({
+        ...baseOrder,
+
+        status: OrderStatus.PENDING_PAYMENT,
+      } as any);
+
+      await expect(service.shipOrder(orderId)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should deliver a shipped order', async () => {
+      const order = {
+        ...baseOrder,
+
+        status: OrderStatus.SHIPPED,
+      };
+
+      orderRepository.findById.mockResolvedValue(order as any);
+
+      orderRepository.save.mockResolvedValue({
+        ...order,
+
+        status: OrderStatus.DELIVERED,
+
+        deliveredAt: new Date('2026-01-04T10:00:00.000Z'),
+      } as any);
+
+      const result = await service.deliverOrder(orderId);
+
+      expect(orderRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: OrderStatus.DELIVERED,
+
+          deliveredAt: expect.any(Date),
+        }),
+      );
+
+      expect(result.status).toBe(OrderStatus.DELIVERED);
+    });
+
+    it('should throw BadRequestException when delivering a non-shipped order', async () => {
+      orderRepository.findById.mockResolvedValue({
+        ...baseOrder,
+
+        status: OrderStatus.PAID,
+      } as any);
+
+      await expect(service.deliverOrder(orderId)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  /**
+   * ----------------------------------------------------------------
+   * Seller Orders
+   * ----------------------------------------------------------------
+   */
+  describe('seller orders', () => {
+    const sellerId = 'seller-id';
+
+    const orderId = 'order-id';
+
+    const baseOrder = {
+      id: orderId,
+
+      user: {
+        id: 'user-id',
+      },
+
+      shippingAddress: {
+        id: 'address-id',
+      },
+
+      totalPrice: '400.00',
+
+      finalPrice: '400.00',
+
+      couponId: null,
+
+      trackingCode: null,
+
+      paidAt: null,
+
+      shippedAt: null,
+
+      deliveredAt: null,
+
+      items: [],
+
+      createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+      updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+    };
+
+    it('should return orders belonging to the seller', async () => {
+      orderRepository.findAllBySellerId.mockResolvedValue([
+        {
+          ...baseOrder,
+
+          status: OrderStatus.PAID,
+        },
+      ] as any);
+
+      const result = await service.getSellerOrders(sellerId);
+
+      expect(orderRepository.findAllBySellerId).toHaveBeenCalledWith(sellerId);
+
+      expect(result[0].userId).toBe('user-id');
+
+      expect(result[0].status).toBe(OrderStatus.PAID);
+    });
+
+    it('should return a seller-scoped order by id', async () => {
+      orderRepository.findByIdAndSellerId.mockResolvedValue({
+        ...baseOrder,
+
+        status: OrderStatus.SHIPPED,
+      } as any);
+
+      const result = await service.getSellerOrderById(sellerId, orderId);
+
+      expect(orderRepository.findByIdAndSellerId).toHaveBeenCalledWith(
+        orderId,
+        sellerId,
+      );
+
+      expect(result.status).toBe(OrderStatus.SHIPPED);
+    });
+
+    it('should throw NotFoundException when seller order does not exist', async () => {
+      orderRepository.findByIdAndSellerId.mockResolvedValue(null);
+
+      await expect(
+        service.getSellerOrderById(sellerId, orderId),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should confirm a shipped order as received', async () => {
+      const order = {
+        ...baseOrder,
+
+        status: OrderStatus.SHIPPED,
+      };
+
+      orderRepository.findByIdAndSellerId.mockResolvedValue(order as any);
+
+      orderRepository.save.mockResolvedValue({
+        ...order,
+
+        status: OrderStatus.DELIVERED,
+
+        deliveredAt: new Date('2026-01-04T10:00:00.000Z'),
+      } as any);
+
+      const result = await service.confirmOrderReceived(sellerId, orderId);
+
+      expect(orderRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: OrderStatus.DELIVERED,
+
+          deliveredAt: expect.any(Date),
+        }),
+      );
+
+      expect(result.status).toBe(OrderStatus.DELIVERED);
+    });
+
+    it('should throw BadRequestException when confirming a non-shipped order', async () => {
+      orderRepository.findByIdAndSellerId.mockResolvedValue({
+        ...baseOrder,
+
+        status: OrderStatus.PAID,
+      } as any);
+
+      await expect(
+        service.confirmOrderReceived(sellerId, orderId),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException when order is already delivered', async () => {
+      orderRepository.findByIdAndSellerId.mockResolvedValue({
+        ...baseOrder,
+
+        status: OrderStatus.DELIVERED,
+      } as any);
+
+      await expect(
+        service.confirmOrderReceived(sellerId, orderId),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });
