@@ -104,10 +104,12 @@ Responsible for:
 
 Responsible for:
 
-- Creating payment records
-- Managing payment status
-- Communicating with the payment gateway
+- Creating payment records for orders
+- Initiating payment with the payment gateway
 - Verifying payment results
+- Handling payment callbacks
+- Updating payment status
+- Marking orders as paid after successful payment
 
 -------------------------------------
 
