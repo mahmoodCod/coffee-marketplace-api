@@ -9,7 +9,7 @@ import { CartStatus } from '../../cart/entities/cart-status.enum';
 
 import { AddressesRepository } from '../../users/repositories/addresses.repository';
 
-import { CreateOrderDto, OrderItemResponseDto, OrderResponseDto } from '../dto';
+import { CreateOrderDto, OrderItemResponseDto, OrderResponseDto, UpdateOrderStatusDto } from '../dto';
 
 import { Order } from '../entities/order.entity';
 import { OrderStatus } from '../enums';
@@ -31,6 +31,7 @@ import { OrderItem } from '../entities/order-item.entity';
  * - Validate cart contents.
  * - Calculate order prices.
  * - Manage order lifecycle.
+ * - Support admin order status, ship, and deliver flows.
  *
  * Business Rules:
  * - Orders are created from the user's active cart.
@@ -40,6 +41,7 @@ import { OrderItem } from '../entities/order-item.entity';
  * - The active cart is completed after order creation.
  * - Inventory is not reduced during order creation.
  * - Inventory decreases only after successful payment.
+ * - Orders cannot be cancelled after shipment.
  *
  * Database access is delegated to OrderRepository,
  * CartRepository, and AddressesRepository.
@@ -262,13 +264,121 @@ export class OrderService {
   }
 
   /**
+   * Get all orders for administration.
+   */
+  async getAllOrders(): Promise<OrderResponseDto[]> {
+    const orders = await this.orderRepository.findAll();
+
+    return orders.map((order) => this.toOrderResponse(order));
+  }
+
+  /**
+   * Update the lifecycle status of an order.
+   *
+   * Used by administrators through
+   * PATCH /admin/orders/:id/status.
+   */
+  async updateOrderStatus(
+    orderId: string,
+    dto: UpdateOrderStatusDto,
+  ): Promise<OrderResponseDto> {
+    const order = await this.orderRepository.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    order.status = dto.status;
+
+    /**
+     * Keep fulfillment timestamps aligned
+     * with the selected status.
+     */
+    if (dto.status === OrderStatus.PAID && !order.paidAt) {
+      order.paidAt = new Date();
+    }
+
+    if (dto.status === OrderStatus.SHIPPED && !order.shippedAt) {
+      order.shippedAt = new Date();
+    }
+
+    if (dto.status === OrderStatus.DELIVERED && !order.deliveredAt) {
+      order.deliveredAt = new Date();
+    }
+
+    const updatedOrder = await this.orderRepository.save(order);
+
+    return this.toOrderResponse(updatedOrder);
+  }
+
+  /**
+   * Mark an order as shipped.
+   *
+   * Business Rules:
+   * - Only paid orders can be shipped.
+   * - Shipping sets shipped_at.
+   * - Optional tracking code can be stored.
+   */
+  async shipOrder(
+    orderId: string,
+    trackingCode?: string,
+  ): Promise<OrderResponseDto> {
+    const order = await this.orderRepository.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    if (order.status !== OrderStatus.PAID) {
+      throw new BadRequestException('Only paid orders can be shipped.');
+    }
+
+    order.status = OrderStatus.SHIPPED;
+    order.shippedAt = new Date();
+
+    if (trackingCode) {
+      order.trackingCode = trackingCode;
+    }
+
+    const shippedOrder = await this.orderRepository.save(order);
+
+    return this.toOrderResponse(shippedOrder);
+  }
+
+  /**
+   * Mark an order as delivered.
+   *
+   * Business Rules:
+   * - Only shipped orders can be marked delivered.
+   * - Delivery sets delivered_at.
+   */
+  async deliverOrder(orderId: string): Promise<OrderResponseDto> {
+    const order = await this.orderRepository.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    if (order.status !== OrderStatus.SHIPPED) {
+      throw new BadRequestException('Only shipped orders can be delivered.');
+    }
+
+    order.status = OrderStatus.DELIVERED;
+    order.deliveredAt = new Date();
+
+    const deliveredOrder = await this.orderRepository.save(order);
+
+    return this.toOrderResponse(deliveredOrder);
+  }
+
+  /**
    * Maps an Order entity to the public order response DTO.
    */
-  private toOrderResponse(order: Order, userId: string): OrderResponseDto {
+  private toOrderResponse(order: Order, userId?: string): OrderResponseDto {
     return {
       id: order.id,
       status: order.status,
-      userId,
+      userId: userId ?? order.user.id,
       shippingAddressId: order.shippingAddress.id,
       totalPrice: order.totalPrice,
       finalPrice: order.finalPrice,
