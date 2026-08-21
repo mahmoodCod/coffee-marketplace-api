@@ -88,6 +88,7 @@
 ## Payment
 
 - A payment belongs to one order.
+- An order has at most one payment.
 
 --------------------------------------------
 

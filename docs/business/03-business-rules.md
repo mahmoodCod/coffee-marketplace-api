@@ -49,6 +49,18 @@
 
 -------------------------------
 
+## Payments
+
+- Users can only pay for their own orders.
+- Only orders with PENDING_PAYMENT status can be paid.
+- An order can only have one successful payment.
+- Successful payment marks the order as PAID.
+- Failed payments do not mark the order as PAID.
+- Inventory decreases only after successful payment.
+- Sold count increases only after successful payment.
+
+-------------------------------
+
 ## Discounts
 
 - Discount codes have expiration dates.
