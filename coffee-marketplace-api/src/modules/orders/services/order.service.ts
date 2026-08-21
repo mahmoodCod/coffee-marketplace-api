@@ -32,6 +32,7 @@ import { OrderItem } from '../entities/order-item.entity';
  * - Calculate order prices.
  * - Manage order lifecycle.
  * - Support admin order status, ship, and deliver flows.
+ * - Support seller order listing and delivery confirmation.
  *
  * Business Rules:
  * - Orders are created from the user's active cart.
@@ -42,6 +43,8 @@ import { OrderItem } from '../entities/order-item.entity';
  * - Inventory is not reduced during order creation.
  * - Inventory decreases only after successful payment.
  * - Orders cannot be cancelled after shipment.
+ * - Sellers can view only orders containing their products.
+ * - Sellers can confirm receipt only for shipped orders.
  *
  * Database access is delegated to OrderRepository,
  * CartRepository, and AddressesRepository.
@@ -369,6 +372,82 @@ export class OrderService {
     const deliveredOrder = await this.orderRepository.save(order);
 
     return this.toOrderResponse(deliveredOrder);
+  }
+
+  /**
+   * Get all orders that include products owned by a seller.
+   *
+   * Business Rules:
+   * - Sellers can view only their own orders.
+   */
+  async getSellerOrders(sellerId: string): Promise<OrderResponseDto[]> {
+    const orders = await this.orderRepository.findAllBySellerId(sellerId);
+
+    return orders.map((order) => this.toOrderResponse(order));
+  }
+
+  /**
+   * Get one order that includes products owned by a seller.
+   *
+   * Business Rules:
+   * - Sellers can view only their own orders.
+   */
+  async getSellerOrderById(
+    sellerId: string,
+    orderId: string,
+  ): Promise<OrderResponseDto> {
+    const order = await this.orderRepository.findByIdAndSellerId(
+      orderId,
+      sellerId,
+    );
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    return this.toOrderResponse(order);
+  }
+
+  /**
+   * Confirm that a shipped order has been received.
+   *
+   * Used by sellers through
+   * PATCH /seller/orders/:id/received.
+   *
+   * Business Rules:
+   * - Sellers can confirm only their own orders.
+   * - Only shipped orders can be confirmed as received.
+   * - Confirmation marks the order as delivered.
+   */
+  async confirmOrderReceived(
+    sellerId: string,
+    orderId: string,
+  ): Promise<OrderResponseDto> {
+    const order = await this.orderRepository.findByIdAndSellerId(
+      orderId,
+      sellerId,
+    );
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    if (order.status === OrderStatus.DELIVERED) {
+      throw new BadRequestException('Order is already confirmed as received.');
+    }
+
+    if (order.status !== OrderStatus.SHIPPED) {
+      throw new BadRequestException(
+        'Only shipped orders can be confirmed as received.',
+      );
+    }
+
+    order.status = OrderStatus.DELIVERED;
+    order.deliveredAt = new Date();
+
+    const confirmedOrder = await this.orderRepository.save(order);
+
+    return this.toOrderResponse(confirmedOrder);
   }
 
   /**
