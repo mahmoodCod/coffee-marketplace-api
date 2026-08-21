@@ -21,6 +21,7 @@ import { UsersController } from './controllers/user.controller';
  *
  * Exported for Auth and other modules:
  * - UsersRepository
+ * - AddressesRepository
  * - UsersService
  *
  * Future:
@@ -35,6 +36,6 @@ import { UsersController } from './controllers/user.controller';
 
   providers: [UsersRepository, AddressesRepository, UsersService],
 
-  exports: [UsersRepository, UsersService],
+  exports: [UsersRepository, AddressesRepository, UsersService],
 })
 export class UsersModule {}

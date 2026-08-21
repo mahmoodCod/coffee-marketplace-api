@@ -88,4 +88,16 @@ export class CartRepository {
   async save(cart: Cart): Promise<Cart> {
     return this.repository.save(cart);
   }
+
+  /**
+   * Update the lifecycle status of a cart.
+   *
+   * Used when the cart is converted into an order
+   * or when its lifecycle state needs to change.
+   */
+  async updateStatus(cart: Cart, status: CartStatus): Promise<Cart> {
+    cart.status = status;
+
+    return this.repository.save(cart);
+  }
 }
