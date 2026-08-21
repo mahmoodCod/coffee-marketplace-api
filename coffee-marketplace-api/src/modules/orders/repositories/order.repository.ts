@@ -13,6 +13,8 @@ import { Order } from '../entities/order.entity';
  *
  * Responsibilities:
  * - Find orders belonging to a user.
+ * - Find orders for admin management.
+ * - Find orders containing a seller's products.
  * - Find a single order by ID.
  * - Create and persist orders.
  * - Keep database queries outside the service layer.
@@ -52,6 +54,56 @@ export class OrderRepository {
   }
 
   /**
+   * Find all orders for administration.
+   *
+   * Used by admin order management endpoints.
+   */
+  async findAll(): Promise<Order[]> {
+    return this.repository.find({
+      relations: {
+        items: {
+          product: true,
+        },
+        shippingAddress: true,
+        user: true,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+
+  /**
+   * Find all orders that include at least one product
+   * owned by the given seller.
+   */
+  async findAllBySellerId(sellerId: string): Promise<Order[]> {
+    return this.repository.find({
+      where: {
+        items: {
+          product: {
+            seller: {
+              id: sellerId,
+            },
+          },
+        },
+      },
+      relations: {
+        items: {
+          product: {
+            seller: true,
+          },
+        },
+        shippingAddress: true,
+        user: true,
+      },
+      order: {
+        createdAt: 'DESC',
+      },
+    });
+  }
+
+  /**
    * Find one order by ID scoped to a specific user.
    *
    * Used when a customer requests order details and must
@@ -73,6 +125,37 @@ export class OrderRepository {
           product: true,
         },
         shippingAddress: true,
+      },
+    });
+  }
+
+  /**
+   * Find one order by ID when it contains at least one
+   * product owned by the given seller.
+   */
+  async findByIdAndSellerId(
+    orderId: string,
+    sellerId: string,
+  ): Promise<Order | null> {
+    return this.repository.findOne({
+      where: {
+        id: orderId,
+        items: {
+          product: {
+            seller: {
+              id: sellerId,
+            },
+          },
+        },
+      },
+      relations: {
+        items: {
+          product: {
+            seller: true,
+          },
+        },
+        shippingAddress: true,
+        user: true,
       },
     });
   }
