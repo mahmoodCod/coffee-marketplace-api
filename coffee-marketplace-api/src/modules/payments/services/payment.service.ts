@@ -14,8 +14,8 @@ import { PaymentStatus } from '../enums/payment-status.enum';
 import type { PaymentGateway } from '../../../infrastructure/payment/interfaces/payment-gateway.interface';
 import { OrderStatus } from '../../../modules/orders/enums';
 import { PAYMENT_GATEWAY } from '../../../infrastructure/payment/payment-gateway.token';
-import { InventoryService } from 'src/modules/inventoryes/services/inventory.service';
-import { ProductService } from 'src/modules/products/services/product.service';
+import { InventoryService } from '../../../modules/inventoryes/services/inventory.service';
+import { ProductService } from '../../../modules/products/services/product.service';
 
 /**
  * Payment Service
@@ -242,5 +242,45 @@ export class PaymentService {
     await this.orderRepository.save(payment.order);
 
     return payment;
+  }
+
+  /**
+   * Settle a successfully paid order.
+   *
+   * Updates inventory and product sales data
+   * after a successful payment verification.
+   *
+   * Business Rules:
+   * - Product stock decreases after successful payment.
+   * - Product sold count increases after successful payment.
+   * - Each order item is processed separately.
+   */
+  private async settleOrder(orderId: string): Promise<void> {
+    /**
+     * Load the order with its items.
+     */
+    const order = await this.orderRepository.findByIdWithItems(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    /**
+     * Process every purchased product.
+     */
+    for (const item of order.items) {
+      /**
+       * Decrease product stock.
+       */
+      await this.inventoryService.decreaseStock(item.product.id, item.quantity);
+
+      /**
+       * Increase product sold count.
+       */
+      await this.productService.increaseSoldCount(
+        item.product.id,
+        item.quantity,
+      );
+    }
   }
 }

@@ -23,6 +23,25 @@ import { Order } from '../entities/order.entity';
  */
 @Injectable()
 export class OrderRepository {
+  /**
+   * Find an order with all of its order items
+   * and related products.
+   *
+   * Used during payment settlement to process
+   * purchased products after successful payment.
+   */
+  async findByIdWithItems(orderId: string): Promise<Order | null> {
+    return this.repository.findOne({
+      where: {
+        id: orderId,
+      },
+      relations: {
+        items: {
+          product: true,
+        },
+      },
+    });
+  }
   constructor(
     @InjectRepository(Order)
     private readonly repository: Repository<Order>,
