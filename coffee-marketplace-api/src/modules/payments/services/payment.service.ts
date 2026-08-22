@@ -241,6 +241,14 @@ export class PaymentService {
 
     await this.orderRepository.save(payment.order);
 
+    /**
+     * Settle the successfully paid order.
+     *
+     * Product stock is decreased and
+     * sold count is increased for every order item.
+     */
+    await this.settleOrder(payment.order.id);
+
     return payment;
   }
 
