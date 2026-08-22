@@ -16,6 +16,10 @@ import { OrderStatus } from '../../../modules/orders/enums';
 import { PAYMENT_GATEWAY } from '../../../infrastructure/payment/payment-gateway.token';
 import { InventoryService } from '../../../modules/inventoryes/services/inventory.service';
 import { ProductService } from '../../../modules/products/services/product.service';
+import { DataSource, EntityManager } from 'typeorm';
+import { Order } from 'src/modules/orders/entities';
+import { Inventory } from 'src/modules/inventoryes/entities/inventory.entity';
+import { Product } from 'src/modules/products/entities/product.entity';
 
 /**
  * Payment Service
@@ -42,6 +46,8 @@ export class PaymentService {
     private readonly inventoryService: InventoryService,
 
     private readonly productService: ProductService,
+
+    private readonly dataSource: DataSource,
 
     @Inject(PAYMENT_GATEWAY)
     private readonly paymentGateway: PaymentGateway,
@@ -255,40 +261,100 @@ export class PaymentService {
   /**
    * Settle a successfully paid order.
    *
-   * Updates inventory and product sales data
-   * after a successful payment verification.
+   * Updates inventory and product sales statistics
+   * inside a database transaction.
+   *
+   * All settlement operations must either succeed
+   * together or be rolled back together.
    *
    * Business Rules:
-   * - Product stock decreases after successful payment.
-   * - Product sold count increases after successful payment.
-   * - Each order item is processed separately.
+   * - Stock is decreased only after successful payment.
+   * - Sold count is increased only after successful payment.
+   * - Every order item is processed atomically.
    */
   private async settleOrder(orderId: string): Promise<void> {
-    /**
-     * Load the order with its items.
-     */
-    const order = await this.orderRepository.findByIdWithItems(orderId);
+    await this.dataSource.transaction(
+      async (manager: EntityManager): Promise<void> => {
+        /**
+         * Load the order with all purchased items
+         * and their related products.
+         */
+        const order = await manager.findOne(Order, {
+          where: {
+            id: orderId,
+          },
+          relations: {
+            items: {
+              product: true,
+            },
+          },
+        });
 
-    if (!order) {
-      throw new NotFoundException('Order not found.');
-    }
+        if (!order) {
+          throw new NotFoundException('Order not found.');
+        }
 
-    /**
-     * Process every purchased product.
-     */
-    for (const item of order.items) {
-      /**
-       * Decrease product stock.
-       */
-      await this.inventoryService.decreaseStock(item.product.id, item.quantity);
+        /**
+         * Process every purchased product.
+         */
+        for (const item of order.items) {
+          /**
+           * Load inventory for the purchased product.
+           */
+          const inventory = await manager.findOne(Inventory, {
+            where: {
+              product: {
+                id: item.product.id,
+              },
+            },
+          });
 
-      /**
-       * Increase product sold count.
-       */
-      await this.productService.increaseSoldCount(
-        item.product.id,
-        item.quantity,
-      );
-    }
+          if (!inventory) {
+            throw new NotFoundException(
+              `Inventory not found for product ${item.product.id}.`,
+            );
+          }
+
+          /**
+           * Ensure enough stock is available.
+           */
+          const availableStock = inventory.stock - inventory.reservedStock;
+
+          if (availableStock < item.quantity) {
+            throw new BadRequestException(
+              `Insufficient stock for product ${item.product.id}.`,
+            );
+          }
+
+          /**
+           * Decrease available stock.
+           */
+          inventory.stock -= item.quantity;
+
+          await manager.save(Inventory, inventory);
+
+          /**
+           * Load the latest product state.
+           */
+          const product = await manager.findOne(Product, {
+            where: {
+              id: item.product.id,
+            },
+          });
+
+          if (!product) {
+            throw new NotFoundException('Product not found.');
+          }
+
+          /**
+           * Increase the number of successfully
+           * sold product items.
+           */
+          product.soldCount += item.quantity;
+
+          await manager.save(Product, product);
+        }
+      },
+    );
   }
 }
