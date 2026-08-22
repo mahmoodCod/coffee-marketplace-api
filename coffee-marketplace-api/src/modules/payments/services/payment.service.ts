@@ -127,4 +127,84 @@ export class PaymentService {
       amount: savedPayment.amount,
     };
   }
+
+  /**
+   * Verify a payment through the external payment gateway.
+   *
+   * Business Rules:
+   * - The payment must exist.
+   * - The payment must still be pending.
+   * - The payment amount must be verified by the gateway.
+   * - Successful verification marks the payment as SUCCESS.
+   * - Successful verification marks the order as PAID.
+   * - Failed verification marks the payment as FAILED.
+   *
+   * Inventory and sold-count updates are handled
+   * separately as part of the payment settlement transaction.
+   */
+  async verifyPayment(authority: string) {
+    /**
+     * Find the payment using the authority
+     * returned by the payment gateway.
+     */
+    const payment = await this.paymentRepository.findByAuthority(authority);
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found.');
+    }
+
+    /**
+     * A payment can only be verified while
+     * it is still waiting for verification.
+     */
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException(
+        'Payment is not pending and cannot be verified.',
+      );
+    }
+
+    /**
+     * Verify the payment with the external gateway.
+     *
+     * The stored payment amount is used instead of
+     * trusting the amount supplied by the client.
+     */
+    const gatewayResponse = await this.paymentGateway.verifyPayment({
+      authority: payment.authority!,
+      amount: payment.amount,
+    });
+
+    /**
+     * Handle failed payment verification.
+     */
+    if (!gatewayResponse.success) {
+      payment.status = PaymentStatus.FAILED;
+
+      await this.paymentRepository.save(payment);
+
+      throw new BadRequestException(
+        gatewayResponse.message ?? 'Payment verification failed.',
+      );
+    }
+
+    /**
+     * Mark the payment as successfully completed.
+     */
+    payment.status = PaymentStatus.SUCCESS;
+
+    payment.transactionId = gatewayResponse.transactionId;
+
+    payment.paidAt = new Date();
+
+    await this.paymentRepository.save(payment);
+
+    /**
+     * Mark the related order as paid.
+     */
+    payment.order.status = OrderStatus.PAID;
+
+    await this.orderRepository.save(payment.order);
+
+    return payment;
+  }
 }
