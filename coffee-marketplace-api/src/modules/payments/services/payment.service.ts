@@ -14,6 +14,8 @@ import { PaymentStatus } from '../enums/payment-status.enum';
 import type { PaymentGateway } from '../../../infrastructure/payment/interfaces/payment-gateway.interface';
 import { OrderStatus } from '../../../modules/orders/enums';
 import { PAYMENT_GATEWAY } from '../../../infrastructure/payment/payment-gateway.token';
+import { InventoryService } from 'src/modules/inventoryes/services/inventory.service';
+import { ProductService } from 'src/modules/products/services/product.service';
 
 /**
  * Payment Service
@@ -36,6 +38,10 @@ export class PaymentService {
     private readonly paymentRepository: PaymentRepository,
 
     private readonly orderRepository: OrderRepository,
+
+    private readonly inventoryService: InventoryService,
+
+    private readonly productService: ProductService,
 
     @Inject(PAYMENT_GATEWAY)
     private readonly paymentGateway: PaymentGateway,
