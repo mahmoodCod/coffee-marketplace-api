@@ -15,12 +15,24 @@ import type {
   CreatePaymentResponse,
   VerifyPaymentResponse,
 } from '../../../infrastructure/payment/interfaces/payment-gateway.interface';
+import { Payment } from '../entities/payment.entity';
+import datasource from 'src/database/config/datasource';
+import { Inventory } from 'src/modules/inventoryes/entities/inventory.entity';
+import { DataSource, EntityManager } from 'typeorm';
+
+const createMockEntityManager = () => {
+  return {
+    findOne: jest.fn(),
+    save: jest.fn(),
+  } as unknown as jest.Mocked<EntityManager>;
+};
 
 describe('PaymentService', () => {
   let service: PaymentService;
 
   let paymentRepository: jest.Mocked<PaymentRepository>;
   let orderRepository: jest.Mocked<OrderRepository>;
+  let dataSource: jest.Mocked<DataSource>;
 
   let paymentGateway: {
     createPayment: jest.Mock;
@@ -47,6 +59,7 @@ describe('PaymentService', () => {
           provide: OrderRepository,
           useValue: {
             findByIdAndUserId: jest.fn(),
+            findByIdWithItems: jest.fn(),
             save: jest.fn(),
           },
         },
@@ -58,15 +71,25 @@ describe('PaymentService', () => {
             verifyPayment: jest.fn(),
           },
         },
+
+        {
+          provide: DataSource,
+          useValue: {
+            transaction: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<PaymentService>(PaymentService);
 
     paymentRepository = module.get(PaymentRepository);
+
     orderRepository = module.get(OrderRepository);
 
     paymentGateway = module.get(PAYMENT_GATEWAY);
+
+    dataSource = module.get(DataSource);
   });
 
   /**
@@ -151,9 +174,9 @@ describe('PaymentService', () => {
     it('should throw NotFoundException when order does not exist', async () => {
       orderRepository.findByIdAndUserId.mockResolvedValue(null);
 
-      await expect(
-        service.createPayment(userId, orderId),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
+        NotFoundException,
+      );
 
       expect(paymentRepository.findByOrderId).not.toHaveBeenCalled();
       expect(paymentGateway.createPayment).not.toHaveBeenCalled();
@@ -165,9 +188,9 @@ describe('PaymentService', () => {
         status: OrderStatus.PAID,
       } as any);
 
-      await expect(
-        service.createPayment(userId, orderId),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(paymentRepository.findByOrderId).not.toHaveBeenCalled();
       expect(paymentGateway.createPayment).not.toHaveBeenCalled();
@@ -181,9 +204,9 @@ describe('PaymentService', () => {
         status: PaymentStatus.SUCCESS,
       } as any);
 
-      await expect(
-        service.createPayment(userId, orderId),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(paymentRepository.create).not.toHaveBeenCalled();
       expect(paymentGateway.createPayment).not.toHaveBeenCalled();
@@ -202,9 +225,7 @@ describe('PaymentService', () => {
         paidAt: new Date(),
       };
 
-      paymentRepository.findByOrderId.mockResolvedValue(
-        existingPayment as any,
-      );
+      paymentRepository.findByOrderId.mockResolvedValue(existingPayment as any);
 
       paymentRepository.save
         .mockResolvedValueOnce(existingPayment as any)
@@ -274,9 +295,9 @@ describe('PaymentService', () => {
         message: 'Gateway unavailable.',
       });
 
-      await expect(
-        service.createPayment(userId, orderId),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(paymentRepository.save).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -321,9 +342,7 @@ describe('PaymentService', () => {
     it('should verify payment successfully and mark order as paid', async () => {
       const payment = createPendingPayment();
 
-      paymentRepository.findByAuthority.mockResolvedValue(
-        payment as any,
-      );
+      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
 
       paymentRepository.save.mockResolvedValue(payment as any);
 
@@ -342,9 +361,7 @@ describe('PaymentService', () => {
 
       const result = await service.verifyPayment(authority);
 
-      expect(paymentRepository.findByAuthority).toHaveBeenCalledWith(
-        authority,
-      );
+      expect(paymentRepository.findByAuthority).toHaveBeenCalledWith(authority);
 
       expect(paymentGateway.verifyPayment).toHaveBeenCalledWith({
         authority,
@@ -367,9 +384,9 @@ describe('PaymentService', () => {
     it('should throw NotFoundException when payment does not exist', async () => {
       paymentRepository.findByAuthority.mockResolvedValue(null);
 
-      await expect(
-        service.verifyPayment(authority),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.verifyPayment(authority)).rejects.toThrow(
+        NotFoundException,
+      );
 
       expect(paymentGateway.verifyPayment).not.toHaveBeenCalled();
     });
@@ -379,13 +396,11 @@ describe('PaymentService', () => {
 
       payment.status = PaymentStatus.SUCCESS;
 
-      paymentRepository.findByAuthority.mockResolvedValue(
-        payment as any,
-      );
+      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
 
-      await expect(
-        service.verifyPayment(authority),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.verifyPayment(authority)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(paymentGateway.verifyPayment).not.toHaveBeenCalled();
     });
@@ -393,9 +408,7 @@ describe('PaymentService', () => {
     it('should mark payment as failed when verification fails', async () => {
       const payment = createPendingPayment();
 
-      paymentRepository.findByAuthority.mockResolvedValue(
-        payment as any,
-      );
+      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
 
       paymentRepository.save.mockResolvedValue(payment as any);
 
@@ -405,9 +418,9 @@ describe('PaymentService', () => {
         message: 'Payment verification failed.',
       });
 
-      await expect(
-        service.verifyPayment(authority),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.verifyPayment(authority)).rejects.toThrow(
+        BadRequestException,
+      );
 
       expect(payment.status).toBe(PaymentStatus.FAILED);
 
@@ -421,9 +434,7 @@ describe('PaymentService', () => {
 
       payment.amount = '1250.75';
 
-      paymentRepository.findByAuthority.mockResolvedValue(
-        payment as any,
-      );
+      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
 
       paymentRepository.save.mockResolvedValue(payment as any);
 
@@ -444,6 +455,174 @@ describe('PaymentService', () => {
         authority,
         amount: '1250.75',
       });
+    });
+
+    it('should rollback payment settlement when stock is insufficient', async () => {
+      const payment = createPendingPayment();
+
+      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
+
+      paymentGateway.verifyPayment.mockResolvedValue({
+        success: true,
+        transactionId: 'TX-123',
+        message: null,
+      });
+
+      dataSource.transaction.mockImplementation(async (callback: any) => {
+        const manager = createMockEntityManager();
+
+        manager.findOne.mockImplementation(async (entity: any) => {
+          /**
+           * Return the payment inside the transaction.
+           */
+          if (entity === Payment) {
+            return {
+              ...payment,
+              order: {
+                ...payment.order,
+                status: OrderStatus.PENDING_PAYMENT,
+                items: [
+                  {
+                    quantity: 10,
+                    product: {
+                      id: 'product-id',
+                    },
+                  },
+                ],
+              },
+            };
+          }
+
+          /**
+           * Return insufficient inventory.
+           */
+          if (entity === Inventory) {
+            return {
+              id: 'inventory-id',
+              stock: 5,
+              reservedStock: 0,
+              product: {
+                id: 'product-id',
+              },
+            };
+          }
+
+          return null;
+        });
+
+        /**
+         * Execute the transaction callback.
+         *
+         * The callback must throw because
+         * available stock is lower than
+         * requested quantity.
+         */
+        return callback(manager);
+      });
+
+      await expect(service.verifyPayment(authority)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      /**
+       * Payment must remain unchanged in memory
+       * because the transaction was rolled back.
+       */
+      expect(payment.status).toBe(PaymentStatus.PENDING);
+
+      expect(payment.transactionId).toBeNull();
+
+      expect(payment.paidAt).toBeNull();
+
+      /**
+       * The normal repository save methods must not
+       * be responsible for successful settlement.
+       */
+      expect(orderRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('should settle inventory and product sales after successful payment', async () => {
+      const payment = createPendingPayment();
+
+      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
+
+      paymentGateway.verifyPayment.mockResolvedValue({
+        success: true,
+        transactionId: 'TX-123',
+        message: null,
+      });
+
+      const transactionalPayment = {
+        ...payment,
+        order: {
+          ...payment.order,
+          status: OrderStatus.PENDING_PAYMENT,
+          items: [
+            {
+              quantity: 2,
+              product: {
+                id: 'product-id',
+              },
+            },
+          ],
+        },
+      };
+
+      const inventory = {
+        id: 'inventory-id',
+        stock: 10,
+        reservedStock: 0,
+        product: {
+          id: 'product-id',
+        },
+      };
+
+      const product = {
+        id: 'product-id',
+        soldCount: 20,
+      };
+
+      dataSource.transaction.mockImplementation(async (callback: any) => {
+        const manager = createMockEntityManager();
+
+        manager.findOne.mockImplementation(async (entity: any) => {
+          if (entity === Payment) {
+            return transactionalPayment;
+          }
+
+          if (entity === Inventory) {
+            return inventory;
+          }
+
+          if (entity === Product) {
+            return product;
+          }
+
+          return null;
+        });
+
+        manager.save.mockImplementation(async (entity: any, value: any) => {
+          return value;
+        });
+
+        return callback(manager);
+      });
+
+      const result = await service.verifyPayment(authority);
+
+      expect(transactionalPayment.status).toBe(PaymentStatus.SUCCESS);
+
+      expect(transactionalPayment.transactionId).toBe('TX-123');
+
+      expect(transactionalPayment.paidAt).toBeInstanceOf(Date);
+
+      expect(transactionalPayment.order.status).toBe(OrderStatus.PAID);
+
+      expect(inventory.stock).toBe(8);
+
+      expect(product.soldCount).toBe(22);
+
+      expect(result).toBeDefined();
     });
   });
 });
