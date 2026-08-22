@@ -16,9 +16,9 @@ import type {
   VerifyPaymentResponse,
 } from '../../../infrastructure/payment/interfaces/payment-gateway.interface';
 import { Payment } from '../entities/payment.entity';
-import datasource from 'src/database/config/datasource';
 import { Inventory } from 'src/modules/inventoryes/entities/inventory.entity';
 import { DataSource, EntityManager } from 'typeorm';
+import { Order } from 'src/modules/orders/entities';
 
 const createMockEntityManager = () => {
   return {
@@ -130,6 +130,8 @@ describe('PaymentService', () => {
           ...payment,
           authority: 'AUTH-123',
         } as any);
+
+      paymentRepository.findById.mockResolvedValue(payment as any);
 
       const gatewayResponse: CreatePaymentResponse = {
         success: true,
@@ -359,6 +361,37 @@ describe('PaymentService', () => {
 
       paymentGateway.verifyPayment.mockResolvedValue(gatewayResponse);
 
+      dataSource.transaction.mockImplementation(async (callback: any) => {
+        const manager = createMockEntityManager();
+
+        const transactionalPayment = {
+          ...payment,
+          order: {
+            ...payment.order,
+            status: OrderStatus.PENDING_PAYMENT,
+            items: [],
+          },
+        };
+
+        manager.findOne.mockImplementation(async (entity: any) => {
+          if (entity === Payment) {
+            return transactionalPayment;
+          }
+
+          if (entity === Order) {
+            return transactionalPayment.order;
+          }
+
+          return null;
+        });
+
+        manager.save.mockImplementation(async (_entity: any, value: any) => {
+          return value;
+        });
+
+        return callback(manager);
+      });
+
       const result = await service.verifyPayment(authority);
 
       expect(paymentRepository.findByAuthority).toHaveBeenCalledWith(authority);
@@ -430,6 +463,37 @@ describe('PaymentService', () => {
     });
 
     it('should use the stored payment amount during verification', async () => {
+      dataSource.transaction.mockImplementation(async (callback: any) => {
+        const manager = createMockEntityManager();
+
+        const transactionalPayment = {
+          ...payment,
+          order: {
+            ...payment.order,
+            status: OrderStatus.PENDING_PAYMENT,
+            items: [],
+          },
+        };
+
+        manager.findOne.mockImplementation(async (entity: any) => {
+          if (entity === Payment) {
+            return transactionalPayment;
+          }
+
+          if (entity === Order) {
+            return transactionalPayment.order;
+          }
+
+          return null;
+        });
+
+        manager.save.mockImplementation(async (_entity: any, value: any) => {
+          return value;
+        });
+
+        return callback(manager);
+      });
+      paymentRepository.findById.mockResolvedValue(payment as any);
       const payment = createPendingPayment();
 
       payment.amount = '1250.75';
@@ -468,34 +532,36 @@ describe('PaymentService', () => {
         message: null,
       });
 
+      const transactionalOrder = {
+        id: 'order-id',
+        status: OrderStatus.PENDING_PAYMENT,
+        items: [
+          {
+            quantity: 10,
+            product: {
+              id: 'product-id',
+            },
+          },
+        ],
+      };
+
+      const transactionalPayment = {
+        ...payment,
+        order: transactionalOrder,
+      };
+
       dataSource.transaction.mockImplementation(async (callback: any) => {
         const manager = createMockEntityManager();
 
         manager.findOne.mockImplementation(async (entity: any) => {
-          /**
-           * Return the payment inside the transaction.
-           */
           if (entity === Payment) {
-            return {
-              ...payment,
-              order: {
-                ...payment.order,
-                status: OrderStatus.PENDING_PAYMENT,
-                items: [
-                  {
-                    quantity: 10,
-                    product: {
-                      id: 'product-id',
-                    },
-                  },
-                ],
-              },
-            };
+            return transactionalPayment;
           }
 
-          /**
-           * Return insufficient inventory.
-           */
+          if (entity === Order) {
+            return transactionalOrder;
+          }
+
           if (entity === Inventory) {
             return {
               id: 'inventory-id',
@@ -510,13 +576,10 @@ describe('PaymentService', () => {
           return null;
         });
 
-        /**
-         * Execute the transaction callback.
-         *
-         * The callback must throw because
-         * available stock is lower than
-         * requested quantity.
-         */
+        manager.save.mockImplementation(async (_entity: any, value: any) => {
+          return value;
+        });
+
         return callback(manager);
       });
 
@@ -525,8 +588,8 @@ describe('PaymentService', () => {
       );
 
       /**
-       * Payment must remain unchanged in memory
-       * because the transaction was rolled back.
+       * Original payment object must remain unchanged
+       * because the settlement transaction failed.
        */
       expect(payment.status).toBe(PaymentStatus.PENDING);
 
@@ -535,8 +598,7 @@ describe('PaymentService', () => {
       expect(payment.paidAt).toBeNull();
 
       /**
-       * The normal repository save methods must not
-       * be responsible for successful settlement.
+       * Order must not be persisted as paid.
        */
       expect(orderRepository.save).not.toHaveBeenCalled();
     });
@@ -552,20 +614,22 @@ describe('PaymentService', () => {
         message: null,
       });
 
+      const transactionalOrder = {
+        id: 'order-id',
+        status: OrderStatus.PENDING_PAYMENT,
+        items: [
+          {
+            quantity: 2,
+            product: {
+              id: 'product-id',
+            },
+          },
+        ],
+      };
+
       const transactionalPayment = {
         ...payment,
-        order: {
-          ...payment.order,
-          status: OrderStatus.PENDING_PAYMENT,
-          items: [
-            {
-              quantity: 2,
-              product: {
-                id: 'product-id',
-              },
-            },
-          ],
-        },
+        order: transactionalOrder,
       };
 
       const inventory = {
@@ -590,6 +654,10 @@ describe('PaymentService', () => {
             return transactionalPayment;
           }
 
+          if (entity === Order) {
+            return transactionalOrder;
+          }
+
           if (entity === Inventory) {
             return inventory;
           }
@@ -601,12 +669,14 @@ describe('PaymentService', () => {
           return null;
         });
 
-        manager.save.mockImplementation(async (entity: any, value: any) => {
+        manager.save.mockImplementation(async (_entity: any, value: any) => {
           return value;
         });
 
         return callback(manager);
       });
+
+      paymentRepository.findById.mockResolvedValue(transactionalPayment as any);
 
       const result = await service.verifyPayment(authority);
 
@@ -616,13 +686,15 @@ describe('PaymentService', () => {
 
       expect(transactionalPayment.paidAt).toBeInstanceOf(Date);
 
-      expect(transactionalPayment.order.status).toBe(OrderStatus.PAID);
+      expect(transactionalOrder.status).toBe(OrderStatus.PAID);
 
       expect(inventory.stock).toBe(8);
 
       expect(product.soldCount).toBe(22);
 
-      expect(result).toBeDefined();
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+
+      expect(result).toBe(transactionalPayment);
     });
   });
 });
