@@ -14,12 +14,11 @@ import { PaymentStatus } from '../enums/payment-status.enum';
 import type { PaymentGateway } from '../../../infrastructure/payment/interfaces/payment-gateway.interface';
 import { OrderStatus } from '../../../modules/orders/enums';
 import { PAYMENT_GATEWAY } from '../../../infrastructure/payment/payment-gateway.token';
-import { InventoryService } from '../../../modules/inventoryes/services/inventory.service';
-import { ProductService } from '../../../modules/products/services/product.service';
 import { DataSource, EntityManager } from 'typeorm';
 import { Order } from 'src/modules/orders/entities';
 import { Inventory } from 'src/modules/inventoryes/entities/inventory.entity';
 import { Product } from 'src/modules/products/entities/product.entity';
+import { Payment } from '../entities/payment.entity';
 
 /**
  * Payment Service
@@ -42,10 +41,6 @@ export class PaymentService {
     private readonly paymentRepository: PaymentRepository,
 
     private readonly orderRepository: OrderRepository,
-
-    private readonly inventoryService: InventoryService,
-
-    private readonly productService: ProductService,
 
     private readonly dataSource: DataSource,
 
@@ -176,13 +171,10 @@ export class PaymentService {
    * Business Rules:
    * - The payment must exist.
    * - The payment must still be pending.
-   * - The payment amount must be verified by the gateway.
-   * - Successful verification marks the payment as SUCCESS.
-   * - Successful verification marks the order as PAID.
+   * - The stored payment amount is used for verification.
+   * - Successful verification updates payment, order,
+   *   inventory, and product sales atomically.
    * - Failed verification marks the payment as FAILED.
-   *
-   * Inventory and sold-count updates are handled
-   * separately as part of the payment settlement transaction.
    */
   async verifyPayment(authority: string) {
     /**
@@ -209,7 +201,7 @@ export class PaymentService {
      * Verify the payment with the external gateway.
      *
      * The stored payment amount is used instead of
-     * trusting the amount supplied by the client.
+     * trusting any client-provided amount.
      */
     const gatewayResponse = await this.paymentGateway.verifyPayment({
       authority: payment.authority!,
@@ -230,131 +222,161 @@ export class PaymentService {
     }
 
     /**
-     * Mark the payment as successfully completed.
+     * Complete payment settlement inside
+     * a single database transaction.
      */
-    payment.status = PaymentStatus.SUCCESS;
+    await this.dataSource.transaction(async (manager: EntityManager) => {
+      /**
+       * Load the latest payment state inside
+       * the current transaction.
+       */
+      const transactionalPayment = await manager.findOne(Payment, {
+        where: {
+          id: payment.id,
+        },
+        relations: {
+          order: true,
+        },
+      });
 
-    payment.transactionId = gatewayResponse.transactionId;
+      if (!transactionalPayment) {
+        throw new NotFoundException('Payment not found.');
+      }
 
-    payment.paidAt = new Date();
+      /**
+       * Mark the payment as successfully completed.
+       */
+      transactionalPayment.status = PaymentStatus.SUCCESS;
 
-    await this.paymentRepository.save(payment);
+      transactionalPayment.transactionId = gatewayResponse.transactionId;
+
+      transactionalPayment.paidAt = new Date();
+
+      await manager.save(Payment, transactionalPayment);
+
+      /**
+       * Mark the related order as paid.
+       */
+      transactionalPayment.order.status = OrderStatus.PAID;
+
+      await manager.save(Order, transactionalPayment.order);
+
+      /**
+       * Settle the successfully paid order.
+       *
+       * This updates inventory and product
+       * sales statistics using the same transaction.
+       */
+      await this.settleOrder(manager, transactionalPayment.order.id);
+    });
 
     /**
-     * Mark the related order as paid.
+     * Return the latest payment data.
      */
-    payment.order.status = OrderStatus.PAID;
+    const updatedPayment = await this.paymentRepository.findById(payment.id);
 
-    await this.orderRepository.save(payment.order);
+    if (!updatedPayment) {
+      throw new NotFoundException('Payment not found.');
+    }
 
-    /**
-     * Settle the successfully paid order.
-     *
-     * Product stock is decreased and
-     * sold count is increased for every order item.
-     */
-    await this.settleOrder(payment.order.id);
-
-    return payment;
+    return updatedPayment;
   }
 
   /**
    * Settle a successfully paid order.
    *
    * Updates inventory and product sales statistics
-   * inside a database transaction.
+   * using the provided transaction manager.
    *
-   * All settlement operations must either succeed
-   * together or be rolled back together.
+   * This method must be called inside
+   * an existing database transaction.
    *
    * Business Rules:
    * - Stock is decreased only after successful payment.
    * - Sold count is increased only after successful payment.
    * - Every order item is processed atomically.
    */
-  private async settleOrder(orderId: string): Promise<void> {
-    await this.dataSource.transaction(
-      async (manager: EntityManager): Promise<void> => {
-        /**
-         * Load the order with all purchased items
-         * and their related products.
-         */
-        const order = await manager.findOne(Order, {
-          where: {
-            id: orderId,
-          },
-          relations: {
-            items: {
-              product: true,
-            },
-          },
-        });
-
-        if (!order) {
-          throw new NotFoundException('Order not found.');
-        }
-
-        /**
-         * Process every purchased product.
-         */
-        for (const item of order.items) {
-          /**
-           * Load inventory for the purchased product.
-           */
-          const inventory = await manager.findOne(Inventory, {
-            where: {
-              product: {
-                id: item.product.id,
-              },
-            },
-          });
-
-          if (!inventory) {
-            throw new NotFoundException(
-              `Inventory not found for product ${item.product.id}.`,
-            );
-          }
-
-          /**
-           * Ensure enough stock is available.
-           */
-          const availableStock = inventory.stock - inventory.reservedStock;
-
-          if (availableStock < item.quantity) {
-            throw new BadRequestException(
-              `Insufficient stock for product ${item.product.id}.`,
-            );
-          }
-
-          /**
-           * Decrease available stock.
-           */
-          inventory.stock -= item.quantity;
-
-          await manager.save(Inventory, inventory);
-
-          /**
-           * Load the latest product state.
-           */
-          const product = await manager.findOne(Product, {
-            where: {
-              id: item.product.id,
-            },
-          });
-
-          if (!product) {
-            throw new NotFoundException('Product not found.');
-          }
-
-          /**
-           * Increase the number of successfully
-           * sold product items.
-           */
-          product.soldCount += item.quantity;
-
-          await manager.save(Product, product);
-        }
+  private async settleOrder(
+    manager: EntityManager,
+    orderId: string,
+  ): Promise<void> {
+    /**
+     * Load the order with all purchased items
+     * and their related products.
+     */
+    const order = await manager.findOne(Order, {
+      where: {
+        id: orderId,
       },
-    );
+      relations: {
+        items: {
+          product: true,
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    /**
+     * Process every purchased product.
+     */
+    for (const item of order.items) {
+      /**
+       * Load inventory for the purchased product.
+       */
+      const inventory = await manager.findOne(Inventory, {
+        where: {
+          product: {
+            id: item.product.id,
+          },
+        },
+      });
+
+      if (!inventory) {
+        throw new NotFoundException(
+          `Inventory not found for product ${item.product.id}.`,
+        );
+      }
+
+      /**
+       * Ensure enough stock is available.
+       */
+      const availableStock = inventory.stock - inventory.reservedStock;
+
+      if (availableStock < item.quantity) {
+        throw new BadRequestException(
+          `Insufficient stock for product ${item.product.id}.`,
+        );
+      }
+
+      /**
+       * Decrease product stock.
+       */
+      inventory.stock -= item.quantity;
+
+      await manager.save(Inventory, inventory);
+
+      /**
+       * Load the latest product state.
+       */
+      const product = await manager.findOne(Product, {
+        where: {
+          id: item.product.id,
+        },
+      });
+
+      if (!product) {
+        throw new NotFoundException('Product not found.');
+      }
+
+      /**
+       * Increase successfully sold quantity.
+       */
+      product.soldCount += item.quantity;
+
+      await manager.save(Product, product);
+    }
   }
 }
