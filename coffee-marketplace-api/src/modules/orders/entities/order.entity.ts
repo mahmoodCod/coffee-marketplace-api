@@ -16,7 +16,7 @@ import { User } from '../../users/entities/user.entity';
 import { OrderStatus } from '../enums';
 
 import { OrderItem } from './order-item.entity';
-import { Payment } from 'src/modules/payments/entities/payment.entity';
+import { Payment } from '../../../modules/payments/entities/payment.entity';
 
 /**
  * Order Entity
