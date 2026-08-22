@@ -13,7 +13,7 @@ import { PaymentStatus } from '../enums/payment-status.enum';
 
 import type { PaymentGateway } from '../../../infrastructure/payment/interfaces/payment-gateway.interface';
 import { OrderStatus } from '../../../modules/orders/enums';
-import { PAYMENT_GATEWAY } from 'src/infrastructure/payment/payment-gateway.token';
+import { PAYMENT_GATEWAY } from '../../../infrastructure/payment/payment-gateway.token';
 
 /**
  * Payment Service
