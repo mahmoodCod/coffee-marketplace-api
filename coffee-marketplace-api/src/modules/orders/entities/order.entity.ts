@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -15,6 +16,7 @@ import { User } from '../../users/entities/user.entity';
 import { OrderStatus } from '../enums';
 
 import { OrderItem } from './order-item.entity';
+import { Payment } from 'src/modules/payments/entities/payment.entity';
 
 /**
  * Order Entity
@@ -156,6 +158,14 @@ export class Order {
     cascade: true,
   })
   items: OrderItem[];
+
+  /**
+   * Payment associated with this order.
+   *
+   * An order can have at most one payment record.
+   */
+  @OneToOne(() => Payment, (payment) => payment.order)
+  payment: Payment;
 
   /**
    * Timestamp when the order was created.
