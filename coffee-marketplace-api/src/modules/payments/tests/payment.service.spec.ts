@@ -151,9 +151,9 @@ describe('PaymentService', () => {
     it('should throw NotFoundException when order does not exist', async () => {
       orderRepository.findByIdAndUserId.mockResolvedValue(null);
 
-      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.createPayment(userId, orderId),
+      ).rejects.toThrow(NotFoundException);
 
       expect(paymentRepository.findByOrderId).not.toHaveBeenCalled();
       expect(paymentGateway.createPayment).not.toHaveBeenCalled();
@@ -165,9 +165,9 @@ describe('PaymentService', () => {
         status: OrderStatus.PAID,
       } as any);
 
-      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.createPayment(userId, orderId),
+      ).rejects.toThrow(BadRequestException);
 
       expect(paymentRepository.findByOrderId).not.toHaveBeenCalled();
       expect(paymentGateway.createPayment).not.toHaveBeenCalled();
@@ -181,9 +181,9 @@ describe('PaymentService', () => {
         status: PaymentStatus.SUCCESS,
       } as any);
 
-      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.createPayment(userId, orderId),
+      ).rejects.toThrow(BadRequestException);
 
       expect(paymentRepository.create).not.toHaveBeenCalled();
       expect(paymentGateway.createPayment).not.toHaveBeenCalled();
@@ -202,7 +202,9 @@ describe('PaymentService', () => {
         paidAt: new Date(),
       };
 
-      paymentRepository.findByOrderId.mockResolvedValue(existingPayment as any);
+      paymentRepository.findByOrderId.mockResolvedValue(
+        existingPayment as any,
+      );
 
       paymentRepository.save
         .mockResolvedValueOnce(existingPayment as any)
@@ -225,11 +227,13 @@ describe('PaymentService', () => {
 
       expect(paymentRepository.create).not.toHaveBeenCalled();
 
-      expect(paymentRepository.save).toHaveBeenCalledWith(
+      expect(paymentRepository.save).toHaveBeenCalledTimes(2);
+
+      expect(paymentRepository.save).toHaveBeenLastCalledWith(
         expect.objectContaining({
           id: 'payment-id',
           status: PaymentStatus.PENDING,
-          authority: null,
+          authority: 'NEW-AUTH',
           transactionId: null,
           paidAt: null,
         }),
@@ -270,9 +274,9 @@ describe('PaymentService', () => {
         message: 'Gateway unavailable.',
       });
 
-      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.createPayment(userId, orderId),
+      ).rejects.toThrow(BadRequestException);
 
       expect(paymentRepository.save).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -296,27 +300,35 @@ describe('PaymentService', () => {
       finalPrice: '500.00',
     };
 
-    const payment = {
+    /**
+     * Create a fresh payment object for every test.
+     *
+     * This prevents one test from mutating the payment
+     * object used by another test.
+     */
+    const createPendingPayment = () => ({
       id: 'payment-id',
-      order,
+      order: {
+        ...order,
+      },
       amount: '500.00',
       authority,
       status: PaymentStatus.PENDING,
       transactionId: null,
       paidAt: null,
-    };
+    });
 
     it('should verify payment successfully and mark order as paid', async () => {
-      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
+      const payment = createPendingPayment();
 
-      paymentRepository.save.mockResolvedValue({
-        ...payment,
-        status: PaymentStatus.SUCCESS,
-        transactionId: 'TX-123',
-      } as any);
+      paymentRepository.findByAuthority.mockResolvedValue(
+        payment as any,
+      );
+
+      paymentRepository.save.mockResolvedValue(payment as any);
 
       orderRepository.save.mockResolvedValue({
-        ...order,
+        ...payment.order,
         status: OrderStatus.PAID,
       } as any);
 
@@ -330,7 +342,9 @@ describe('PaymentService', () => {
 
       const result = await service.verifyPayment(authority);
 
-      expect(paymentRepository.findByAuthority).toHaveBeenCalledWith(authority);
+      expect(paymentRepository.findByAuthority).toHaveBeenCalledWith(
+        authority,
+      );
 
       expect(paymentGateway.verifyPayment).toHaveBeenCalledWith({
         authority,
@@ -343,9 +357,9 @@ describe('PaymentService', () => {
 
       expect(paymentRepository.save).toHaveBeenCalledWith(payment);
 
-      expect(order.status).toBe(OrderStatus.PAID);
+      expect(payment.order.status).toBe(OrderStatus.PAID);
 
-      expect(orderRepository.save).toHaveBeenCalledWith(order);
+      expect(orderRepository.save).toHaveBeenCalledWith(payment.order);
 
       expect(result).toBe(payment);
     });
@@ -353,33 +367,37 @@ describe('PaymentService', () => {
     it('should throw NotFoundException when payment does not exist', async () => {
       paymentRepository.findByAuthority.mockResolvedValue(null);
 
-      await expect(service.verifyPayment(authority)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.verifyPayment(authority),
+      ).rejects.toThrow(NotFoundException);
 
       expect(paymentGateway.verifyPayment).not.toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when payment is not pending', async () => {
-      paymentRepository.findByAuthority.mockResolvedValue({
-        ...payment,
-        status: PaymentStatus.SUCCESS,
-      } as any);
+      const payment = createPendingPayment();
 
-      await expect(service.verifyPayment(authority)).rejects.toThrow(
-        BadRequestException,
+      payment.status = PaymentStatus.SUCCESS;
+
+      paymentRepository.findByAuthority.mockResolvedValue(
+        payment as any,
       );
+
+      await expect(
+        service.verifyPayment(authority),
+      ).rejects.toThrow(BadRequestException);
 
       expect(paymentGateway.verifyPayment).not.toHaveBeenCalled();
     });
 
     it('should mark payment as failed when verification fails', async () => {
-      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
+      const payment = createPendingPayment();
 
-      paymentRepository.save.mockResolvedValue({
-        ...payment,
-        status: PaymentStatus.FAILED,
-      } as any);
+      paymentRepository.findByAuthority.mockResolvedValue(
+        payment as any,
+      );
+
+      paymentRepository.save.mockResolvedValue(payment as any);
 
       paymentGateway.verifyPayment.mockResolvedValue({
         success: false,
@@ -387,9 +405,9 @@ describe('PaymentService', () => {
         message: 'Payment verification failed.',
       });
 
-      await expect(service.verifyPayment(authority)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.verifyPayment(authority),
+      ).rejects.toThrow(BadRequestException);
 
       expect(payment.status).toBe(PaymentStatus.FAILED);
 
@@ -399,20 +417,18 @@ describe('PaymentService', () => {
     });
 
     it('should use the stored payment amount during verification', async () => {
-      paymentRepository.findByAuthority.mockResolvedValue({
-        ...payment,
-        amount: '1250.75',
-      } as any);
+      const payment = createPendingPayment();
 
-      paymentRepository.save.mockResolvedValue({
-        ...payment,
-        amount: '1250.75',
-        status: PaymentStatus.SUCCESS,
-        transactionId: 'TX-999',
-      } as any);
+      payment.amount = '1250.75';
+
+      paymentRepository.findByAuthority.mockResolvedValue(
+        payment as any,
+      );
+
+      paymentRepository.save.mockResolvedValue(payment as any);
 
       orderRepository.save.mockResolvedValue({
-        ...order,
+        ...payment.order,
         status: OrderStatus.PAID,
       } as any);
 
