@@ -108,15 +108,6 @@ export class Payment {
   paidAt: Date | null;
 
   /**
-   * Order associated with this payment.
-   */
-  @OneToOne(() => Order)
-  @JoinColumn({
-    name: 'order_id',
-  })
-  orderId: Order;
-
-  /**
    * Timestamp when the payment record was created.
    */
   @CreateDateColumn({
