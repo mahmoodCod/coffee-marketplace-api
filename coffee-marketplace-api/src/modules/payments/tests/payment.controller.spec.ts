@@ -87,4 +87,19 @@ describe('PaymentController', () => {
       expect(result).toEqual(payment);
     });
   });
+
+  /**
+   * ----------------------------------------------------------------
+   * Payment Callback
+   * ----------------------------------------------------------------
+   */
+  describe('handleCallback', () => {
+    it('should acknowledge the payment callback', async () => {
+      const result = await controller.handleCallback();
+
+      expect(result).toEqual({
+        message: 'Payment callback received.',
+      });
+    });
+  });
 });

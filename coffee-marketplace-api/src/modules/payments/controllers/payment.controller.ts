@@ -95,4 +95,28 @@ export class PaymentController {
   async verifyPayment(@Query('authority') authority: string) {
     return this.paymentService.verifyPayment(authority);
   }
+
+  /**
+   * Handle payment gateway callback.
+   *
+   * This endpoint is reserved for payment gateways
+   * that send server-to-server callback notifications.
+   *
+   * The exact callback payload depends on the
+   * payment gateway implementation.
+   */
+  @Post('callback')
+  @ApiOperation({
+    summary: 'Handle payment callback',
+    description: 'Receives callback notifications from the payment gateway.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment callback received successfully.',
+  })
+  async handleCallback() {
+    return {
+      message: 'Payment callback received.',
+    };
+  }
 }
