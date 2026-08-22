@@ -13,6 +13,8 @@ import { PaymentService } from './services/payment.service';
 import { OrdersModule } from '../orders/order.module';
 
 import { PaymentInfrastructureModule } from '../../infrastructure/payment/payment-infrastructure.module';
+import { InventoryModule } from '../inventoryes/inventory.module';
+import { ProductModule } from '../products/products.module';
 
 /**
  * Payment Module
@@ -45,6 +47,18 @@ import { PaymentInfrastructureModule } from '../../infrastructure/payment/paymen
      * through the PAYMENT_GATEWAY abstraction.
      */
     PaymentInfrastructureModule,
+
+    /**
+     * Provides inventory operations required
+     * after successful payment verification.
+     */
+    InventoryModule,
+
+    /**
+     * Provides product operations required
+     * after successful payment verification.
+     */
+    ProductModule,
   ],
 
   controllers: [PaymentController],
