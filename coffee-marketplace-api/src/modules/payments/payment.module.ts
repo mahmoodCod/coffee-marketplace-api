@@ -2,11 +2,11 @@ import { Module } from '@nestjs/common';
 
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { Payment } from '../../modules/payments/entities/payment.entity';
+import { Payment } from './entities/payment.entity';
 
-import { PaymentRepository } from '../../modules/payments/repositories/payment-repository';
+import { PaymentRepository } from './repositories/payment-repository';
 
-import { PaymentService } from '../../modules/payments/services/payment.service';
+import { PaymentService } from './services/payment.service';
 
 import { PaymentInfrastructureModule } from '../../infrastructure/payment/payment-infrastructure.module';
 
@@ -31,7 +31,7 @@ import { PaymentInfrastructureModule } from '../../infrastructure/payment/paymen
     TypeOrmModule.forFeature([Payment]),
 
     /**
-     * Provides the PAYMENT_GATEWAY abstraction.
+     * Provides the PAYMENT_GATEWAY implementation.
      */
     PaymentInfrastructureModule,
   ],

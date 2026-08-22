@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { PaymentStatus } from '../enums/payment-status.enum';
 
 import type { PaymentGateway } from '../../../infrastructure/payment/interfaces/payment-gateway.interface';
 import { OrderStatus } from '../../../modules/orders/enums';
+import { PAYMENT_GATEWAY } from 'src/infrastructure/payment/payment-gateway.token';
 
 /**
  * Payment Service
@@ -35,6 +37,7 @@ export class PaymentService {
 
     private readonly orderRepository: OrderRepository,
 
+    @Inject(PAYMENT_GATEWAY)
     private readonly paymentGateway: PaymentGateway,
   ) {}
 
