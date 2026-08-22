@@ -8,6 +8,7 @@ describe('PaymentController', () => {
 
   let paymentService: {
     createPayment: jest.Mock;
+    verifyPayment: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -19,6 +20,7 @@ describe('PaymentController', () => {
           provide: PaymentService,
           useValue: {
             createPayment: jest.fn(),
+            verifyPayment: jest.fn(),
           },
         },
       ],
@@ -57,6 +59,32 @@ describe('PaymentController', () => {
       );
 
       expect(result).toEqual(paymentResult);
+    });
+  });
+
+  /**
+   * ----------------------------------------------------------------
+   * Verify Payment
+   * ----------------------------------------------------------------
+   */
+  describe('verifyPayment', () => {
+    it('should verify a payment using the gateway authority', async () => {
+      const authority = 'AUTH-123';
+
+      const payment = {
+        id: 'payment-id',
+        authority,
+        status: 'success',
+        transactionId: 'TX-123',
+      };
+
+      paymentService.verifyPayment.mockResolvedValue(payment);
+
+      const result = await controller.verifyPayment(authority);
+
+      expect(paymentService.verifyPayment).toHaveBeenCalledWith(authority);
+
+      expect(result).toEqual(payment);
     });
   });
 });

@@ -3,6 +3,7 @@ import { Controller, Get, Param, Post, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -58,5 +59,40 @@ export class PaymentController {
     @Param('orderId') orderId: string,
   ) {
     return this.paymentService.createPayment(userId, orderId);
+  }
+
+  /**
+   * Verify a payment using the authority
+   * returned by the payment gateway.
+   *
+   * The authority is provided through the
+   * payment gateway callback query parameters.
+   */
+  @Get('verify')
+  @ApiOperation({
+    summary: 'Verify payment',
+    description:
+      'Verifies the payment result using the authority returned by the payment gateway.',
+  })
+  @ApiQuery({
+    name: 'authority',
+    required: true,
+    description: 'Payment authority returned by the payment gateway.',
+    example: 'AUTH-123',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Payment verified successfully.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Payment verification failed.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Payment not found.',
+  })
+  async verifyPayment(@Query('authority') authority: string) {
+    return this.paymentService.verifyPayment(authority);
   }
 }
