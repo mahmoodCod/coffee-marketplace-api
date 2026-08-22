@@ -71,36 +71,54 @@ export class PaymentService {
 
     /**
      * Check whether this order already
-     * has a successful payment.
+     * has a payment record.
      */
-    const existingPayment = await this.paymentRepository.findByOrderId(orderId);
+    let payment = await this.paymentRepository.findByOrderId(orderId);
 
-    if (existingPayment && existingPayment.status === PaymentStatus.SUCCESS) {
+    /**
+     * A successfully paid order cannot
+     * be paid again.
+     */
+    if (payment?.status === PaymentStatus.SUCCESS) {
       throw new BadRequestException(
         'Order has already been paid successfully.',
       );
     }
 
     /**
-     * Create a new payment record.
+     * Create a payment when no payment
+     * record exists for the order.
      *
-     * The order final price is used as
-     * the payment amount.
+     * If a previous failed payment exists,
+     * that payment record is reused because
+     * an order can have at most one payment.
      */
-    const payment = this.paymentRepository.create({
-      order,
-      amount: order.finalPrice,
-      status: PaymentStatus.PENDING,
-      authority: null,
-      transactionId: null,
-      paidAt: null,
-    });
+    if (!payment) {
+      payment = this.paymentRepository.create({
+        order,
+        amount: order.finalPrice,
+        status: PaymentStatus.PENDING,
+        authority: null,
+        transactionId: null,
+        paidAt: null,
+      });
+    } else {
+      /**
+       * Reset the previous failed payment
+       * before starting a new payment attempt.
+       */
+      payment.amount = order.finalPrice;
+      payment.status = PaymentStatus.PENDING;
+      payment.authority = null;
+      payment.transactionId = null;
+      payment.paidAt = null;
+    }
 
     /**
      * Persist the payment before
      * communicating with the external gateway.
      */
-    const savedPayment = await this.paymentRepository.save(payment);
+    payment = await this.paymentRepository.save(payment);
 
     /**
      * Request a payment authority
@@ -108,26 +126,38 @@ export class PaymentService {
      */
     const gatewayResponse = await this.paymentGateway.createPayment({
       orderId: order.id,
-      amount: savedPayment.amount,
+      amount: payment.amount,
       callbackUrl: 'YOUR_CALLBACK_URL',
     });
+
+    /**
+     * Handle payment gateway failure.
+     */
+    if (!gatewayResponse.success) {
+      payment.status = PaymentStatus.FAILED;
+
+      await this.paymentRepository.save(payment);
+
+      throw new BadRequestException(
+        gatewayResponse.message ?? 'Payment gateway request failed.',
+      );
+    }
 
     /**
      * Store the gateway authority so it can
      * later be used during payment verification.
      */
-    savedPayment.authority = gatewayResponse.authority;
+    payment.authority = gatewayResponse.authority;
 
-    await this.paymentRepository.save(savedPayment);
+    payment = await this.paymentRepository.save(payment);
 
     return {
-      paymentId: savedPayment.id,
-      authority: savedPayment.authority,
+      paymentId: payment.id,
+      authority: payment.authority,
       paymentUrl: gatewayResponse.paymentUrl,
-      amount: savedPayment.amount,
+      amount: payment.amount,
     };
   }
-
   /**
    * Verify a payment through the external payment gateway.
    *
