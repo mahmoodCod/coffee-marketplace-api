@@ -101,6 +101,11 @@ describe('PaymentService', () => {
   describe('createPayment', () => {
     const userId = 'user-id';
     const orderId = 'order-id';
+    /**
+     * Callback URL used by the payment gateway
+     * to redirect the user after the payment process.
+     */
+    const callbackUrl = 'https://example.com/payments/callback';
 
     const order = {
       id: orderId,
@@ -143,11 +148,12 @@ describe('PaymentService', () => {
 
       paymentGateway.createPayment.mockResolvedValue(gatewayResponse);
 
-      const result = await service.createPayment(userId, orderId);
+      const result = await service.createPayment(userId, orderId, callbackUrl);
 
       expect(orderRepository.findByIdAndUserId).toHaveBeenCalledWith(
         orderId,
         userId,
+        callbackUrl,
       );
 
       expect(paymentRepository.findByOrderId).toHaveBeenCalledWith(orderId);
@@ -163,7 +169,7 @@ describe('PaymentService', () => {
       expect(paymentGateway.createPayment).toHaveBeenCalledWith({
         orderId,
         amount: '500.00',
-        callbackUrl: 'YOUR_CALLBACK_URL',
+        callbackUrl,
       });
 
       expect(result).toEqual({
@@ -177,9 +183,9 @@ describe('PaymentService', () => {
     it('should throw NotFoundException when order does not exist', async () => {
       orderRepository.findByIdAndUserId.mockResolvedValue(null);
 
-      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.createPayment(userId, orderId, callbackUrl),
+      ).rejects.toThrow(NotFoundException);
 
       expect(paymentRepository.findByOrderId).not.toHaveBeenCalled();
       expect(paymentGateway.createPayment).not.toHaveBeenCalled();
@@ -191,9 +197,9 @@ describe('PaymentService', () => {
         status: OrderStatus.PAID,
       } as any);
 
-      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.createPayment(userId, orderId, callbackUrl),
+      ).rejects.toThrow(BadRequestException);
 
       expect(paymentRepository.findByOrderId).not.toHaveBeenCalled();
       expect(paymentGateway.createPayment).not.toHaveBeenCalled();
@@ -207,9 +213,9 @@ describe('PaymentService', () => {
         status: PaymentStatus.SUCCESS,
       } as any);
 
-      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.createPayment(userId, orderId, callbackUrl),
+      ).rejects.toThrow(BadRequestException);
 
       expect(paymentRepository.create).not.toHaveBeenCalled();
       expect(paymentGateway.createPayment).not.toHaveBeenCalled();
@@ -247,7 +253,7 @@ describe('PaymentService', () => {
         message: null,
       });
 
-      const result = await service.createPayment(userId, orderId);
+      const result = await service.createPayment(userId, orderId, callbackUrl);
 
       expect(paymentRepository.create).not.toHaveBeenCalled();
 
@@ -298,9 +304,9 @@ describe('PaymentService', () => {
         message: 'Gateway unavailable.',
       });
 
-      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.createPayment(userId, orderId, callbackUrl),
+      ).rejects.toThrow(BadRequestException);
 
       expect(paymentRepository.save).toHaveBeenLastCalledWith(
         expect.objectContaining({
