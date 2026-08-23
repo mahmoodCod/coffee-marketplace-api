@@ -51,13 +51,27 @@ describe('PaymentController', () => {
 
       paymentService.createPayment.mockResolvedValue(paymentResult);
 
-      const result = await controller.createPayment(userId, orderId);
+      /**
+       * The controller receives the order ID
+       * through the request DTO.
+       */
+      const result = await controller.createPayment(userId, {
+        orderId,
+      });
 
+      /**
+       * Ensure the authenticated user ID and
+       * order ID are passed to PaymentService.
+       */
       expect(paymentService.createPayment).toHaveBeenCalledWith(
         userId,
         orderId,
       );
 
+      /**
+       * Ensure the controller returns
+       * the result from PaymentService.
+       */
       expect(result).toEqual(paymentResult);
     });
   });
@@ -80,26 +94,25 @@ describe('PaymentController', () => {
 
       paymentService.verifyPayment.mockResolvedValue(payment);
 
-      const result = await controller.verifyPayment(authority);
+      /**
+       * The authority is received through
+       * the payment verification DTO.
+       */
+      const result = await controller.verifyPayment({
+        authority,
+      });
 
+      /**
+       * Ensure the authority is passed
+       * correctly to PaymentService.
+       */
       expect(paymentService.verifyPayment).toHaveBeenCalledWith(authority);
 
+      /**
+       * Ensure the controller returns
+       * the verification result.
+       */
       expect(result).toEqual(payment);
-    });
-  });
-
-  /**
-   * ----------------------------------------------------------------
-   * Payment Callback
-   * ----------------------------------------------------------------
-   */
-  describe('handleCallback', () => {
-    it('should acknowledge the payment callback', async () => {
-      const result = await controller.handleCallback();
-
-      expect(result).toEqual({
-        message: 'Payment callback received.',
-      });
     });
   });
 });

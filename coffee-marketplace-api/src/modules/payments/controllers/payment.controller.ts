@@ -32,6 +32,9 @@ import { VerifyPaymentDto } from '../dto/verify-payment.dto';
 @ApiBearerAuth()
 @Controller('payments')
 export class PaymentController {
+  handleCallback() {
+    throw new Error('Method not implemented.');
+  }
   constructor(private readonly paymentService: PaymentService) {}
 
   /**
