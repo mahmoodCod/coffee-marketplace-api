@@ -21,6 +21,7 @@ import { CreatePaymentDto } from '../dto/create-payment.dto';
 
 import { PaymentService } from '../services/payment.service';
 import { VerifyPaymentDto } from '../dto/verify-payment.dto';
+import { Public } from 'src/common/decorators/public.decorator';
 
 /**
  * ------------------------------------------------------------------------
@@ -149,6 +150,7 @@ export class PaymentController {
    * GET /payments/callback?authority=AUTH-123
    * ------------------------------------------------------------------------
    */
+  @Public()
   @Get('callback')
   @ApiOperation({
     summary: 'Handle payment gateway callback',
