@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -489,5 +490,52 @@ export class ProductService {
     }
 
     return this.productsRepository.softRemove(product);
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Increase Product Sold Count
+   * ------------------------------------------------------------------------
+   *
+   * Increases the total number of successfully sold
+   * items for a product.
+   *
+   * This operation is triggered only after
+   * a successful payment.
+   *
+   * Business Rules:
+   *
+   * - The product must exist.
+   * - The quantity must be greater than zero.
+   * - Sold count can only increase after
+   *   successful payment verification.
+   * ------------------------------------------------------------------------
+   */
+  async increaseSoldCount(
+    productId: string,
+    quantity: number,
+  ): Promise<Product> {
+    /**
+     * Quantity must always be positive.
+     */
+    if (quantity <= 0) {
+      throw new BadRequestException('Quantity must be greater than zero.');
+    }
+
+    /**
+     * Load the product.
+     */
+    const product = await this.findProductOrFail(productId);
+
+    /**
+     * Increase the total number of successfully
+     * sold product items.
+     */
+    product.soldCount += quantity;
+
+    /**
+     * Persist the updated sold count.
+     */
+    return this.productsRepository.save(product);
   }
 }

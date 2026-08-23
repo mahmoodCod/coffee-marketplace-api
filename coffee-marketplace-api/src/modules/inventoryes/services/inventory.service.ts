@@ -228,4 +228,31 @@ export class InventoryService {
       updatedAt: savedInventory.updatedAt,
     };
   }
+
+  /**
+   * Decrease product stock after a successful payment.
+   *
+   * This method is intended for internal business operations
+   * and should not be exposed directly to customers.
+   *
+   * Business Rules:
+   * - The inventory must exist.
+   * - The requested quantity must be greater than zero.
+   * - Stock cannot become negative.
+   */
+  async decreaseStock(productId: string, quantity: number): Promise<Inventory> {
+    const inventory = await this.findByProductId(productId);
+
+    if (quantity <= 0) {
+      throw new BadRequestException('Quantity must be greater than zero.');
+    }
+
+    if (inventory.stock < quantity) {
+      throw new BadRequestException('Insufficient product stock.');
+    }
+
+    inventory.stock -= quantity;
+
+    return this.inventoriesRepository.save(inventory);
+  }
 }

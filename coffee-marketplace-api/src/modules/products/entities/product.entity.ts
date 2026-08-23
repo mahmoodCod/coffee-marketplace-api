@@ -279,13 +279,6 @@ export class Product {
   inventory: Inventory;
 
   /**
-   * Creation timestamp.
-   */
-  @CreateDateColumn({
-    name: 'created_at',
-  })
-
-  /**
    * Cart items that reference this product.
    *
    * A product can be added to many different
@@ -302,6 +295,13 @@ export class Product {
   @OneToMany(() => OrderItem, (orderItem) => orderItem.product)
   orderItems: OrderItem[];
   createdAt: Date;
+
+  /**
+   * Creation timestamp.
+   */
+  @CreateDateColumn({
+    name: 'created_at',
+  })
 
   /**
    * Last update timestamp.

@@ -52,11 +52,7 @@ import { SellerOrdersController } from './controllers/seller-orders.controller';
    * Controllers handle HTTP requests related to
    * customer, admin, and seller orders.
    */
-  controllers: [
-    OrderController,
-    AdminOrdersController,
-    SellerOrdersController,
-  ],
+  controllers: [OrderController, AdminOrdersController, SellerOrdersController],
 
   /**
    * Providers required by the Orders module.
@@ -67,6 +63,6 @@ import { SellerOrdersController } from './controllers/seller-orders.controller';
    * Export OrderService so other modules,
    * such as Payment, can use order logic.
    */
-  exports: [OrderService],
+  exports: [OrderService, OrderRepository],
 })
 export class OrdersModule {}
