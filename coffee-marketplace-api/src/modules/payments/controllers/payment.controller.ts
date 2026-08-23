@@ -40,7 +40,6 @@ import { Public } from 'src/common/decorators/public.decorator';
  * ------------------------------------------------------------------------
  */
 @ApiTags('Payments')
-@ApiBearerAuth()
 @Controller('payments')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
@@ -64,6 +63,7 @@ export class PaymentController {
    */
   @Post()
   @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Create and initiate a payment',
   })
@@ -110,6 +110,7 @@ export class PaymentController {
    */
   @Post('verify')
   @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Verify a payment',
   })
