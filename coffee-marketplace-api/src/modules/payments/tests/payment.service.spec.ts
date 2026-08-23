@@ -318,6 +318,34 @@ describe('PaymentService', () => {
    * ----------------------------------------------------------------
    */
   describe('verifyPayment', () => {
+    it('should return the existing payment when it is already successful', async () => {
+      const payment = createPendingPayment();
+
+      payment.status = PaymentStatus.SUCCESS;
+
+      payment.transactionId = 'TX-123';
+
+      payment.paidAt = new Date();
+
+      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
+
+      const result = await service.verifyPayment(authority);
+
+      /**
+       * A successfully completed payment should be returned
+       * without calling the payment gateway again.
+       */
+      expect(paymentGateway.verifyPayment).not.toHaveBeenCalled();
+
+      /**
+       * The settlement process should not run again.
+       */
+      expect(paymentRepository.findById).not.toHaveBeenCalled();
+
+      expect(orderRepository.save).not.toHaveBeenCalled();
+
+      expect(result).toBe(payment);
+    });
     const authority = 'AUTH-123';
 
     const order = {

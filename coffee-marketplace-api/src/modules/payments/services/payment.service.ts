@@ -190,6 +190,17 @@ export class PaymentService {
     }
 
     /**
+     * If the payment has already been successfully verified,
+     * return the existing payment result.
+     *
+     * This makes repeated payment gateway callbacks idempotent
+     * and prevents the order settlement process from running twice.
+     */
+    if (payment.status === PaymentStatus.SUCCESS) {
+      return payment;
+    }
+
+    /**
      * A payment can only be verified while
      * it is still waiting for verification.
      */
