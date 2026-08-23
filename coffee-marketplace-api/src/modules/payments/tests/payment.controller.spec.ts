@@ -31,51 +31,37 @@ describe('PaymentController', () => {
     paymentService = module.get(PaymentService);
   });
 
-  /**
-   * ----------------------------------------------------------------
-   * Create Payment
-   * ----------------------------------------------------------------
-   */
-  describe('createPayment', () => {
-    it('should initiate a payment for the authenticated user', async () => {
-      const userId = 'user-id';
+  it('should initiate a payment for the authenticated user', async () => {
+    const userId = 'user-id';
 
-      const orderId = 'order-id';
+    const orderId = 'order-id';
 
-      const paymentResult = {
-        paymentId: 'payment-id',
-        authority: 'AUTH-123',
-        paymentUrl: 'https://gateway.test/pay/AUTH-123',
-        amount: '500.00',
-      };
+    const paymentResult = {
+      paymentId: 'payment-id',
+      authority: 'AUTH-123',
+      paymentUrl: 'https://gateway.test/pay/AUTH-123',
+      amount: '500.00',
+    };
 
-      paymentService.createPayment.mockResolvedValue(paymentResult);
+    paymentService.createPayment.mockResolvedValue(paymentResult);
 
-      /**
-       * The controller receives the order ID
-       * through the request DTO.
-       */
-      const result = await controller.createPayment(userId, {
-        orderId,
-      });
-
-      /**
-       * Ensure the authenticated user ID and
-       * order ID are passed to PaymentService.
-       */
-      expect(paymentService.createPayment).toHaveBeenCalledWith(
-        userId,
-        orderId,
-      );
-
-      /**
-       * Ensure the controller returns
-       * the result from PaymentService.
-       */
-      expect(result).toEqual(paymentResult);
+    const result = await controller.createPayment(userId, {
+      orderId,
     });
-  });
 
+    /**
+     * Ensure the authenticated user ID,
+     * order ID, and optional callback URL
+     * are passed to PaymentService.
+     */
+    expect(paymentService.createPayment).toHaveBeenCalledWith(
+      userId,
+      orderId,
+      undefined,
+    );
+
+    expect(result).toEqual(paymentResult);
+  });
   /**
    * ----------------------------------------------------------------
    * Verify Payment
