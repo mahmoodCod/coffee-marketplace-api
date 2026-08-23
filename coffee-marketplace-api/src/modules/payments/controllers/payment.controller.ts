@@ -1,4 +1,12 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+} from '@nestjs/common';
 
 import {
   ApiBearerAuth,
@@ -24,6 +32,8 @@ import { VerifyPaymentDto } from '../dto/verify-payment.dto';
  * Responsibilities:
  *
  * - Initiate a payment for an order.
+ * - Verify payments manually.
+ * - Handle payment gateway callbacks.
  *
  * Business logic remains inside PaymentService.
  * ------------------------------------------------------------------------
@@ -32,9 +42,6 @@ import { VerifyPaymentDto } from '../dto/verify-payment.dto';
 @ApiBearerAuth()
 @Controller('payments')
 export class PaymentController {
-  handleCallback() {
-    throw new Error('Method not implemented.');
-  }
   constructor(private readonly paymentService: PaymentService) {}
 
   /**
@@ -119,5 +126,46 @@ export class PaymentController {
   })
   async verifyPayment(@Body() dto: VerifyPaymentDto) {
     return this.paymentService.verifyPayment(dto.authority);
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Payment Callback
+   * ------------------------------------------------------------------------
+   *
+   * Handles the callback sent by the payment gateway
+   * after the customer completes the payment process.
+   *
+   * Flow:
+   *
+   * 1. Customer completes payment on the gateway.
+   * 2. Gateway redirects the customer to this endpoint.
+   * 3. The authority is received from the query parameters.
+   * 4. PaymentService verifies the payment.
+   * 5. The payment settlement process is executed.
+   *
+   * Example:
+   *
+   * GET /payments/callback?authority=AUTH-123
+   * ------------------------------------------------------------------------
+   */
+  @Get('callback')
+  @ApiOperation({
+    summary: 'Handle payment gateway callback',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Payment callback processed successfully.',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Payment callback verification failed.',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Payment not found.',
+  })
+  async handleCallback(@Query('authority') authority: string) {
+    return this.paymentService.verifyPayment(authority);
   }
 }
