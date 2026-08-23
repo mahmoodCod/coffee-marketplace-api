@@ -11,10 +11,7 @@ import { OrderStatus } from '../../orders/enums';
 
 import { PAYMENT_GATEWAY } from '../../../infrastructure/payment/payment-gateway.token';
 
-import type {
-  CreatePaymentResponse,
-  VerifyPaymentResponse,
-} from '../../../infrastructure/payment/interfaces/payment-gateway.interface';
+import type { CreatePaymentResponse } from '../../../infrastructure/payment/interfaces/payment-gateway.interface';
 import { Payment } from '../entities/payment.entity';
 import { Inventory } from '../../../modules/inventoryes/entities/inventory.entity';
 import { DataSource, EntityManager } from 'typeorm';
@@ -153,7 +150,6 @@ describe('PaymentService', () => {
       expect(orderRepository.findByIdAndUserId).toHaveBeenCalledWith(
         orderId,
         userId,
-        callbackUrl,
       );
 
       expect(paymentRepository.findByOrderId).toHaveBeenCalledWith(orderId);

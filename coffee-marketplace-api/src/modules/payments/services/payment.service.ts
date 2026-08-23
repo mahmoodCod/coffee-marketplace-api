@@ -15,9 +15,9 @@ import type { PaymentGateway } from '../../../infrastructure/payment/interfaces/
 import { OrderStatus } from '../../../modules/orders/enums';
 import { PAYMENT_GATEWAY } from '../../../infrastructure/payment/payment-gateway.token';
 import { DataSource, EntityManager } from 'typeorm';
-import { Order } from 'src/modules/orders/entities';
-import { Inventory } from 'src/modules/inventoryes/entities/inventory.entity';
-import { Product } from 'src/modules/products/entities/product.entity';
+import { Order } from '../../../modules/orders/entities';
+import { Inventory } from '../../../modules/inventoryes/entities/inventory.entity';
+import { Product } from '../../../modules/products/entities/product.entity';
 import { Payment } from '../entities/payment.entity';
 
 /**

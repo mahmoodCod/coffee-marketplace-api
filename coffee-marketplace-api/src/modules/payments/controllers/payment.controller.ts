@@ -1,28 +1,31 @@
-import { Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 
 import {
   ApiBearerAuth,
   ApiOperation,
-  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 
-import { PaymentService } from '../services/payment.service';
-
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 
+import { CreatePaymentDto } from '../dto/create-payment.dto';
+
+import { PaymentService } from '../services/payment.service';
+
 /**
+ * ------------------------------------------------------------------------
  * Payment Controller
+ * ------------------------------------------------------------------------
  *
  * Handles HTTP requests related to payments.
  *
  * Responsibilities:
- * - Initiate payments.
- * - Verify payment results.
- * - Handle payment callbacks.
  *
- * Business logic is handled by PaymentService.
+ * - Initiate a payment for an order.
+ *
+ * Business logic remains inside PaymentService.
+ * ------------------------------------------------------------------------
  */
 @ApiTags('Payments')
 @ApiBearerAuth()
@@ -31,92 +34,48 @@ export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
   /**
-   * Create and initiate a payment for an order.
+   * ------------------------------------------------------------------------
+   * Create Payment
+   * ------------------------------------------------------------------------
    *
-   * The authenticated user can only pay
-   * for orders that belong to them.
+   * Starts the payment process for an order.
+   *
+   * Flow:
+   *
+   * 1. Get the authenticated user.
+   * 2. Receive the order ID and callback URL.
+   * 3. Validate the payment request.
+   * 4. Create or reuse a payment record.
+   * 5. Request payment authority from the gateway.
+   * 6. Return the payment URL to the client.
+   * ------------------------------------------------------------------------
    */
-  @Post(':orderId')
+  @Post()
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Create payment',
-    description:
-      'Creates and initiates a payment for an order belonging to the authenticated user.',
+    summary: 'Create and initiate a payment',
   })
   @ApiResponse({
-    status: 201,
+    status: HttpStatus.OK,
     description: 'Payment initiated successfully.',
   })
   @ApiResponse({
-    status: 400,
-    description: 'Order cannot be paid.',
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Invalid payment request.',
   })
   @ApiResponse({
-    status: 404,
+    status: HttpStatus.NOT_FOUND,
     description: 'Order not found.',
   })
   async createPayment(
     @CurrentUser('id') userId: string,
-    @Param('orderId') orderId: string,
+
+    @Body() dto: CreatePaymentDto,
   ) {
-    return this.paymentService.createPayment(userId, orderId);
-  }
-
-  /**
-   * Verify a payment using the authority
-   * returned by the payment gateway.
-   *
-   * The authority is provided through the
-   * payment gateway callback query parameters.
-   */
-  @Get('verify')
-  @ApiOperation({
-    summary: 'Verify payment',
-    description:
-      'Verifies the payment result using the authority returned by the payment gateway.',
-  })
-  @ApiQuery({
-    name: 'authority',
-    required: true,
-    description: 'Payment authority returned by the payment gateway.',
-    example: 'AUTH-123',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Payment verified successfully.',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Payment verification failed.',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Payment not found.',
-  })
-  async verifyPayment(@Query('authority') authority: string) {
-    return this.paymentService.verifyPayment(authority);
-  }
-
-  /**
-   * Handle payment gateway callback.
-   *
-   * This endpoint is reserved for payment gateways
-   * that send server-to-server callback notifications.
-   *
-   * The exact callback payload depends on the
-   * payment gateway implementation.
-   */
-  @Post('callback')
-  @ApiOperation({
-    summary: 'Handle payment callback',
-    description: 'Receives callback notifications from the payment gateway.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Payment callback received successfully.',
-  })
-  async handleCallback() {
-    return {
-      message: 'Payment callback received.',
-    };
+    return this.paymentService.createPayment(
+      userId,
+      dto.orderId,
+      dto.callbackUrl,
+    );
   }
 }
