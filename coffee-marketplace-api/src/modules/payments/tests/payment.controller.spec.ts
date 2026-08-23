@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { PaymentController } from '../controllers/payment.controller';
 import { PaymentService } from '../services/payment.service';
+import { PaymentStatus } from '../enums/payment-status.enum';
 
 describe('PaymentController', () => {
   let controller: PaymentController;
@@ -99,6 +100,37 @@ describe('PaymentController', () => {
        * the verification result.
        */
       expect(result).toEqual(payment);
+    });
+
+    /**
+     * ----------------------------------------------------------------
+     * Payment Callback
+     * ----------------------------------------------------------------
+     */
+    describe('handleCallback', () => {
+      it('should verify payment using authority from gateway callback', async () => {
+        const authority = 'AUTH-123';
+
+        const payment = {
+          id: 'payment-id',
+          authority,
+          status: PaymentStatus.SUCCESS,
+          transactionId: 'TX-123',
+        };
+
+        paymentService.verifyPayment.mockResolvedValue(payment);
+
+        const result = await controller.handleCallback(authority);
+
+        /**
+         * Ensure the authority received from
+         * the payment gateway callback is passed
+         * to PaymentService for verification.
+         */
+        expect(paymentService.verifyPayment).toHaveBeenCalledWith(authority);
+
+        expect(result).toEqual(payment);
+      });
     });
   });
 });
