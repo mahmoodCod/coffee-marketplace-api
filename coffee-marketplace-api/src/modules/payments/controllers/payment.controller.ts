@@ -12,6 +12,7 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
 
 import { PaymentService } from '../services/payment.service';
+import { VerifyPaymentDto } from '../dto/verify-payment.dto';
 
 /**
  * ------------------------------------------------------------------------
@@ -77,5 +78,43 @@ export class PaymentController {
       dto.orderId,
       dto.callbackUrl,
     );
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Verify Payment
+   * ------------------------------------------------------------------------
+   *
+   * Verifies a payment using the authority
+   * returned by the payment gateway.
+   *
+   * Flow:
+   *
+   * 1. Receive the payment authority.
+   * 2. Verify the payment through PaymentService.
+   * 3. Update the payment status.
+   * 4. Mark the order as paid.
+   * 5. Settle inventory and product sales.
+   * ------------------------------------------------------------------------
+   */
+  @Post('verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Verify a payment',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Payment verified successfully.',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Payment verification failed.',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Payment not found.',
+  })
+  async verifyPayment(@Body() dto: VerifyPaymentDto) {
+    return this.paymentService.verifyPayment(dto.authority);
   }
 }
