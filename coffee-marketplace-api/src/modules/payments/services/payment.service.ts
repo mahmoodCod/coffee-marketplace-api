@@ -57,7 +57,7 @@ export class PaymentService {
    * - The order must be in PENDING_PAYMENT status.
    * - An order cannot have another successful payment.
    */
-  async createPayment(userId: string, orderId: string) {
+  async createPayment(userId: string, orderId: string, callbackUrl: string) {
     /**
      * Find the order while ensuring
      * that it belongs to the authenticated user.
@@ -128,13 +128,15 @@ export class PaymentService {
     payment = await this.paymentRepository.save(payment);
 
     /**
-     * Request a payment authority
-     * from the external payment gateway.
+     * Request a payment authority from the external gateway.
+     *
+     * The callback URL is received from the application layer
+     * and passed to the payment gateway.
      */
     const gatewayResponse = await this.paymentGateway.createPayment({
       orderId: order.id,
       amount: payment.amount,
-      callbackUrl: 'YOUR_CALLBACK_URL',
+      callbackUrl,
     });
 
     /**
