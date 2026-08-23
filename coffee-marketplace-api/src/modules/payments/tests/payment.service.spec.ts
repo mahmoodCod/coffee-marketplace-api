@@ -201,20 +201,28 @@ describe('PaymentService', () => {
       expect(paymentGateway.createPayment).not.toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException when payment was already successful', async () => {
-      orderRepository.findByIdAndUserId.mockResolvedValue(order as any);
+    it('should throw BadRequestException when payment is failed', async () => {
+      const payment = createPendingPayment();
 
-      paymentRepository.findByOrderId.mockResolvedValue({
-        id: 'payment-id',
-        status: PaymentStatus.SUCCESS,
-      } as any);
+      /**
+       * Failed payments cannot be verified again.
+       *
+       * Successful payments are handled separately
+       * to support idempotent gateway callbacks.
+       */
+      payment.status = PaymentStatus.FAILED;
 
-      await expect(
-        service.createPayment(userId, orderId, callbackUrl),
-      ).rejects.toThrow(BadRequestException);
+      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
 
-      expect(paymentRepository.create).not.toHaveBeenCalled();
-      expect(paymentGateway.createPayment).not.toHaveBeenCalled();
+      await expect(service.verifyPayment(authority)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      /**
+       * The payment gateway must not be called
+       * when the payment is already failed.
+       */
+      expect(paymentGateway.verifyPayment).not.toHaveBeenCalled();
     });
 
     it('should reuse an existing failed payment', async () => {
