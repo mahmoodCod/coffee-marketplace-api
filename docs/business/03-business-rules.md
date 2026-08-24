@@ -72,7 +72,13 @@
 ## Reviews
 
 - Customers can review a product only after purchasing it.
+- A user can submit only one review per product.
 - Users can only edit their own reviews.
+- Users can only delete their own reviews.
+- New reviews are not visible until approved.
+- Only approved reviews are shown to customers.
+- Product rating is calculated from approved reviews.
+- Admins can approve or reject reviews.
 
 ------------------------------
 

@@ -128,7 +128,10 @@ Responsible for:
 
 - Creating reviews
 - Editing reviews
-- Viewing reviews
+- Deleting reviews
+- Viewing product reviews
+- Approving reviews
+- Rejecting reviews
 
 -------------------------------------
 

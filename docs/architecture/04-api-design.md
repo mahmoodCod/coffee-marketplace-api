@@ -188,23 +188,17 @@ POST   /payments/callback
 
 Customer
 
-PATCH /reviews/:id
+POST   /reviews
+
+GET    /products/:productId/reviews
+
+PATCH  /reviews/:id
 
 DELETE /reviews/:id
 
 -------------------------------
 
 Admin
-
-GET /admin/reviews
-
-PATCH /admin/reviews/:id/approve
-
-PATCH /admin/reviews/:id/reject
-
---------------------------------
-
-## Review Moderation
 
 GET    /admin/reviews
 
