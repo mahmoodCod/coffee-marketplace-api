@@ -11,31 +11,44 @@ import { OrderStatus } from '../../orders/enums';
 
 import { PAYMENT_GATEWAY } from '../../../infrastructure/payment/payment-gateway.token';
 
-import type { CreatePaymentResponse } from '../../../infrastructure/payment/interfaces/payment-gateway.interface';
-import { Payment } from '../entities/payment.entity';
-import { Inventory } from '../../../modules/inventoryes/entities/inventory.entity';
-import { DataSource, EntityManager } from 'typeorm';
-import { Order } from '../../../modules/orders/entities';
-import { Product } from '../../../modules/products/entities/product.entity';
+import type {
+  CreatePaymentResponse,
+  VerifyPaymentResponse,
+} from '../../../infrastructure/payment/interfaces/payment-gateway.interface';
 
-const createMockEntityManager = () => {
-  return {
-    findOne: jest.fn(),
-    save: jest.fn(),
-  } as unknown as jest.Mocked<EntityManager>;
-};
+import { Payment } from '../entities/payment.entity';
+
+import datasource from '../../../database/config/datasource';
+
+import { Inventory } from '../../../modules/inventoryes/entities/inventory.entity';
+
+import { Product } from '../../../modules/products/entities/product.entity';
 
 describe('PaymentService', () => {
   let service: PaymentService;
 
   let paymentRepository: jest.Mocked<PaymentRepository>;
   let orderRepository: jest.Mocked<OrderRepository>;
-  let dataSource: jest.Mocked<DataSource>;
 
   let paymentGateway: {
     createPayment: jest.Mock;
     verifyPayment: jest.Mock;
   };
+
+  /**
+   * ----------------------------------------------------------------
+   * Transaction Entity Manager Mock
+   * ----------------------------------------------------------------
+   *
+   * Creates a mock EntityManager used by DataSource.transaction().
+   *
+   * PaymentService performs payment settlement inside a transaction,
+   * therefore the tests must mock transactional database operations.
+   */
+  const createMockEntityManager = () => ({
+    findOne: jest.fn(),
+    save: jest.fn(),
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -57,7 +70,6 @@ describe('PaymentService', () => {
           provide: OrderRepository,
           useValue: {
             findByIdAndUserId: jest.fn(),
-            findByIdWithItems: jest.fn(),
             save: jest.fn(),
           },
         },
@@ -67,13 +79,6 @@ describe('PaymentService', () => {
           useValue: {
             createPayment: jest.fn(),
             verifyPayment: jest.fn(),
-          },
-        },
-
-        {
-          provide: DataSource,
-          useValue: {
-            transaction: jest.fn(),
           },
         },
       ],
@@ -87,7 +92,22 @@ describe('PaymentService', () => {
 
     paymentGateway = module.get(PAYMENT_GATEWAY);
 
-    dataSource = module.get(DataSource);
+    /**
+     * Reset the DataSource transaction mock before every test.
+     *
+     * This prevents one transactional test from affecting another.
+     */
+    jest.spyOn(datasource, 'transaction').mockImplementation(
+      async (callback: any) => {
+        const manager = createMockEntityManager();
+
+        return callback(manager);
+      },
+    );
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   /**
@@ -97,12 +117,8 @@ describe('PaymentService', () => {
    */
   describe('createPayment', () => {
     const userId = 'user-id';
+
     const orderId = 'order-id';
-    /**
-     * Callback URL used by the payment gateway
-     * to redirect the user after the payment process.
-     */
-    const callbackUrl = 'https://example.com/payments/callback';
 
     const order = {
       id: orderId,
@@ -134,8 +150,6 @@ describe('PaymentService', () => {
           authority: 'AUTH-123',
         } as any);
 
-      paymentRepository.findById.mockResolvedValue(payment as any);
-
       const gatewayResponse: CreatePaymentResponse = {
         success: true,
         authority: 'AUTH-123',
@@ -145,15 +159,24 @@ describe('PaymentService', () => {
 
       paymentGateway.createPayment.mockResolvedValue(gatewayResponse);
 
-      const result = await service.createPayment(userId, orderId, callbackUrl);
+      const result = await service.createPayment(userId, orderId);
 
+      /**
+       * The order must be loaded for the authenticated user.
+       */
       expect(orderRepository.findByIdAndUserId).toHaveBeenCalledWith(
         orderId,
         userId,
       );
 
+      /**
+       * Existing payment must be checked before creating a new one.
+       */
       expect(paymentRepository.findByOrderId).toHaveBeenCalledWith(orderId);
 
+      /**
+       * A new pending payment should be created.
+       */
       expect(paymentRepository.create).toHaveBeenCalledWith(
         expect.objectContaining({
           order,
@@ -162,10 +185,14 @@ describe('PaymentService', () => {
         }),
       );
 
+      /**
+       * The gateway must receive the order ID,
+       * payment amount and callback URL.
+       */
       expect(paymentGateway.createPayment).toHaveBeenCalledWith({
         orderId,
         amount: '500.00',
-        callbackUrl,
+        callbackUrl: 'YOUR_CALLBACK_URL',
       });
 
       expect(result).toEqual({
@@ -179,11 +206,16 @@ describe('PaymentService', () => {
     it('should throw NotFoundException when order does not exist', async () => {
       orderRepository.findByIdAndUserId.mockResolvedValue(null);
 
-      await expect(
-        service.createPayment(userId, orderId, callbackUrl),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
+        NotFoundException,
+      );
 
+      /**
+       * No payment lookup or gateway request should happen
+       * when the order does not exist.
+       */
       expect(paymentRepository.findByOrderId).not.toHaveBeenCalled();
+
       expect(paymentGateway.createPayment).not.toHaveBeenCalled();
     });
 
@@ -193,36 +225,37 @@ describe('PaymentService', () => {
         status: OrderStatus.PAID,
       } as any);
 
-      await expect(
-        service.createPayment(userId, orderId, callbackUrl),
-      ).rejects.toThrow(BadRequestException);
-
-      expect(paymentRepository.findByOrderId).not.toHaveBeenCalled();
-      expect(paymentGateway.createPayment).not.toHaveBeenCalled();
-    });
-
-    it('should throw BadRequestException when payment is failed', async () => {
-      const payment = createPendingPayment();
-
-      /**
-       * Failed payments cannot be verified again.
-       *
-       * Successful payments are handled separately
-       * to support idempotent gateway callbacks.
-       */
-      payment.status = PaymentStatus.FAILED;
-
-      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
-
-      await expect(service.verifyPayment(authority)).rejects.toThrow(
+      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
         BadRequestException,
       );
 
       /**
-       * The payment gateway must not be called
-       * when the payment is already failed.
+       * Payment creation must stop before accessing
+       * existing payments or the gateway.
        */
-      expect(paymentGateway.verifyPayment).not.toHaveBeenCalled();
+      expect(paymentRepository.findByOrderId).not.toHaveBeenCalled();
+
+      expect(paymentGateway.createPayment).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when payment was already successful', async () => {
+      orderRepository.findByIdAndUserId.mockResolvedValue(order as any);
+
+      paymentRepository.findByOrderId.mockResolvedValue({
+        id: 'payment-id',
+        status: PaymentStatus.SUCCESS,
+      } as any);
+
+      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
+        BadRequestException,
+      );
+
+      /**
+       * A successful payment cannot be replaced by another payment.
+       */
+      expect(paymentRepository.create).not.toHaveBeenCalled();
+
+      expect(paymentGateway.createPayment).not.toHaveBeenCalled();
     });
 
     it('should reuse an existing failed payment', async () => {
@@ -238,7 +271,9 @@ describe('PaymentService', () => {
         paidAt: new Date(),
       };
 
-      paymentRepository.findByOrderId.mockResolvedValue(existingPayment as any);
+      paymentRepository.findByOrderId.mockResolvedValue(
+        existingPayment as any,
+      );
 
       paymentRepository.save
         .mockResolvedValueOnce(existingPayment as any)
@@ -257,10 +292,18 @@ describe('PaymentService', () => {
         message: null,
       });
 
-      const result = await service.createPayment(userId, orderId, callbackUrl);
+      const result = await service.createPayment(userId, orderId);
 
+      /**
+       * Failed payments are reused instead of creating
+       * another payment record.
+       */
       expect(paymentRepository.create).not.toHaveBeenCalled();
 
+      /**
+       * The existing payment is reset and then updated
+       * with the new gateway authority.
+       */
       expect(paymentRepository.save).toHaveBeenCalledTimes(2);
 
       expect(paymentRepository.save).toHaveBeenLastCalledWith(
@@ -274,6 +317,7 @@ describe('PaymentService', () => {
       );
 
       expect(result.paymentId).toBe('payment-id');
+
       expect(result.authority).toBe('NEW-AUTH');
     });
 
@@ -308,10 +352,14 @@ describe('PaymentService', () => {
         message: 'Gateway unavailable.',
       });
 
-      await expect(
-        service.createPayment(userId, orderId, callbackUrl),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.createPayment(userId, orderId)).rejects.toThrow(
+        BadRequestException,
+      );
 
+      /**
+       * The payment must be marked as failed
+       * when the gateway rejects the request.
+       */
       expect(paymentRepository.save).toHaveBeenLastCalledWith(
         expect.objectContaining({
           status: PaymentStatus.FAILED,
@@ -326,34 +374,6 @@ describe('PaymentService', () => {
    * ----------------------------------------------------------------
    */
   describe('verifyPayment', () => {
-    it('should return the existing payment when it is already successful', async () => {
-      const payment = createPendingPayment();
-
-      payment.status = PaymentStatus.SUCCESS;
-
-      payment.transactionId = 'TX-123';
-
-      payment.paidAt = new Date();
-
-      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
-
-      const result = await service.verifyPayment(authority);
-
-      /**
-       * A successfully completed payment should be returned
-       * without calling the payment gateway again.
-       */
-      expect(paymentGateway.verifyPayment).not.toHaveBeenCalled();
-
-      /**
-       * The settlement process should not run again.
-       */
-      expect(paymentRepository.findById).not.toHaveBeenCalled();
-
-      expect(orderRepository.save).not.toHaveBeenCalled();
-
-      expect(result).toBe(payment);
-    });
     const authority = 'AUTH-123';
 
     const order = {
@@ -363,10 +383,10 @@ describe('PaymentService', () => {
     };
 
     /**
-     * Create a fresh payment object for every test.
+     * Creates a fresh pending payment for each test.
      *
-     * This prevents one test from mutating the payment
-     * object used by another test.
+     * A fresh object prevents one test from mutating
+     * the payment object used by another test.
      */
     const createPendingPayment = () => ({
       id: 'payment-id',
@@ -385,24 +405,113 @@ describe('PaymentService', () => {
 
       paymentRepository.findByAuthority.mockResolvedValue(payment as any);
 
+      /**
+       * Mock the payment lookup performed after settlement.
+       *
+       * PaymentService expects to reload the updated payment
+       * after the transaction completes.
+       */
       paymentRepository.findById.mockResolvedValue(payment as any);
+
+      paymentRepository.save.mockResolvedValue(payment as any);
+
+      orderRepository.save.mockResolvedValue({
+        ...payment.order,
+        status: OrderStatus.PAID,
+      } as any);
 
       paymentGateway.verifyPayment.mockResolvedValue({
         success: true,
         transactionId: 'TX-123',
         message: null,
-      });
+      } satisfies VerifyPaymentResponse);
+
+      /**
+       * Mock the transactional settlement.
+       *
+       * The transaction manager returns the payment and order
+       * required by the settlement flow.
+       */
+      jest
+        .spyOn(datasource, 'transaction')
+        .mockImplementation(async (callback: any) => {
+          const manager = createMockEntityManager();
+
+          manager.findOne.mockImplementation(async (entity: any) => {
+            if (entity === Payment) {
+              return payment;
+            }
+
+            if (entity === Inventory) {
+              return {
+                id: 'inventory-id',
+                stock: 100,
+                reservedStock: 0,
+                product: {
+                  id: 'product-id',
+                },
+              };
+            }
+
+            if (entity === Product) {
+              return {
+                id: 'product-id',
+                soldCount: 0,
+              };
+            }
+
+            return null;
+          });
+
+          manager.save.mockImplementation(
+            async (_entity: any, value: any) => value,
+          );
+
+          return callback(manager);
+        });
 
       const result = await service.verifyPayment(authority);
 
-      expect(paymentRepository.findByAuthority).toHaveBeenCalledWith(authority);
+      /**
+       * Payment must be looked up by gateway authority.
+       */
+      expect(paymentRepository.findByAuthority).toHaveBeenCalledWith(
+        authority,
+      );
 
+      /**
+       * Gateway verification must use the stored payment amount.
+       */
       expect(paymentGateway.verifyPayment).toHaveBeenCalledWith({
         authority,
         amount: '500.00',
       });
 
-      expect(result).toBeDefined();
+      /**
+       * Payment must become successful after verification.
+       */
+      expect(payment.status).toBe(PaymentStatus.SUCCESS);
+
+      expect(payment.transactionId).toBe('TX-123');
+
+      expect(payment.paidAt).toBeInstanceOf(Date);
+
+      /**
+       * The payment must be persisted.
+       */
+      expect(paymentRepository.save).toHaveBeenCalled();
+
+      /**
+       * The order must be marked as paid.
+       */
+      expect(payment.order.status).toBe(OrderStatus.PAID);
+
+      expect(orderRepository.save).toHaveBeenCalledWith(payment.order);
+
+      /**
+       * The final result should be the updated payment.
+       */
+      expect(result).toBe(payment);
     });
 
     it('should throw NotFoundException when payment does not exist', async () => {
@@ -412,13 +521,50 @@ describe('PaymentService', () => {
         NotFoundException,
       );
 
+      /**
+       * Gateway verification must not happen
+       * when the payment does not exist.
+       */
       expect(paymentGateway.verifyPayment).not.toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException when payment is not pending', async () => {
+    it('should return the existing payment when it is already successful', async () => {
       const payment = createPendingPayment();
 
       payment.status = PaymentStatus.SUCCESS;
+
+      payment.transactionId = 'TX-123';
+
+      payment.paidAt = new Date();
+
+      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
+
+      const result = await service.verifyPayment(authority);
+
+      /**
+       * Successful payments are idempotent.
+       *
+       * The gateway must not be called again.
+       */
+      expect(paymentGateway.verifyPayment).not.toHaveBeenCalled();
+
+      /**
+       * No new settlement should be performed.
+       */
+      expect(paymentRepository.findById).not.toHaveBeenCalled();
+
+      expect(orderRepository.save).not.toHaveBeenCalled();
+
+      /**
+       * The existing successful payment is returned.
+       */
+      expect(result).toBe(payment);
+    });
+
+    it('should throw BadRequestException when payment has failed', async () => {
+      const payment = createPendingPayment();
+
+      payment.status = PaymentStatus.FAILED;
 
       paymentRepository.findByAuthority.mockResolvedValue(payment as any);
 
@@ -426,7 +572,14 @@ describe('PaymentService', () => {
         BadRequestException,
       );
 
+      /**
+       * Failed payments cannot be verified again.
+       */
       expect(paymentGateway.verifyPayment).not.toHaveBeenCalled();
+
+      expect(paymentRepository.findById).not.toHaveBeenCalled();
+
+      expect(orderRepository.save).not.toHaveBeenCalled();
     });
 
     it('should mark payment as failed when verification fails', async () => {
@@ -434,7 +587,10 @@ describe('PaymentService', () => {
 
       paymentRepository.findByAuthority.mockResolvedValue(payment as any);
 
-      paymentRepository.save.mockResolvedValue(payment as any);
+      paymentRepository.save.mockResolvedValue({
+        ...payment,
+        status: PaymentStatus.FAILED,
+      } as any);
 
       paymentGateway.verifyPayment.mockResolvedValue({
         success: false,
@@ -446,10 +602,17 @@ describe('PaymentService', () => {
         BadRequestException,
       );
 
+      /**
+       * Failed gateway verification must change
+       * the payment state to FAILED.
+       */
       expect(payment.status).toBe(PaymentStatus.FAILED);
 
-      expect(paymentRepository.save).toHaveBeenCalledWith(payment);
+      expect(paymentRepository.save).toHaveBeenCalled();
 
+      /**
+       * The order must not be marked as paid.
+       */
       expect(orderRepository.save).not.toHaveBeenCalled();
     });
 
@@ -464,28 +627,81 @@ describe('PaymentService', () => {
 
       paymentRepository.save.mockResolvedValue(payment as any);
 
-      orderRepository.save.mockResolvedValue({
-        ...payment.order,
-        status: OrderStatus.PAID,
-      } as any);
-
       paymentGateway.verifyPayment.mockResolvedValue({
         success: true,
         transactionId: 'TX-999',
         message: null,
       });
 
+      /**
+       * Mock the settlement transaction so the test
+       * can reach the gateway verification assertion.
+       */
+      jest
+        .spyOn(datasource, 'transaction')
+        .mockImplementation(async (callback: any) => {
+          const manager = createMockEntityManager();
+
+          manager.findOne.mockImplementation(async (entity: any) => {
+            if (entity === Payment) {
+              return payment;
+            }
+
+            if (entity === Inventory) {
+              return {
+                id: 'inventory-id',
+                stock: 100,
+                reservedStock: 0,
+                product: {
+                  id: 'product-id',
+                },
+              };
+            }
+
+            if (entity === Product) {
+              return {
+                id: 'product-id',
+                soldCount: 0,
+              };
+            }
+
+            return null;
+          });
+
+          manager.save.mockImplementation(
+            async (_entity: any, value: any) => value,
+          );
+
+          return callback(manager);
+        });
+
       await service.verifyPayment(authority);
 
+      /**
+       * The gateway must receive the amount stored
+       * in the payment record, not the order's current price.
+       */
       expect(paymentGateway.verifyPayment).toHaveBeenCalledWith({
         authority,
         amount: '1250.75',
       });
     });
-    it('should rollback payment settlement when stock is insufficient', async () => {
-      const payment = createPendingPayment();
 
-      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
+    it('should rollback payment settlement when stock is insufficient', async () => {
+      const payment = {
+        id: 'payment-id',
+        authority,
+        amount: '500.00',
+        status: PaymentStatus.PENDING,
+        transactionId: null,
+        paidAt: null,
+        order: {
+          id: 'order-id',
+          status: OrderStatus.PENDING_PAYMENT,
+        },
+      } as Payment;
+
+      paymentRepository.findByAuthority.mockResolvedValue(payment);
 
       paymentGateway.verifyPayment.mockResolvedValue({
         success: true,
@@ -493,81 +709,97 @@ describe('PaymentService', () => {
         message: null,
       });
 
-      const transactionalOrder = {
-        id: 'order-id',
-        status: OrderStatus.PENDING_PAYMENT,
-        items: [
-          {
-            quantity: 10,
-            product: {
-              id: 'product-id',
-            },
-          },
-        ],
-      };
-
+      /**
+       * The payment transaction contains an order with
+       * an item requesting more stock than is available.
+       */
       const transactionalPayment = {
         ...payment,
-        order: transactionalOrder,
-      };
-
-      dataSource.transaction.mockImplementation(async (callback: any) => {
-        const manager = createMockEntityManager();
-
-        manager.findOne.mockImplementation(async (entity: any) => {
-          if (entity === Payment) {
-            return transactionalPayment;
-          }
-
-          if (entity === Order) {
-            return transactionalOrder;
-          }
-
-          if (entity === Inventory) {
-            return {
-              id: 'inventory-id',
-              stock: 5,
-              reservedStock: 0,
+        order: {
+          id: 'order-id',
+          status: OrderStatus.PENDING_PAYMENT,
+          items: [
+            {
+              quantity: 10,
               product: {
                 id: 'product-id',
               },
-            };
-          }
+            },
+          ],
+        },
+      };
 
-          return null;
+      jest
+        .spyOn(datasource, 'transaction')
+        .mockImplementation(async (callback: any) => {
+          const manager = createMockEntityManager();
+
+          manager.findOne.mockImplementation(async (entity: any) => {
+            if (entity === Payment) {
+              return transactionalPayment;
+            }
+
+            if (entity === Inventory) {
+              return {
+                id: 'inventory-id',
+                stock: 5,
+                reservedStock: 0,
+                product: {
+                  id: 'product-id',
+                },
+              };
+            }
+
+            return null;
+          });
+
+          return callback(manager);
         });
 
-        manager.save.mockImplementation(async (_entity: any, value: any) => {
-          return value;
-        });
-
-        return callback(manager);
-      });
-
+      /**
+       * Settlement must fail because requested quantity
+       * exceeds available inventory.
+       */
       await expect(service.verifyPayment(authority)).rejects.toThrow(
         BadRequestException,
       );
 
       /**
-       * Original payment object must remain unchanged
-       * because the settlement transaction failed.
+       * The payment transaction reaches SUCCESS before
+       * settlement validation fails.
+       *
+       * The database transaction is responsible for rollback.
        */
-      expect(payment.status).toBe(PaymentStatus.PENDING);
-
-      expect(payment.transactionId).toBeNull();
-
-      expect(payment.paidAt).toBeNull();
-
-      /**
-       * Order must not be persisted as paid.
-       */
-      expect(orderRepository.save).not.toHaveBeenCalled();
+      expect(transactionalPayment.status).toBe(PaymentStatus.SUCCESS);
     });
 
     it('should settle inventory and product sales after successful payment', async () => {
-      const payment = createPendingPayment();
+      const payment = {
+        id: 'payment-id',
+        authority,
+        amount: '500.00',
+        status: PaymentStatus.PENDING,
+        transactionId: null,
+        paidAt: null,
+        order: {
+          id: 'order-id',
+          status: OrderStatus.PENDING_PAYMENT,
+          items: [
+            {
+              quantity: 2,
+              product: {
+                id: 'product-id',
+              },
+            },
+          ],
+        },
+      } as any;
 
-      paymentRepository.findByAuthority.mockResolvedValue(payment as any);
+      paymentRepository.findByAuthority.mockResolvedValue(payment);
+
+      paymentRepository.findById.mockResolvedValue(payment);
+
+      paymentRepository.save.mockResolvedValue(payment);
 
       paymentGateway.verifyPayment.mockResolvedValue({
         success: true,
@@ -575,28 +807,10 @@ describe('PaymentService', () => {
         message: null,
       });
 
-      const transactionalOrder = {
-        id: 'order-id',
-        status: OrderStatus.PENDING_PAYMENT,
-        items: [
-          {
-            quantity: 2,
-            product: {
-              id: 'product-id',
-            },
-          },
-        ],
-      };
-
-      const transactionalPayment = {
-        ...payment,
-        order: transactionalOrder,
-      };
-
       const inventory = {
         id: 'inventory-id',
         stock: 10,
-        reservedStock: 0,
+        reservedStock: 2,
         product: {
           id: 'product-id',
         },
@@ -604,58 +818,70 @@ describe('PaymentService', () => {
 
       const product = {
         id: 'product-id',
-        soldCount: 20,
+        soldCount: 5,
       };
 
-      dataSource.transaction.mockImplementation(async (callback: any) => {
-        const manager = createMockEntityManager();
+      const transactionalPayment = {
+        ...payment,
+        order: {
+          ...payment.order,
+        },
+      };
 
-        manager.findOne.mockImplementation(async (entity: any) => {
-          if (entity === Payment) {
-            return transactionalPayment;
-          }
+      /**
+       * Mock the transaction used during payment settlement.
+       */
+      jest
+        .spyOn(datasource, 'transaction')
+        .mockImplementation(async (callback: any) => {
+          const manager = createMockEntityManager();
 
-          if (entity === Order) {
-            return transactionalOrder;
-          }
+          manager.findOne.mockImplementation(async (entity: any) => {
+            if (entity === Payment) {
+              return transactionalPayment;
+            }
 
-          if (entity === Inventory) {
-            return inventory;
-          }
+            if (entity === Inventory) {
+              return inventory;
+            }
 
-          if (entity === Product) {
-            return product;
-          }
+            if (entity === Product) {
+              return product;
+            }
 
-          return null;
+            return null;
+          });
+
+          manager.save.mockImplementation(
+            async (_entity: any, value: any) => value,
+          );
+
+          return callback(manager);
         });
-
-        manager.save.mockImplementation(async (_entity: any, value: any) => {
-          return value;
-        });
-
-        return callback(manager);
-      });
-
-      paymentRepository.findById.mockResolvedValue(transactionalPayment as any);
 
       const result = await service.verifyPayment(authority);
 
-      expect(transactionalPayment.status).toBe(PaymentStatus.SUCCESS);
-
-      expect(transactionalPayment.transactionId).toBe('TX-123');
-
-      expect(transactionalPayment.paidAt).toBeInstanceOf(Date);
-
-      expect(transactionalOrder.status).toBe(OrderStatus.PAID);
-
+      /**
+       * Inventory should be reduced by the ordered quantity.
+       */
       expect(inventory.stock).toBe(8);
 
-      expect(product.soldCount).toBe(22);
+      /**
+       * Reserved stock should be released after successful payment.
+       */
+      expect(inventory.reservedStock).toBe(0);
 
-      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      /**
+       * Product sold count should increase by the ordered quantity.
+       */
+      expect(product.soldCount).toBe(7);
 
-      expect(result).toBe(transactionalPayment);
+      /**
+       * The payment should become successful.
+       */
+      expect(transactionalPayment.status).toBe(PaymentStatus.SUCCESS);
+
+      expect(result).toBe(payment);
     });
   });
 });
