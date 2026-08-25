@@ -4,7 +4,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { InjectRepository } from '@nestjs/typeorm';
+
+import { Repository } from 'typeorm';
+
 import { OrderRepository } from '../../orders/repositories/order.repository';
+
+import { Product } from '../../products/entities/product.entity';
 
 import { ReviewRepository } from '../repositories/review.repository';
 
@@ -13,8 +19,6 @@ import { CreateReviewDto, ReviewResponseDto } from '../dto';
 import { Review } from '../entities/review.entity';
 
 import { User } from '../../users/entities/user.entity';
-
-import { Product } from '../../products/entities/product.entity';
 
 /**
  * --------------------------------------------------------------------------
@@ -40,9 +44,10 @@ export class ReviewService {
   constructor(
     private readonly reviewRepository: ReviewRepository,
 
-    private readonly productRepository: ProductRepository,
-
     private readonly orderRepository: OrderRepository,
+
+    @InjectRepository(Product)
+    private readonly productRepository: Repository<Product>,
   ) {}
 
   /**
@@ -68,7 +73,11 @@ export class ReviewService {
     /**
      * Ensure that the product exists.
      */
-    const product = await this.productRepository.findById(productId);
+    const product = await this.productRepository.findOne({
+      where: {
+        id: productId,
+      },
+    });
 
     if (!product) {
       throw new NotFoundException('Product not found.');
@@ -90,16 +99,16 @@ export class ReviewService {
     }
 
     /**
-     * Find the user's orders.
+     * Find all orders belonging to the user.
      *
      * The customer must have purchased the product
-     * before they are allowed to review it.
+     * before being allowed to submit a review.
      */
     const orders = await this.orderRepository.findAllByUserId(userId);
 
     /**
-     * Check whether at least one order contains
-     * the requested product.
+     * Check whether the requested product exists
+     * in at least one of the user's orders.
      */
     const hasPurchasedProduct = orders.some((order) =>
       order.items?.some((item) => item.product.id === productId),
@@ -114,7 +123,7 @@ export class ReviewService {
     /**
      * Create a new review.
      *
-     * New reviews must be approved by an administrator
+     * Every new review requires admin approval
      * before becoming publicly visible.
      */
     const review = this.reviewRepository.create({
@@ -122,9 +131,9 @@ export class ReviewService {
         id: userId,
       } as User,
 
-      product: product as Product,
+      product,
 
-      rating: dto.rating,
+      ratinل: dto.rating,
 
       comment: dto.comment ?? null,
 
@@ -144,8 +153,8 @@ export class ReviewService {
    * Map Review To Response DTO
    * ------------------------------------------------------------------------
    *
-   * Converts the database entity into
-   * the public API response structure.
+   * Converts a Review entity into
+   * the API response structure.
    * ------------------------------------------------------------------------
    */
   private toReviewResponse(review: Review): ReviewResponseDto {
