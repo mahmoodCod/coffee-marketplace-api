@@ -275,14 +275,26 @@ export class InventoryService {
    * - The requested quantity must be greater than zero.
    */
   async increaseStock(productId: string, quantity: number): Promise<Inventory> {
+    /**
+     * Find the inventory related to the product.
+     */
     const inventory = await this.findByProductId(productId);
 
+    /**
+     * Prevent invalid stock updates.
+     */
     if (quantity <= 0) {
       throw new BadRequestException('Quantity must be greater than zero.');
     }
 
+    /**
+     * Increase the available product stock.
+     */
     inventory.stock += quantity;
 
+    /**
+     * Persist and return the updated inventory.
+     */
     return this.inventoriesRepository.save(inventory);
   }
 }
