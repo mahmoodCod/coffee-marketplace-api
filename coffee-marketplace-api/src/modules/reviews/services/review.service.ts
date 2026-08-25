@@ -331,4 +331,77 @@ export class ReviewService {
      */
     await this.reviewRepository.remove(review);
   }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Approve Review
+   * ------------------------------------------------------------------------
+   *
+   * Approves a product review.
+   *
+   * After approval, the related product rating
+   * is recalculated using all approved reviews.
+   *
+   * Business Rules:
+   *
+   * - Review must exist.
+   * - An already approved review cannot be approved again.
+   * - Only approved reviews affect product rating.
+   * ------------------------------------------------------------------------
+   */
+  async approveReview(reviewId: string): Promise<ReviewResponseDto> {
+    /**
+     * Find the review together with
+     * its related product.
+     */
+    const review = await this.reviewRepository.findById(reviewId);
+
+    if (!review) {
+      throw new NotFoundException('Review not found.');
+    }
+
+    /**
+     * Prevent approving a review
+     * that is already approved.
+     */
+    if (review.isApproved) {
+      throw new BadRequestException('Review is already approved.');
+    }
+
+    /**
+     * Approve the review.
+     */
+    review.isApproved = true;
+
+    const approvedReview = await this.reviewRepository.save(review);
+
+    /**
+     * Load all approved reviews belonging
+     * to the related product.
+     */
+    const approvedReviews = await this.reviewRepository.findApprovedByProductId(
+      approvedReview.product.id,
+    );
+
+    /**
+     * Calculate the average product rating
+     * using only approved reviews.
+     */
+    const totalRating = approvedReviews.reduce(
+      (total, currentReview) => total + currentReview.rating,
+      0,
+    );
+
+    const averageRating =
+      approvedReviews.length > 0 ? totalRating / approvedReviews.length : 0;
+
+    /**
+     * Update the product rating.
+     */
+    approvedReview.product.rating = Number(averageRating.toFixed(2));
+
+    await this.productRepository.save(approvedReview.product);
+
+    return this.toReviewResponse(approvedReview);
+  }
 }
