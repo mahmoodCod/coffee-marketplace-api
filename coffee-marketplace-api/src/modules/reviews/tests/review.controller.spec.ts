@@ -1,0 +1,193 @@
+import { Test } from '@nestjs/testing';
+
+import { ReviewController } from '../controllers/review.controller';
+
+import { ReviewService } from '../services/review.service';
+
+import { CreateReviewDto, ReviewResponseDto } from '../dto/index.dto';
+
+import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
+
+describe('ReviewController', () => {
+  let controller: ReviewController;
+
+  /**
+   * Mocked ReviewService.
+   *
+   * Only methods used by the controller
+   * are included here.
+   */
+  let service: {
+    createReview: jest.Mock;
+
+    getProductReviews: jest.Mock;
+  };
+
+  beforeEach(async () => {
+    /**
+     * Create mocked ReviewService methods.
+     */
+    service = {
+      createReview: jest.fn(),
+
+      getProductReviews: jest.fn(),
+    };
+
+    const module = await Test.createTestingModule({
+      controllers: [ReviewController],
+
+      providers: [
+        {
+          provide: ReviewService,
+
+          useValue: service,
+        },
+      ],
+    }).compile();
+
+    controller = module.get<ReviewController>(ReviewController);
+  });
+
+  /**
+   * ------------------------------------------------------------------------
+   * POST /reviews
+   * ------------------------------------------------------------------------
+   */
+  describe('createReview', () => {
+    it('should create a review successfully', async () => {
+      /**
+       * Authenticated customer.
+       */
+      const user = {
+        sub: 'user-id',
+      } as JwtPayload;
+
+      /**
+       * Review creation request.
+       */
+      const dto: CreateReviewDto = {
+        productId: 'product-id',
+
+        rating: 5,
+
+        comment: 'Excellent coffee product.',
+      };
+
+      /**
+       * Expected service response.
+       */
+      const response: ReviewResponseDto = {
+        id: 'review-id',
+
+        userId: 'user-id',
+
+        productId: 'product-id',
+
+        rating: 5,
+
+        isApproved: false,
+
+        comment: 'Excellent coffee product.',
+
+        createdAt: new Date(),
+
+        updatedAt: new Date(),
+      };
+
+      /**
+       * Configure mocked service response.
+       */
+      service.createReview.mockResolvedValue(response);
+
+      /**
+       * Call controller method directly.
+       */
+      const result = await controller.createReview(user, dto);
+
+      /**
+       * Controller must extract user.sub
+       * and pass it to the service.
+       */
+      expect(service.createReview).toHaveBeenCalledWith('user-id', dto);
+
+      /**
+       * Controller must return the service response.
+       */
+      expect(result).toEqual(response);
+    });
+  });
+
+  /**
+   * ------------------------------------------------------------------------
+   * GET /products/:productId/reviews
+   * ------------------------------------------------------------------------
+   */
+  describe('getProductReviews', () => {
+    it('should return approved product reviews successfully', async () => {
+      const productId = 'product-id';
+
+      /**
+       * Expected approved reviews.
+       */
+      const response: ReviewResponseDto[] = [
+        {
+          id: 'review-id-1',
+
+          userId: 'user-id-1',
+
+          productId,
+
+          rating: 5,
+
+          isApproved: true,
+
+          comment: 'Excellent product.',
+
+          createdAt: new Date(),
+
+          updatedAt: new Date(),
+        },
+
+        {
+          id: 'review-id-2',
+
+          userId: 'user-id-2',
+
+          productId,
+
+          rating: 4,
+
+          isApproved: true,
+
+          comment: 'Very good coffee.',
+
+          createdAt: new Date(),
+
+          updatedAt: new Date(),
+        },
+      ];
+
+      /**
+       * Configure mocked service response.
+       */
+      service.getProductReviews.mockResolvedValue(response);
+
+      /**
+       * Call controller method.
+       */
+      const result = await controller.getProductReviews(productId);
+
+      /**
+       * Verify that the correct product ID
+       * was passed to the service.
+       */
+      expect(service.getProductReviews).toHaveBeenCalledWith(productId);
+
+      /**
+       * Verify that the controller returns
+       * the service response.
+       */
+      expect(result).toEqual(response);
+    });
+  });
+});
