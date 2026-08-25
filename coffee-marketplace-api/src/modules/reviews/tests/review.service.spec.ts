@@ -27,7 +27,7 @@ describe('ReviewService', () => {
     findByUserIdAndProductId: jest.Mock;
     findApprovedByProductId: jest.Mock;
     findById: jest.Mock;
-    delete: jest.Mock;
+    remove: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
   };
@@ -51,7 +51,7 @@ describe('ReviewService', () => {
       findByUserIdAndProductId: jest.fn(),
       findApprovedByProductId: jest.fn(),
       findById: jest.fn(),
-      delete: jest.fn(),
+      remove: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
     };
@@ -702,15 +702,24 @@ describe('ReviewService', () => {
 
         reviewRepository.findById.mockResolvedValue(review);
 
-        reviewRepository.delete.mockResolvedValue(undefined);
+        reviewRepository.remove.mockResolvedValue(undefined);
 
         await expect(
           service.deleteReview(userId, reviewId),
         ).resolves.toBeUndefined();
 
+        /**
+         * Verify review lookup.
+         */
         expect(reviewRepository.findById).toHaveBeenCalledWith(reviewId);
 
-        expect(reviewRepository.delete).toHaveBeenCalledWith(reviewId);
+        /**
+         * Verify review deletion.
+         *
+         * The service passes the review entity
+         * to the repository remove method.
+         */
+        expect(reviewRepository.remove).toHaveBeenCalledWith(review);
       });
 
       /**
@@ -725,7 +734,7 @@ describe('ReviewService', () => {
           NotFoundException,
         );
 
-        expect(reviewRepository.delete).not.toHaveBeenCalled();
+        expect(reviewRepository.remove).not.toHaveBeenCalled();
       });
 
       /**
@@ -746,7 +755,11 @@ describe('ReviewService', () => {
           ForbiddenException,
         );
 
-        expect(reviewRepository.delete).not.toHaveBeenCalled();
+        /**
+         * Another user's review must never
+         * be deleted.
+         */
+        expect(reviewRepository.remove).not.toHaveBeenCalled();
       });
     });
   });
