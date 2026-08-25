@@ -1,4 +1,8 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { Test } from '@nestjs/testing';
 
@@ -22,6 +26,7 @@ describe('ReviewService', () => {
   let reviewRepository: {
     findByUserIdAndProductId: jest.Mock;
     findApprovedByProductId: jest.Mock;
+    findById: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
   };
@@ -44,6 +49,7 @@ describe('ReviewService', () => {
     reviewRepository = {
       findByUserIdAndProductId: jest.fn(),
       findApprovedByProductId: jest.fn(),
+      findById: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
     };
@@ -299,6 +305,198 @@ describe('ReviewService', () => {
         expect(reviewRepository.findApprovedByProductId).toHaveBeenCalledWith(
           productId,
         );
+      });
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Update Review
+     * ------------------------------------------------------------------------
+     */
+    describe('updateReview', () => {
+      const userId = 'user-id';
+
+      const reviewId = 'review-id';
+
+      /**
+       * Creates a reusable review entity.
+       */
+      const createReview = (): Review => {
+        return {
+          id: reviewId,
+
+          user: {
+            id: userId,
+          },
+
+          product: {
+            id: 'product-id',
+          },
+
+          rating: 5,
+
+          comment: 'Original review comment.',
+
+          isApproved: true,
+
+          createdAt: new Date(),
+
+          updatedAt: new Date(),
+        } as Review;
+      };
+
+      /**
+       * --------------------------------------------------
+       * Successful review update
+       * --------------------------------------------------
+       */
+      it('should update review successfully', async () => {
+        const review = createReview();
+
+        const dto = {
+          rating: 4,
+
+          comment: 'Updated review comment.',
+        };
+
+        reviewRepository.findById.mockResolvedValue(review);
+
+        reviewRepository.save.mockResolvedValue({
+          ...review,
+
+          rating: dto.rating,
+
+          comment: dto.comment,
+
+          isApproved: false,
+        });
+
+        const result = await service.updateReview(userId, reviewId, dto);
+
+        /**
+         * Verify review lookup.
+         */
+        expect(reviewRepository.findById).toHaveBeenCalledWith(reviewId);
+
+        /**
+         * The review values must be updated.
+         */
+        expect(review.rating).toBe(dto.rating);
+
+        expect(review.comment).toBe(dto.comment);
+
+        /**
+         * Updated reviews must require approval again.
+         */
+        expect(review.isApproved).toBe(false);
+
+        expect(reviewRepository.save).toHaveBeenCalledWith(review);
+
+        expect(result).toEqual({
+          id: reviewId,
+
+          userId,
+
+          productId: 'product-id',
+
+          rating: dto.rating,
+
+          isApproved: false,
+
+          comment: dto.comment,
+
+          createdAt: review.createdAt,
+
+          updatedAt: review.updatedAt,
+        });
+      });
+
+      /**
+       * --------------------------------------------------
+       * Review does not exist
+       * --------------------------------------------------
+       */
+      it('should throw NotFoundException when review does not exist', async () => {
+        reviewRepository.findById.mockResolvedValue(null);
+
+        await expect(
+          service.updateReview(userId, reviewId, {
+            rating: 4,
+          }),
+        ).rejects.toThrow(NotFoundException);
+
+        /**
+         * Review must not be saved
+         * when it does not exist.
+         */
+        expect(reviewRepository.save).not.toHaveBeenCalled();
+      });
+
+      /**
+       * --------------------------------------------------
+       * User does not own review
+       * --------------------------------------------------
+       */
+      it('should throw ForbiddenException when user does not own the review', async () => {
+        const review = createReview();
+
+        review.user = {
+          id: 'another-user-id',
+        } as any;
+
+        reviewRepository.findById.mockResolvedValue(review);
+
+        await expect(
+          service.updateReview(userId, reviewId, {
+            rating: 4,
+          }),
+        ).rejects.toThrow(ForbiddenException);
+
+        /**
+         * Another user's review must never be modified.
+         */
+        expect(reviewRepository.save).not.toHaveBeenCalled();
+      });
+
+      /**
+       * --------------------------------------------------
+       * Partial review update
+       * --------------------------------------------------
+       */
+      it('should update only the provided review fields', async () => {
+        const review = createReview();
+
+        const originalComment = review.comment;
+
+        reviewRepository.findById.mockResolvedValue(review);
+
+        reviewRepository.save.mockResolvedValue({
+          ...review,
+
+          rating: 3,
+
+          isApproved: false,
+        });
+
+        await service.updateReview(userId, reviewId, {
+          rating: 3,
+        });
+
+        /**
+         * Rating should be updated.
+         */
+        expect(review.rating).toBe(3);
+
+        /**
+         * Comment should remain unchanged because
+         * it was not included in the update request.
+         */
+        expect(review.comment).toBe(originalComment);
+
+        /**
+         * Even a partial update requires approval again.
+         */
+        expect(review.isApproved).toBe(false);
       });
     });
 
