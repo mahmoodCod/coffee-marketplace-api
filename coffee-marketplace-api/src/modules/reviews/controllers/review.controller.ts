@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 
 import {
   ApiCreatedResponse,
@@ -9,7 +9,11 @@ import {
 
 import { ReviewService } from '../services/review.service';
 
-import { CreateReviewDto, ReviewResponseDto } from '../dto/index.dto';
+import {
+  CreateReviewDto,
+  ReviewResponseDto,
+  UpdateReviewDto,
+} from '../dto/index.dto';
 
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 
@@ -98,5 +102,51 @@ export class ReviewController {
     productId: string,
   ): Promise<ReviewResponseDto[]> {
     return this.reviewService.getProductReviews(productId);
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * PATCH /reviews/:id
+   * ------------------------------------------------------------------------
+   *
+   * Updates a review belonging to
+   * the authenticated user.
+   *
+   * The user ID is extracted from
+   * the JWT payload.
+   *
+   * Business Rules:
+   *
+   * - Users can only update their own reviews.
+   * - Updated reviews require approval again.
+   * ------------------------------------------------------------------------
+   */
+  @Patch('reviews/:id')
+  @ApiOperation({
+    summary: 'Update own review',
+  })
+  @ApiOkResponse({
+    type: ReviewResponseDto,
+  })
+  async updateReview(
+    @Param('id')
+    reviewId: string,
+
+    /**
+     * Get the authenticated user
+     * from the JWT payload.
+     */
+    @CurrentUser()
+    user: JwtPayload,
+
+    @Body()
+    dto: UpdateReviewDto,
+  ): Promise<ReviewResponseDto> {
+    /**
+     * Pass the authenticated user ID,
+     * review ID, and update data
+     * to the service layer.
+     */
+    return this.reviewService.updateReview(user.sub, reviewId, dto);
   }
 }
