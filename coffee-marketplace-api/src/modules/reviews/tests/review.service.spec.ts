@@ -4,8 +4,6 @@ import { Test } from '@nestjs/testing';
 
 import { getRepositoryToken } from '@nestjs/typeorm';
 
-import { Repository } from 'typeorm';
-
 import { ReviewService } from '../services/review.service';
 
 import { ReviewRepository } from '../repositories/review.repository';
@@ -23,6 +21,7 @@ describe('ReviewService', () => {
 
   let reviewRepository: {
     findByUserIdAndProductId: jest.Mock;
+    findApprovedByProductId: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
   };
@@ -44,6 +43,7 @@ describe('ReviewService', () => {
      */
     reviewRepository = {
       findByUserIdAndProductId: jest.fn(),
+      findApprovedByProductId: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
     };
@@ -165,6 +165,142 @@ describe('ReviewService', () => {
         updatedAt: new Date(),
       } as Review;
     };
+
+    /**
+     * ------------------------------------------------------------------------
+     * Get Product Reviews
+     * ------------------------------------------------------------------------
+     */
+    describe('getProductReviews', () => {
+      const productId = 'product-id';
+
+      /**
+       * Creates a reusable approved review.
+       */
+      const createApprovedReview = (): Review => {
+        return {
+          id: 'review-id',
+
+          user: {
+            id: 'user-id',
+          },
+
+          product: {
+            id: productId,
+          },
+
+          rating: 5,
+
+          comment: 'Excellent coffee product.',
+
+          isApproved: true,
+
+          createdAt: new Date(),
+
+          updatedAt: new Date(),
+        } as Review;
+      };
+
+      /**
+       * --------------------------------------------------
+       * Successful approved reviews retrieval
+       * --------------------------------------------------
+       */
+      it('should return approved product reviews successfully', async () => {
+        const product = {
+          id: productId,
+          title: 'Test Coffee',
+        };
+
+        const review = createApprovedReview();
+
+        /**
+         * Product must exist before
+         * retrieving its reviews.
+         */
+        productRepository.findOne.mockResolvedValue(product);
+
+        /**
+         * Repository returns only approved reviews.
+         */
+        reviewRepository.findApprovedByProductId.mockResolvedValue([review]);
+
+        const result = await service.getProductReviews(productId);
+
+        expect(productRepository.findOne).toHaveBeenCalledWith({
+          where: {
+            id: productId,
+          },
+        });
+
+        expect(reviewRepository.findApprovedByProductId).toHaveBeenCalledWith(
+          productId,
+        );
+
+        expect(result).toEqual([
+          {
+            id: review.id,
+
+            userId: review.user.id,
+
+            productId: review.product.id,
+
+            rating: review.rating,
+
+            isApproved: review.isApproved,
+
+            comment: review.comment,
+
+            createdAt: review.createdAt,
+
+            updatedAt: review.updatedAt,
+          },
+        ]);
+      });
+
+      /**
+       * --------------------------------------------------
+       * Product does not exist
+       * --------------------------------------------------
+       */
+      it('should throw NotFoundException when product does not exist', async () => {
+        productRepository.findOne.mockResolvedValue(null);
+
+        await expect(service.getProductReviews(productId)).rejects.toThrow(
+          NotFoundException,
+        );
+
+        /**
+         * Reviews should not be queried when
+         * the requested product does not exist.
+         */
+        expect(reviewRepository.findApprovedByProductId).not.toHaveBeenCalled();
+      });
+
+      /**
+       * --------------------------------------------------
+       * Product has no approved reviews
+       * --------------------------------------------------
+       */
+      it('should return an empty array when product has no approved reviews', async () => {
+        const product = {
+          id: productId,
+          title: 'Test Coffee',
+        };
+
+        productRepository.findOne.mockResolvedValue(product);
+
+        reviewRepository.findApprovedByProductId.mockResolvedValue([]);
+
+        const result = await service.getProductReviews(productId);
+
+        expect(result).toEqual([]);
+
+        expect(reviewRepository.findApprovedByProductId).toHaveBeenCalledWith(
+          productId,
+        );
+      });
+    });
 
     /**
      * --------------------------------------------------
