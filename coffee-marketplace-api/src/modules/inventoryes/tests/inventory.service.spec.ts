@@ -8,7 +8,7 @@ import { InventoryService } from '../services/inventory.service';
 
 import { Inventory } from '../entities/inventory.entity';
 
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Product } from 'src/modules/products/entities/product.entity';
 import { UpdateInventoryDto } from '../dto';
 
@@ -179,7 +179,7 @@ describe('InventoryService', () => {
         )
         .mockResolvedValue(inventory as Inventory);
 
-        inventoriesRepository.save.mockResolvedValue({
+      inventoriesRepository.save.mockResolvedValue({
         ...inventory,
 
         stock: 100,
@@ -238,7 +238,7 @@ describe('InventoryService', () => {
         )
         .mockResolvedValue(inventory as Inventory);
 
-        inventoriesRepository.save.mockResolvedValue({
+      inventoriesRepository.save.mockResolvedValue({
         ...inventory,
 
         reservedStock: 20,
@@ -448,6 +448,165 @@ describe('InventoryService', () => {
        * ownership validation fails.
        */
       expect(inventoriesRepository.save).not.toHaveBeenCalled();
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * decreaseStock Tests
+     * ------------------------------------------------------------------------
+     */
+    describe('decreaseStock', () => {
+      /**
+       * ----------------------------------------------------------------------
+       * Should decrease stock successfully
+       * ----------------------------------------------------------------------
+       *
+       * Scenario:
+       *
+       * Current stock: 100
+       * Requested quantity: 20
+       *
+       * Expected:
+       *
+       * - Stock should decrease from 100 to 80.
+       * - Updated inventory should be saved.
+       * ----------------------------------------------------------------------
+       */
+      it('should decrease stock successfully', async () => {
+        const inventory = {
+          id: 'inventory-id',
+
+          stock: 100,
+
+          reservedStock: 10,
+
+          product: {
+            id: 'product-id',
+          },
+
+          createdAt: new Date(),
+
+          updatedAt: new Date(),
+        };
+
+        /**
+         * Mock inventory lookup.
+         */
+        jest
+          .spyOn(service, 'findByProductId')
+          .mockResolvedValue(inventory as Inventory);
+
+        /**
+         * Mock saving the updated inventory.
+         */
+        inventoriesRepository.save.mockResolvedValue({
+          ...inventory,
+          stock: 80,
+        });
+
+        const result = await service.decreaseStock('product-id', 20);
+
+        /**
+         * Verify that stock was decreased correctly.
+         */
+        expect(inventory.stock).toBe(80);
+
+        /**
+         * Verify that the updated inventory was persisted.
+         */
+        expect(inventoriesRepository.save).toHaveBeenCalledWith(inventory);
+
+        /**
+         * Verify the returned inventory.
+         */
+        expect(result.stock).toBe(80);
+      });
+
+      /**
+       * ----------------------------------------------------------------------
+       * Should reject invalid quantity
+       * ----------------------------------------------------------------------
+       *
+       * Business Rule:
+       *
+       * - Quantity must be greater than zero.
+       *
+       * Invalid examples:
+       *
+       * - 0
+       * - negative numbers
+       * ----------------------------------------------------------------------
+       */
+      it('should throw BadRequestException when quantity is not positive', async () => {
+        const inventory = {
+          id: 'inventory-id',
+
+          stock: 100,
+
+          reservedStock: 10,
+
+          product: {
+            id: 'product-id',
+          },
+        };
+
+        jest
+          .spyOn(service, 'findByProductId')
+          .mockResolvedValue(inventory as Inventory);
+
+        await expect(service.decreaseStock('product-id', 0)).rejects.toThrow(
+          BadRequestException,
+        );
+
+        /**
+         * Inventory must not be saved
+         * when the quantity is invalid.
+         */
+        expect(inventoriesRepository.save).not.toHaveBeenCalled();
+      });
+
+      /**
+       * ----------------------------------------------------------------------
+       * Should reject when stock is insufficient
+       * ----------------------------------------------------------------------
+       *
+       * Business Rule:
+       *
+       * Stock must never become negative.
+       *
+       * Example:
+       *
+       * Current stock: 5
+       * Requested quantity: 10 ❌
+       * ----------------------------------------------------------------------
+       */
+      it('should throw BadRequestException when stock is insufficient', async () => {
+        const inventory = {
+          id: 'inventory-id',
+
+          stock: 5,
+
+          reservedStock: 0,
+
+          product: {
+            id: 'product-id',
+          },
+        };
+
+        jest
+          .spyOn(service, 'findByProductId')
+          .mockResolvedValue(inventory as Inventory);
+
+        await expect(service.decreaseStock('product-id', 10)).rejects.toThrow(
+          BadRequestException,
+        );
+
+        /**
+         * Inventory must not be saved
+         * when there is not enough stock.
+         */
+        expect(inventoriesRepository.save).not.toHaveBeenCalled();
+      });
     });
   });
 });
