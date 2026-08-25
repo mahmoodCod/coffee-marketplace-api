@@ -27,6 +27,7 @@ describe('ReviewService', () => {
     findByUserIdAndProductId: jest.Mock;
     findApprovedByProductId: jest.Mock;
     findById: jest.Mock;
+    delete: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
   };
@@ -50,6 +51,7 @@ describe('ReviewService', () => {
       findByUserIdAndProductId: jest.fn(),
       findApprovedByProductId: jest.fn(),
       findById: jest.fn(),
+      delete: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
     };
@@ -651,6 +653,101 @@ describe('ReviewService', () => {
       expect(reviewRepository.create).not.toHaveBeenCalled();
 
       expect(reviewRepository.save).not.toHaveBeenCalled();
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Delete Review
+     * ------------------------------------------------------------------------
+     */
+    describe('deleteReview', () => {
+      const userId = 'user-id';
+
+      const reviewId = 'review-id';
+
+      /**
+       * Creates a reusable review entity.
+       */
+      const createReview = (): Review => {
+        return {
+          id: reviewId,
+
+          user: {
+            id: userId,
+          },
+
+          product: {
+            id: 'product-id',
+          },
+
+          rating: 5,
+
+          comment: 'Excellent coffee.',
+
+          isApproved: true,
+
+          createdAt: new Date(),
+
+          updatedAt: new Date(),
+        } as Review;
+      };
+
+      /**
+       * --------------------------------------------------
+       * Successful review deletion
+       * --------------------------------------------------
+       */
+      it('should delete own review successfully', async () => {
+        const review = createReview();
+
+        reviewRepository.findById.mockResolvedValue(review);
+
+        reviewRepository.delete.mockResolvedValue(undefined);
+
+        await expect(
+          service.deleteReview(userId, reviewId),
+        ).resolves.toBeUndefined();
+
+        expect(reviewRepository.findById).toHaveBeenCalledWith(reviewId);
+
+        expect(reviewRepository.delete).toHaveBeenCalledWith(reviewId);
+      });
+
+      /**
+       * --------------------------------------------------
+       * Review does not exist
+       * --------------------------------------------------
+       */
+      it('should throw NotFoundException when review does not exist', async () => {
+        reviewRepository.findById.mockResolvedValue(null);
+
+        await expect(service.deleteReview(userId, reviewId)).rejects.toThrow(
+          NotFoundException,
+        );
+
+        expect(reviewRepository.delete).not.toHaveBeenCalled();
+      });
+
+      /**
+       * --------------------------------------------------
+       * User does not own review
+       * --------------------------------------------------
+       */
+      it('should throw ForbiddenException when user does not own the review', async () => {
+        const review = createReview();
+
+        review.user = {
+          id: 'another-user-id',
+        } as any;
+
+        reviewRepository.findById.mockResolvedValue(review);
+
+        await expect(service.deleteReview(userId, reviewId)).rejects.toThrow(
+          ForbiddenException,
+        );
+
+        expect(reviewRepository.delete).not.toHaveBeenCalled();
+      });
     });
   });
 });
