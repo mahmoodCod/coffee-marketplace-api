@@ -150,6 +150,51 @@ export class ReviewService {
 
   /**
    * ------------------------------------------------------------------------
+   * Get Product Reviews
+   * ------------------------------------------------------------------------
+   *
+   * Returns all approved reviews belonging
+   * to a specific product.
+   *
+   * Business Rules:
+   *
+   * - Product must exist.
+   * - Only approved reviews are visible publicly.
+   * - Reviews are returned in descending creation order.
+   * ------------------------------------------------------------------------
+   */
+  async getProductReviews(productId: string): Promise<ReviewResponseDto[]> {
+    /**
+     * Ensure that the requested product exists.
+     */
+    const product = await this.productRepository.findOne({
+      where: {
+        id: productId,
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found.');
+    }
+
+    /**
+     * Retrieve only approved reviews.
+     *
+     * Pending or rejected reviews must not
+     * be visible to customers.
+     */
+    const reviews =
+      await this.reviewRepository.findApprovedByProductId(productId);
+
+    /**
+     * Convert review entities into
+     * public response DTOs.
+     */
+    return reviews.map((review) => this.toReviewResponse(review));
+  }
+
+  /**
+   * ------------------------------------------------------------------------
    * Map Review To Response DTO
    * ------------------------------------------------------------------------
    *
