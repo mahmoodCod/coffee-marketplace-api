@@ -8,7 +8,11 @@ import { InventoryService } from '../services/inventory.service';
 
 import { Inventory } from '../entities/inventory.entity';
 
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Product } from 'src/modules/products/entities/product.entity';
 import { UpdateInventoryDto } from '../dto';
 
@@ -604,6 +608,164 @@ describe('InventoryService', () => {
         /**
          * Inventory must not be saved
          * when there is not enough stock.
+         */
+        expect(inventoriesRepository.save).not.toHaveBeenCalled();
+      });
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * increaseStock Tests
+     * ------------------------------------------------------------------------
+     */
+    describe('increaseStock', () => {
+      /**
+       * ----------------------------------------------------------------------
+       * Should increase stock successfully
+       * ----------------------------------------------------------------------
+       *
+       * Scenario:
+       *
+       * Current stock: 50
+       * Requested quantity: 20
+       *
+       * Expected:
+       *
+       * - Stock should increase from 50 to 70.
+       * - Updated inventory should be saved.
+       * ----------------------------------------------------------------------
+       */
+      it('should increase stock successfully', async () => {
+        const inventory = {
+          id: 'inventory-id',
+
+          stock: 50,
+
+          reservedStock: 5,
+
+          product: {
+            id: 'product-id',
+          },
+
+          createdAt: new Date(),
+
+          updatedAt: new Date(),
+        };
+
+        /**
+         * Mock inventory lookup.
+         */
+        jest
+          .spyOn(service, 'findByProductId')
+          .mockResolvedValue(inventory as Inventory);
+
+        /**
+         * Mock saving the updated inventory.
+         */
+        inventoriesRepository.save.mockResolvedValue({
+          ...inventory,
+          stock: 70,
+        });
+
+        const result = await service.increaseStock('product-id', 20);
+
+        /**
+         * Verify that stock was increased correctly.
+         */
+        expect(inventory.stock).toBe(70);
+
+        /**
+         * Verify that the updated inventory was persisted.
+         */
+        expect(inventoriesRepository.save).toHaveBeenCalledWith(inventory);
+
+        /**
+         * Verify the returned inventory.
+         */
+        expect(result.stock).toBe(70);
+      });
+
+      /**
+       * ----------------------------------------------------------------------
+       * Should reject invalid quantity
+       * ----------------------------------------------------------------------
+       *
+       * Business Rule:
+       *
+       * Quantity must be greater than zero.
+       *
+       * Invalid example:
+       *
+       * - 0
+       * ----------------------------------------------------------------------
+       */
+      it('should throw BadRequestException when quantity is not positive', async () => {
+        const inventory = {
+          id: 'inventory-id',
+
+          stock: 50,
+
+          reservedStock: 5,
+
+          product: {
+            id: 'product-id',
+          },
+        };
+
+        /**
+         * Mock inventory lookup.
+         */
+        jest
+          .spyOn(service, 'findByProductId')
+          .mockResolvedValue(inventory as Inventory);
+
+        await expect(service.increaseStock('product-id', 0)).rejects.toThrow(
+          BadRequestException,
+        );
+
+        /**
+         * Inventory must not be saved
+         * when the quantity is invalid.
+         */
+        expect(inventoriesRepository.save).not.toHaveBeenCalled();
+      });
+
+      /**
+       * ----------------------------------------------------------------------
+       * Should reject negative quantity
+       * ----------------------------------------------------------------------
+       *
+       * Negative quantities are invalid because
+       * increaseStock must only increase inventory.
+       * ----------------------------------------------------------------------
+       */
+      it('should throw BadRequestException when quantity is negative', async () => {
+        const inventory = {
+          id: 'inventory-id',
+
+          stock: 50,
+
+          reservedStock: 5,
+
+          product: {
+            id: 'product-id',
+          },
+        };
+
+        /**
+         * Mock inventory lookup.
+         */
+        jest
+          .spyOn(service, 'findByProductId')
+          .mockResolvedValue(inventory as Inventory);
+
+        await expect(service.increaseStock('product-id', -10)).rejects.toThrow(
+          BadRequestException,
+        );
+
+        /**
+         * Inventory must not be saved
+         * when the quantity is negative.
          */
         expect(inventoriesRepository.save).not.toHaveBeenCalled();
       });
