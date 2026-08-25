@@ -70,6 +70,8 @@ describe('ReviewController', () => {
         sub: 'user-id',
       } as JwtPayload;
 
+      const productId = 'product-id';
+
       /**
        * Review creation request.
        */

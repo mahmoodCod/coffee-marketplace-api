@@ -290,4 +290,45 @@ export class ReviewService {
 
     return this.toReviewResponse(updatedReview);
   }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Delete Review
+   * ------------------------------------------------------------------------
+   *
+   * Deletes a review belonging to
+   * the authenticated user.
+   *
+   * Business Rules:
+   *
+   * - Review must exist.
+   * - Users can only delete their own reviews.
+   * ------------------------------------------------------------------------
+   */
+  async deleteReview(userId: string, reviewId: string): Promise<void> {
+    /**
+     * Find the review before deletion.
+     */
+    const review = await this.reviewRepository.findById(reviewId);
+
+    if (!review) {
+      throw new NotFoundException('Review not found.');
+    }
+
+    /**
+     * Ensure that users can only
+     * delete their own reviews.
+     */
+    if (review.user.id !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to delete this review.',
+      );
+    }
+
+    /**
+     * Delete the review after
+     * ownership validation.
+     */
+    await this.reviewRepository.remove(review);
+  }
 }
