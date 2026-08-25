@@ -206,6 +206,14 @@ export class InventoryService {
     }
 
     /**
+     * Reserved stock cannot exceed
+     * the total available stock.
+     */
+    if (inventory.reservedStock > inventory.stock) {
+      throw new BadRequestException('Reserved stock cannot exceed stock.');
+    }
+
+    /**
      * Save the updated inventory.
      */
     const savedInventory = await this.inventoriesRepository.save(inventory);
@@ -252,6 +260,28 @@ export class InventoryService {
     }
 
     inventory.stock -= quantity;
+
+    return this.inventoriesRepository.save(inventory);
+  }
+
+  /**
+   * Increase product stock.
+   *
+   * This method is intended for internal business operations
+   * such as restocking products.
+   *
+   * Business Rules:
+   * - The inventory must exist.
+   * - The requested quantity must be greater than zero.
+   */
+  async increaseStock(productId: string, quantity: number): Promise<Inventory> {
+    const inventory = await this.findByProductId(productId);
+
+    if (quantity <= 0) {
+      throw new BadRequestException('Quantity must be greater than zero.');
+    }
+
+    inventory.stock += quantity;
 
     return this.inventoriesRepository.save(inventory);
   }

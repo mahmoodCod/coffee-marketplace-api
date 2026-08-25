@@ -9,6 +9,7 @@ import { SellerInventoryController } from './controllers/seller-inventory.contro
 import { AdminInventoryController } from './controllers/admin-inventory.controller';
 import { InventoryController } from './controllers/inventory.controller';
 import { Product } from '../products/entities/product.entity';
+import { InventoryRepository } from './repositories/inventory.repository';
 
 /**
  * ------------------------------------------------------------------------
@@ -37,7 +38,7 @@ import { Product } from '../products/entities/product.entity';
     InventoryController,
   ],
 
-  providers: [InventoryService],
+  providers: [InventoryService, InventoryRepository],
 
   exports: [InventoryService],
 })
