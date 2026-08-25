@@ -14,7 +14,7 @@ import { Role } from '../../roles/entities/role.entity';
 import { UserStatus } from '../enums/user-status.enum';
 import { Address } from './address.entity';
 import { Cart } from '../../../modules/cart/entities';
-import { Review } from 'src/modules/reviews/entities/review.entity';
+import { Review } from '../../../modules/reviews/entities/review.entity';
 
 /**
  * ------------------------------------------------------------------------

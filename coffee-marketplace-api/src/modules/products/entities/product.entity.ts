@@ -17,7 +17,7 @@ import { ProductCategory } from './product-category.entity';
 import { Inventory } from '../../../modules/inventoryes/entities/inventory.entity';
 import { CartItem } from '../../../modules/cart/entities';
 import { OrderItem } from '../../../modules/orders/entities/order-item.entity';
-import { Review } from 'src/modules/reviews/entities/review.entity';
+import { Review } from '../../../modules/reviews/entities/review.entity';
 
 /**
  * ------------------------------------------------------------------------
