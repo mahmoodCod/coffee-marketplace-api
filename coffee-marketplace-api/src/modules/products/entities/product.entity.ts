@@ -17,6 +17,7 @@ import { ProductCategory } from './product-category.entity';
 import { Inventory } from '../../../modules/inventoryes/entities/inventory.entity';
 import { CartItem } from '../../../modules/cart/entities';
 import { OrderItem } from '../../../modules/orders/entities/order-item.entity';
+import { Review } from 'src/modules/reviews/entities/review.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -295,6 +296,16 @@ export class Product {
   @OneToMany(() => OrderItem, (orderItem) => orderItem.product)
   orderItems: OrderItem[];
   createdAt: Date;
+
+  /**
+   * Product reviews.
+   *
+   * Relationship:
+   *
+   * Product 1 ---- N Review
+   */
+  @OneToMany(() => Review, (review) => review.product)
+  reviews: Review[];
 
   /**
    * Creation timestamp.

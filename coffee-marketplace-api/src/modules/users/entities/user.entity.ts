@@ -14,6 +14,7 @@ import { Role } from '../../roles/entities/role.entity';
 import { UserStatus } from '../enums/user-status.enum';
 import { Address } from './address.entity';
 import { Cart } from '../../../modules/cart/entities';
+import { Review } from 'src/modules/reviews/entities/review.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -110,6 +111,16 @@ export class User {
   @OneToMany(() => Cart, (cart) => cart.user)
   carts: Cart[];
   createdAt: Date;
+
+  /**
+   * Reviews created by the user.
+   *
+   * Relationship:
+   *
+   * User 1 ---- N Review
+   */
+  @OneToMany(() => Review, (review) => review.user)
+  reviews: Review[];
 
   @UpdateDateColumn({
     name: 'updated_at',
