@@ -27,6 +27,8 @@ describe('ReviewController', () => {
     updateReview: jest.Mock;
 
     getProductReviews: jest.Mock;
+
+    deleteReview: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -39,6 +41,8 @@ describe('ReviewController', () => {
       updateReview: jest.fn(),
 
       getProductReviews: jest.fn(),
+
+      deleteReview: jest.fn(),
     };
 
     const module = await Test.createTestingModule({
@@ -273,6 +277,45 @@ describe('ReviewController', () => {
          * the service response.
          */
         expect(result).toEqual(response);
+      });
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * DELETE /reviews/:id
+     * ------------------------------------------------------------------------
+     */
+    describe('deleteReview', () => {
+      it('should delete own review successfully', async () => {
+        /**
+         * Authenticated user JWT payload.
+         */
+        const user = {
+          sub: 'user-id',
+        } as JwtPayload;
+
+        const reviewId = 'review-id';
+
+        /**
+         * Configure mocked service response.
+         */
+        service.deleteReview.mockResolvedValue(undefined);
+
+        /**
+         * Call controller method directly.
+         */
+        const result = await controller.deleteReview(reviewId, user);
+
+        /**
+         * Verify that user.sub and review ID
+         * are passed correctly to the service.
+         */
+        expect(service.deleteReview).toHaveBeenCalledWith('user-id', reviewId);
+
+        /**
+         * Verify successful deletion result.
+         */
+        expect(result).toBeUndefined();
       });
     });
   });
