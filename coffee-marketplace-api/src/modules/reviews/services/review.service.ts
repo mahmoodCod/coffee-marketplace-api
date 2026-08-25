@@ -14,7 +14,7 @@ import { Product } from '../../products/entities/product.entity';
 
 import { ReviewRepository } from '../repositories/review.repository';
 
-import { CreateReviewDto, ReviewResponseDto } from '../dto';
+import { CreateReviewDto, ReviewResponseDto } from '../dto/index.dto';
 
 import { Review } from '../entities/review.entity';
 
@@ -133,7 +133,7 @@ export class ReviewService {
 
       product,
 
-      ratinل: dto.rating,
+      rating: dto.rating,
 
       comment: dto.comment ?? null,
 
