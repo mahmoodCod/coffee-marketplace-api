@@ -96,6 +96,7 @@
 
 - A review belongs to one user.
 - A review belongs to one product.
+- A user can have only one review per product.
 
 --------------------------------------------
 
