@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,7 +15,11 @@ import { Product } from '../../products/entities/product.entity';
 
 import { ReviewRepository } from '../repositories/review.repository';
 
-import { CreateReviewDto, ReviewResponseDto } from '../dto/index.dto';
+import {
+  CreateReviewDto,
+  ReviewResponseDto,
+  UpdateReviewDto,
+} from '../dto/index.dto';
 
 import { Review } from '../entities/review.entity';
 
@@ -220,5 +225,69 @@ export class ReviewService {
 
       updatedAt: review.updatedAt,
     };
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Update Review
+   * ------------------------------------------------------------------------
+   *
+   * Updates a review belonging to the authenticated user.
+   *
+   * Business Rules:
+   *
+   * - Review must exist.
+   * - User can only update their own review.
+   * - Updated reviews require approval again.
+   * ------------------------------------------------------------------------
+   */
+  async updateReview(
+    userId: string,
+    reviewId: string,
+    dto: UpdateReviewDto,
+  ): Promise<ReviewResponseDto> {
+    /**
+     * Find the review together with
+     * its related user and product.
+     */
+    const review = await this.reviewRepository.findById(reviewId);
+
+    if (!review) {
+      throw new NotFoundException('Review not found.');
+    }
+
+    /**
+     * Ensure that users can only
+     * update their own reviews.
+     */
+    if (review.user.id !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to update this review.',
+      );
+    }
+
+    /**
+     * Update rating only when provided.
+     */
+    if (dto.rating !== undefined) {
+      review.rating = dto.rating;
+    }
+
+    /**
+     * Update comment only when provided.
+     */
+    if (dto.comment !== undefined) {
+      review.comment = dto.comment;
+    }
+
+    /**
+     * Any review modification requires
+     * approval again.
+     */
+    review.isApproved = false;
+
+    const updatedReview = await this.reviewRepository.save(review);
+
+    return this.toReviewResponse(updatedReview);
   }
 }
