@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
 
 import {
   ApiCreatedResponse,
@@ -72,10 +80,13 @@ export class ReviewController {
     @CurrentUser()
     user: JwtPayload,
 
+    @Param('productId', ParseUUIDPipe)
+    productId: string,
+
     @Body()
     dto: CreateReviewDto,
   ): Promise<ReviewResponseDto> {
-    return this.reviewService.createReview(user.sub, dto);
+    return this.reviewService.createReview(user.sub, productId, dto);
   }
 
   /**

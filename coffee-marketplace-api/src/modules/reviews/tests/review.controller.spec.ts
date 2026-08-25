@@ -4,7 +4,11 @@ import { ReviewController } from '../controllers/review.controller';
 
 import { ReviewService } from '../services/review.service';
 
-import { CreateReviewDto, ReviewResponseDto } from '../dto/index.dto';
+import {
+  CreateReviewDto,
+  ReviewResponseDto,
+  UpdateReviewDto,
+} from '../dto/index.dto';
 
 import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
 
@@ -20,6 +24,8 @@ describe('ReviewController', () => {
   let service: {
     createReview: jest.Mock;
 
+    updateReview: jest.Mock;
+
     getProductReviews: jest.Mock;
   };
 
@@ -29,6 +35,8 @@ describe('ReviewController', () => {
      */
     service = {
       createReview: jest.fn(),
+
+      updateReview: jest.fn(),
 
       getProductReviews: jest.fn(),
     };
@@ -102,13 +110,17 @@ describe('ReviewController', () => {
       /**
        * Call controller method directly.
        */
-      const result = await controller.createReview(user, dto);
+      const result = await controller.createReview(user, productId, dto);
 
       /**
        * Controller must extract user.sub
        * and pass it to the service.
        */
-      expect(service.createReview).toHaveBeenCalledWith('user-id', dto);
+      expect(service.createReview).toHaveBeenCalledWith(
+        'user-id',
+        productId,
+        dto,
+      );
 
       /**
        * Controller must return the service response.
@@ -188,6 +200,78 @@ describe('ReviewController', () => {
        * the service response.
        */
       expect(result).toEqual(response);
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * PATCH /reviews/:id
+     * ------------------------------------------------------------------------
+     */
+    describe('updateReview', () => {
+      it('should update own review successfully', async () => {
+        /**
+         * Authenticated user JWT payload.
+         */
+        const user = {
+          sub: 'user-id',
+        } as JwtPayload;
+
+        /**
+         * Review update request.
+         */
+        const dto: UpdateReviewDto = {
+          rating: 4,
+
+          comment: 'Updated review comment.',
+        };
+
+        /**
+         * Expected updated review response.
+         */
+        const response: ReviewResponseDto = {
+          id: 'review-id',
+
+          userId: 'user-id',
+
+          productId: 'product-id',
+
+          rating: 4,
+
+          isApproved: false,
+
+          comment: 'Updated review comment.',
+
+          createdAt: new Date(),
+
+          updatedAt: new Date(),
+        };
+
+        /**
+         * Configure mocked service response.
+         */
+        service.updateReview.mockResolvedValue(response);
+
+        /**
+         * Call controller method directly.
+         */
+        const result = await controller.updateReview('review-id', user, dto);
+
+        /**
+         * Verify that user.sub is passed
+         * as the authenticated user ID.
+         */
+        expect(service.updateReview).toHaveBeenCalledWith(
+          'user-id',
+          'review-id',
+          dto,
+        );
+
+        /**
+         * Verify that the controller returns
+         * the service response.
+         */
+        expect(result).toEqual(response);
+      });
     });
   });
 });
