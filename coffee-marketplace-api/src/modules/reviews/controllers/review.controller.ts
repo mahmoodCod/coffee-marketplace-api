@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -159,5 +160,41 @@ export class ReviewController {
      * to the service layer.
      */
     return this.reviewService.updateReview(user.sub, reviewId, dto);
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * DELETE /reviews/:id
+   * ------------------------------------------------------------------------
+   *
+   * Deletes a review belonging to
+   * the authenticated user.
+   *
+   * Business Rules:
+   *
+   * - Users can only delete their own reviews.
+   * - The authenticated user ID is extracted
+   *   from the JWT payload.
+   * ------------------------------------------------------------------------
+   */
+  @Delete('reviews/:id')
+  @ApiOperation({
+    summary: 'Delete own review',
+  })
+  @ApiOkResponse({
+    description: 'Review deleted successfully.',
+  })
+  async deleteReview(
+    @Param('id')
+    reviewId: string,
+
+    @CurrentUser()
+    user: JwtPayload,
+  ): Promise<void> {
+    /**
+     * Pass the authenticated user ID
+     * and review ID to the service.
+     */
+    await this.reviewService.deleteReview(user.sub, reviewId);
   }
 }
