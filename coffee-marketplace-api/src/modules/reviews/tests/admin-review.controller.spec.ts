@@ -5,6 +5,8 @@ import { AdminReviewController } from '../controllers/admin-review.controller';
 import { ReviewService } from '../services/review.service';
 
 import { ReviewResponseDto } from '../dto/review-response.dto';
+import { Role } from 'src/modules/roles/entities/role.entity';
+import { Roles } from 'src/common/decorators/roles.decorator';
 
 describe('AdminReviewController', () => {
   let controller: AdminReviewController;
@@ -134,6 +136,26 @@ describe('AdminReviewController', () => {
        * Controller returns the service response.
        */
       expect(result).toEqual(response);
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Access Control
+     * ------------------------------------------------------------------------
+     */
+    describe('access control', () => {
+      it('should require JwtAuthGuard', () => {
+        const guards = Reflect.getMetadata('__guards__', AdminReviewController);
+
+        expect(guards).toBeDefined();
+        expect(guards.length).toBe(2);
+      });
+
+      it('should require ADMIN role', () => {
+        const roles = Reflect.getMetadata('roles', AdminReviewController);
+
+        expect(roles).toContain('admin');
+      });
     });
   });
 });
