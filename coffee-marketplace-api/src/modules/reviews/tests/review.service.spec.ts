@@ -864,12 +864,12 @@ describe('ReviewService', () => {
     describe('approveReview', () => {
       it('should approve review and recalculate product rating', async () => {
         const reviewId = 'review-id';
-    
+
         const product = {
           id: 'product-id',
           rating: 0,
         } as Product;
-    
+
         const review = {
           id: reviewId,
           user: {
@@ -882,7 +882,7 @@ describe('ReviewService', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
         } as Review;
-    
+
         const approvedReviews = [
           {
             ...review,
@@ -902,41 +902,37 @@ describe('ReviewService', () => {
             updatedAt: new Date(),
           },
         ] as Review[];
-    
+
         reviewRepository.findById.mockResolvedValue(review);
-    
+
         reviewRepository.save.mockResolvedValue(review);
-    
+
         reviewRepository.findApprovedByProductId.mockResolvedValue(
           approvedReviews,
         );
-    
+
         productRepository.save.mockResolvedValue(product);
-    
+
         const result = await service.approveReview(reviewId);
-    
-        expect(
-          reviewRepository.findById,
-        ).toHaveBeenCalledWith(reviewId);
-    
+
+        expect(reviewRepository.findById).toHaveBeenCalledWith(reviewId);
+
         expect(review.isApproved).toBe(true);
-    
-        expect(
-          reviewRepository.findApprovedByProductId,
-        ).toHaveBeenCalledWith('product-id');
-    
+
+        expect(reviewRepository.findApprovedByProductId).toHaveBeenCalledWith(
+          'product-id',
+        );
+
         /**
          * (5 + 4) / 2 = 4.5
          */
         expect(product.rating).toBe(4.5);
-    
-        expect(
-          productRepository.save,
-        ).toHaveBeenCalledWith(product);
-    
+
+        expect(productRepository.save).toHaveBeenCalledWith(product);
+
         expect(result.isApproved).toBe(true);
       });
-    
+
       it('should reject approving an already approved review', async () => {
         const review = {
           id: 'review-id',
@@ -952,400 +948,120 @@ describe('ReviewService', () => {
           createdAt: new Date(),
           updatedAt: new Date(),
         } as Review;
-    
+
         reviewRepository.findById.mockResolvedValue(review);
-    
-        await expect(
-          service.approveReview('review-id'),
-        ).rejects.toThrow(
+
+        await expect(service.approveReview('review-id')).rejects.toThrow(
           'Review is already approved.',
         );
-    
-        expect(
-          reviewRepository.save,
-        ).not.toHaveBeenCalled();
-      });
-    });
-      /**
-       * --------------------------------------------------
-       * Successful review approval
-       * --------------------------------------------------
-       */
-      it('should approve review successfully', async () => {
-        const review = createReview();
-
-        const approvedReviews = [
-          {
-            ...review,
-
-            isApproved: true,
-
-            rating: 5,
-          },
-
-          {
-            ...createReview(),
-
-            id: 'another-review-id',
-
-            isApproved: true,
-
-            rating: 3,
-          },
-        ];
-
-        reviewRepository.findById.mockResolvedValue(review);
-
-        reviewRepository.save.mockResolvedValue(review);
-
-        reviewRepository.findApprovedByProductId.mockResolvedValue(
-          approvedReviews,
-        );
-
-        productRepository.save.mockResolvedValue({
-          ...review.product,
-
-          rating: 4,
-        });
-
-        const result = await service.approveReview(reviewId);
-
-        /**
-         * Verify review lookup.
-         */
-        expect(reviewRepository.findById).toHaveBeenCalledWith(reviewId);
-
-        /**
-         * Review must become approved.
-         */
-        expect(review.isApproved).toBe(true);
-
-        expect(reviewRepository.save).toHaveBeenCalledWith(review);
-
-        /**
-         * Approved reviews must be loaded
-         * for product rating calculation.
-         */
-        expect(reviewRepository.findApprovedByProductId).toHaveBeenCalledWith(
-          'product-id',
-        );
-
-        /**
-         * Average rating:
-         *
-         * (5 + 3) / 2 = 4
-         */
-        expect(review.product.rating).toBe(4);
-
-        expect(productRepository.save).toHaveBeenCalledWith(review.product);
-
-        expect(result).toEqual({
-          id: review.id,
-
-          userId: 'user-id',
-
-          productId: 'product-id',
-
-          rating: 5,
-
-          isApproved: true,
-
-          comment: 'Excellent coffee.',
-
-          createdAt: review.createdAt,
-
-          updatedAt: review.updatedAt,
-        });
-      });
-
-      /**
-       * --------------------------------------------------
-       * Review does not exist
-       * --------------------------------------------------
-       */
-      it('should throw NotFoundException when review does not exist', async () => {
-        reviewRepository.findById.mockResolvedValue(null);
-
-        await expect(service.approveReview(reviewId)).rejects.toThrow(
-          NotFoundException,
-        );
 
         expect(reviewRepository.save).not.toHaveBeenCalled();
-
-        expect(productRepository.save).not.toHaveBeenCalled();
       });
-
       /**
-       * --------------------------------------------------
-       * Review already approved
-       * --------------------------------------------------
+       * ------------------------------------------------------------------------
+       * Reject Review
+       * ------------------------------------------------------------------------
        */
-      it('should throw BadRequestException when review is already approved', async () => {
-        const review = createReview();
+      describe('rejectReview', () => {
+        it('should reject an approved review and recalculate product rating', async () => {
+          const product = {
+            id: 'product-id',
+            rating: 4.5,
+          } as Product;
 
-        review.isApproved = true;
-
-        reviewRepository.findById.mockResolvedValue(review);
-
-        await expect(service.approveReview(reviewId)).rejects.toThrow(
-          BadRequestException,
-        );
-
-        expect(reviewRepository.save).not.toHaveBeenCalled();
-
-        expect(productRepository.save).not.toHaveBeenCalled();
-      });
-    });
-
-    /**
-     * ------------------------------------------------------------------------
-     * Reject Review
-     * ------------------------------------------------------------------------
-     */
-    describe('rejectReview', () => {
-      it('should reject an approved review and recalculate product rating', async () => {
-        const product = {
-          id: 'product-id',
-          rating: 4.5,
-        } as Product;
-    
-        const review = {
-          id: 'review-id',
-          user: {
-            id: 'user-id',
-          },
-          product,
-          rating: 5,
-          isApproved: true,
-          comment: 'Excellent coffee.',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        } as Review;
-    
-        const remainingApprovedReviews = [
-          {
-            id: 'review-2',
+          const review = {
+            id: 'review-id',
             user: {
-              id: 'user-2',
+              id: 'user-id',
             },
             product,
-            rating: 4,
+            rating: 5,
             isApproved: true,
-            comment: 'Very good.',
+            comment: 'Excellent coffee.',
             createdAt: new Date(),
             updatedAt: new Date(),
-          },
-        ] as Review[];
-    
-        reviewRepository.findById.mockResolvedValue(review);
-    
-        reviewRepository.save.mockResolvedValue(review);
-    
-        reviewRepository.findApprovedByProductId.mockResolvedValue(
-          remainingApprovedReviews,
-        );
-    
-        productRepository.save.mockResolvedValue(product);
-    
-        const result = await service.rejectReview(
-          'review-id',
-        );
-    
-        expect(
-          reviewRepository.findById,
-        ).toHaveBeenCalledWith('review-id');
-    
-        expect(review.isApproved).toBe(false);
-    
-        expect(
-          reviewRepository.findApprovedByProductId,
-        ).toHaveBeenCalledWith('product-id');
-    
-        /**
-         * Only the remaining approved review has rating 4.
-         */
-        expect(product.rating).toBe(4);
-    
-        expect(
-          productRepository.save,
-        ).toHaveBeenCalledWith(product);
-    
-        expect(result.isApproved).toBe(false);
-      });
-    
-      it('should reject an unapproved review without recalculating product rating', async () => {
-        const product = {
-          id: 'product-id',
-          rating: 4.5,
-        } as Product;
-    
-        const review = {
-          id: 'review-id',
-          user: {
-            id: 'user-id',
-          },
-          product,
-          rating: 5,
-          isApproved: false,
-          comment: 'Pending review.',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        } as Review;
-    
-        reviewRepository.findById.mockResolvedValue(review);
-    
-        reviewRepository.save.mockResolvedValue(review);
-    
-        const result = await service.rejectReview(
-          'review-id',
-        );
-    
-        expect(review.isApproved).toBe(false);
-    
-        expect(
-          reviewRepository.findApprovedByProductId,
-        ).not.toHaveBeenCalled();
-    
-        expect(
-          productRepository.save,
-        ).not.toHaveBeenCalled();
-    
-        expect(result.isApproved).toBe(false);
-      });
-    });
-      /**
-       * --------------------------------------------------
-       * Reject an approved review successfully
-       * --------------------------------------------------
-       */
-      it('should reject an approved review successfully', async () => {
-        const review = createReview(true);
+          } as Review;
 
-        /**
-         * Remaining approved reviews after
-         * the current review is rejected.
-         */
-        const approvedReviews = [
-          {
-            ...createReview(true),
+          const remainingApprovedReviews = [
+            {
+              id: 'review-2',
+              user: {
+                id: 'user-2',
+              },
+              product,
+              rating: 4,
+              isApproved: true,
+              comment: 'Very good.',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          ] as Review[];
 
-            id: 'another-review-id',
+          reviewRepository.findById.mockResolvedValue(review);
 
-            rating: 3,
-          },
-        ];
+          reviewRepository.save.mockResolvedValue(review);
 
-        reviewRepository.findById.mockResolvedValue(review);
+          reviewRepository.findApprovedByProductId.mockResolvedValue(
+            remainingApprovedReviews,
+          );
 
-        reviewRepository.save.mockResolvedValue(review);
+          productRepository.save.mockResolvedValue(product);
 
-        reviewRepository.findApprovedByProductId.mockResolvedValue(
-          approvedReviews,
-        );
+          const result = await service.rejectReview('review-id');
 
-        productRepository.save.mockResolvedValue({
-          ...review.product,
+          expect(reviewRepository.findById).toHaveBeenCalledWith('review-id');
 
-          rating: 3,
+          expect(review.isApproved).toBe(false);
+
+          expect(reviewRepository.findApprovedByProductId).toHaveBeenCalledWith(
+            'product-id',
+          );
+
+          /**
+           * Only the remaining approved review has rating 4.
+           */
+          expect(product.rating).toBe(4);
+
+          expect(productRepository.save).toHaveBeenCalledWith(product);
+
+          expect(result.isApproved).toBe(false);
         });
 
-        const result = await service.rejectReview(reviewId);
+        it('should reject an unapproved review without recalculating product rating', async () => {
+          const product = {
+            id: 'product-id',
+            rating: 4.5,
+          } as Product;
 
-        /**
-         * Verify review lookup.
-         */
-        expect(reviewRepository.findById).toHaveBeenCalledWith(reviewId);
+          const review = {
+            id: 'review-id',
+            user: {
+              id: 'user-id',
+            },
+            product,
+            rating: 5,
+            isApproved: false,
+            comment: 'Pending review.',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } as Review;
 
-        /**
-         * Review must become rejected.
-         */
-        expect(review.isApproved).toBe(false);
+          reviewRepository.findById.mockResolvedValue(review);
 
-        expect(reviewRepository.save).toHaveBeenCalledWith(review);
+          reviewRepository.save.mockResolvedValue(review);
 
-        /**
-         * Product rating must be recalculated
-         * because this review was previously approved.
-         */
-        expect(reviewRepository.findApprovedByProductId).toHaveBeenCalledWith(
-          'product-id',
-        );
+          const result = await service.rejectReview('review-id');
 
-        /**
-         * The remaining approved review has rating 3,
-         * so the product rating should become 3.
-         */
-        expect(review.product.rating).toBe(3);
+          expect(review.isApproved).toBe(false);
 
-        expect(productRepository.save).toHaveBeenCalledWith(review.product);
+          expect(
+            reviewRepository.findApprovedByProductId,
+          ).not.toHaveBeenCalled();
 
-        expect(result).toEqual({
-          id: review.id,
+          expect(productRepository.save).not.toHaveBeenCalled();
 
-          userId: 'user-id',
-
-          productId: 'product-id',
-
-          rating: 5,
-
-          isApproved: false,
-
-          comment: 'Excellent coffee.',
-
-          createdAt: review.createdAt,
-
-          updatedAt: review.updatedAt,
+          expect(result.isApproved).toBe(false);
         });
-      });
-
-      /**
-       * --------------------------------------------------
-       * Reject an already rejected review
-       * --------------------------------------------------
-       */
-      it('should reject an already rejected review without recalculating product rating', async () => {
-        const review = createReview(false);
-
-        reviewRepository.findById.mockResolvedValue(review);
-
-        reviewRepository.save.mockResolvedValue(review);
-
-        const result = await service.rejectReview(reviewId);
-
-        /**
-         * Review remains rejected.
-         */
-        expect(review.isApproved).toBe(false);
-
-        expect(reviewRepository.save).toHaveBeenCalledWith(review);
-
-        /**
-         * Product rating must not be recalculated
-         * because this review was already rejected
-         * and did not affect the rating.
-         */
-        expect(reviewRepository.findApprovedByProductId).not.toHaveBeenCalled();
-
-        expect(productRepository.save).not.toHaveBeenCalled();
-
-        expect(result.isApproved).toBe(false);
-      });
-
-      /**
-       * --------------------------------------------------
-       * Review does not exist
-       * --------------------------------------------------
-       */
-      it('should throw NotFoundException when review does not exist', async () => {
-        reviewRepository.findById.mockResolvedValue(null);
-
-        await expect(service.rejectReview(reviewId)).rejects.toThrow(
-          NotFoundException,
-        );
-
-        expect(reviewRepository.save).not.toHaveBeenCalled();
-
-        expect(productRepository.save).not.toHaveBeenCalled();
       });
     });
   });
