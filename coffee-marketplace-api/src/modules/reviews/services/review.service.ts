@@ -404,4 +404,78 @@ export class ReviewService {
 
     return this.toReviewResponse(approvedReview);
   }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Reject Review
+   * ------------------------------------------------------------------------
+   *
+   * Rejects a product review.
+   *
+   * Rejected reviews are not visible to customers
+   * and do not affect the product rating.
+   *
+   * Business Rules:
+   *
+   * - Review must exist.
+   * - A rejected review must not remain approved.
+   * - Product rating must be recalculated when
+   *   an approved review is rejected.
+   * ------------------------------------------------------------------------
+   */
+  async rejectReview(reviewId: string): Promise<ReviewResponseDto> {
+    /**
+     * Find the review before updating
+     * its approval status.
+     */
+    const review = await this.reviewRepository.findById(reviewId);
+
+    if (!review) {
+      throw new NotFoundException('Review not found.');
+    }
+
+    /**
+     * Store the previous approval state.
+     *
+     * Product rating only needs to be recalculated
+     * when an approved review becomes rejected.
+     */
+    const wasApproved = review.isApproved;
+
+    /**
+     * Reject the review.
+     */
+    review.isApproved = false;
+
+    const rejectedReview = await this.reviewRepository.save(review);
+
+    /**
+     * Recalculate the product rating only when
+     * the rejected review previously affected it.
+     */
+    if (wasApproved) {
+      const approvedReviews =
+        await this.reviewRepository.findApprovedByProductId(
+          rejectedReview.product.id,
+        );
+
+      const totalRating = approvedReviews.reduce(
+        (total, currentReview) => total + currentReview.rating,
+        0,
+      );
+
+      const averageRating =
+        approvedReviews.length > 0 ? totalRating / approvedReviews.length : 0;
+
+      /**
+       * Update the product rating using only
+       * the remaining approved reviews.
+       */
+      rejectedReview.product.rating = Number(averageRating.toFixed(2));
+
+      await this.productRepository.save(rejectedReview.product);
+    }
+
+    return this.toReviewResponse(rejectedReview);
+  }
 }
