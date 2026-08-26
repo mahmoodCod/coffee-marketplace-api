@@ -38,6 +38,7 @@ describe('ReviewService', () => {
 
   let productRepository: {
     findOne: jest.Mock;
+    save: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -73,6 +74,7 @@ describe('ReviewService', () => {
      */
     productRepository = {
       findOne: jest.fn(),
+      save: jest.fn(),
     };
 
     const module = await Test.createTestingModule({
@@ -760,6 +762,174 @@ describe('ReviewService', () => {
          * be deleted.
          */
         expect(reviewRepository.remove).not.toHaveBeenCalled();
+      });
+    });
+
+    /**
+     * ------------------------------------------------------------------------
+     * Approve Review
+     * ------------------------------------------------------------------------
+     */
+    describe('approveReview', () => {
+      const reviewId = 'review-id';
+
+      /**
+       * Creates a reusable review entity.
+       */
+      const createReview = (): Review => {
+        return {
+          id: reviewId,
+
+          user: {
+            id: 'user-id',
+          },
+
+          product: {
+            id: 'product-id',
+
+            rating: 0,
+          },
+
+          rating: 5,
+
+          comment: 'Excellent coffee.',
+
+          isApproved: false,
+
+          createdAt: new Date(),
+
+          updatedAt: new Date(),
+        } as Review;
+      };
+
+      /**
+       * --------------------------------------------------
+       * Successful review approval
+       * --------------------------------------------------
+       */
+      it('should approve review successfully', async () => {
+        const review = createReview();
+
+        const approvedReviews = [
+          {
+            ...review,
+
+            isApproved: true,
+
+            rating: 5,
+          },
+
+          {
+            ...createReview(),
+
+            id: 'another-review-id',
+
+            isApproved: true,
+
+            rating: 3,
+          },
+        ];
+
+        reviewRepository.findById.mockResolvedValue(review);
+
+        reviewRepository.save.mockResolvedValue(review);
+
+        reviewRepository.findApprovedByProductId.mockResolvedValue(
+          approvedReviews,
+        );
+
+        productRepository.save.mockResolvedValue({
+          ...review.product,
+
+          rating: 4,
+        });
+
+        const result = await service.approveReview(reviewId);
+
+        /**
+         * Verify review lookup.
+         */
+        expect(reviewRepository.findById).toHaveBeenCalledWith(reviewId);
+
+        /**
+         * Review must become approved.
+         */
+        expect(review.isApproved).toBe(true);
+
+        expect(reviewRepository.save).toHaveBeenCalledWith(review);
+
+        /**
+         * Approved reviews must be loaded
+         * for product rating calculation.
+         */
+        expect(reviewRepository.findApprovedByProductId).toHaveBeenCalledWith(
+          'product-id',
+        );
+
+        /**
+         * Average rating:
+         *
+         * (5 + 3) / 2 = 4
+         */
+        expect(review.product.rating).toBe(4);
+
+        expect(productRepository.save).toHaveBeenCalledWith(review.product);
+
+        expect(result).toEqual({
+          id: review.id,
+
+          userId: 'user-id',
+
+          productId: 'product-id',
+
+          rating: 5,
+
+          isApproved: true,
+
+          comment: 'Excellent coffee.',
+
+          createdAt: review.createdAt,
+
+          updatedAt: review.updatedAt,
+        });
+      });
+
+      /**
+       * --------------------------------------------------
+       * Review does not exist
+       * --------------------------------------------------
+       */
+      it('should throw NotFoundException when review does not exist', async () => {
+        reviewRepository.findById.mockResolvedValue(null);
+
+        await expect(service.approveReview(reviewId)).rejects.toThrow(
+          NotFoundException,
+        );
+
+        expect(reviewRepository.save).not.toHaveBeenCalled();
+
+        expect(productRepository.save).not.toHaveBeenCalled();
+      });
+
+      /**
+       * --------------------------------------------------
+       * Review already approved
+       * --------------------------------------------------
+       */
+      it('should throw BadRequestException when review is already approved', async () => {
+        const review = createReview();
+
+        review.isApproved = true;
+
+        reviewRepository.findById.mockResolvedValue(review);
+
+        await expect(service.approveReview(reviewId)).rejects.toThrow(
+          BadRequestException,
+        );
+
+        expect(reviewRepository.save).not.toHaveBeenCalled();
+
+        expect(productRepository.save).not.toHaveBeenCalled();
       });
     });
   });
