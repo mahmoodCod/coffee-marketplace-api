@@ -319,6 +319,9 @@ describe('ReviewService', () => {
       describe('getProductReviews', () => {
         it('should return only approved reviews', async () => {
           const productId = 'product-id';
+          productRepository.findOne.mockResolvedValue({
+            id: productId,
+          } as Product);
 
           const approvedReviews = [
             {
@@ -382,6 +385,10 @@ describe('ReviewService', () => {
 
         it('should return an empty array when product has no approved reviews', async () => {
           const productId = 'product-id';
+
+          productRepository.findOne.mockResolvedValue({
+            id: productId,
+          } as Product);
 
           reviewRepository.findApprovedByProductId.mockResolvedValue([]);
 
