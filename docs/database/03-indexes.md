@@ -84,6 +84,10 @@ orders (user_id, created_at)
 
 orders (status, created_at)
 
+notifications (user_id, created_at)
+
+notifications (user_id, is_read)
+
 products (status, created_at)
 
 products (seller_id, status)

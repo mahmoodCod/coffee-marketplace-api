@@ -79,7 +79,6 @@ Responsible for:
 
 - Sending SMS
 - Sending email
-- Sending system notifications
 
 ---
 
