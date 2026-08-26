@@ -862,37 +862,110 @@ describe('ReviewService', () => {
      * ------------------------------------------------------------------------
      */
     describe('approveReview', () => {
-      const reviewId = 'review-id';
-
-      /**
-       * Creates a reusable review entity.
-       */
-      const createReview = (): Review => {
-        return {
+      it('should approve review and recalculate product rating', async () => {
+        const reviewId = 'review-id';
+    
+        const product = {
+          id: 'product-id',
+          rating: 0,
+        } as Product;
+    
+        const review = {
           id: reviewId,
-
           user: {
             id: 'user-id',
           },
-
-          product: {
-            id: 'product-id',
-
-            rating: 0,
-          },
-
+          product,
           rating: 5,
-
-          comment: 'Excellent coffee.',
-
           isApproved: false,
-
+          comment: 'Excellent coffee.',
           createdAt: new Date(),
-
           updatedAt: new Date(),
         } as Review;
-      };
-
+    
+        const approvedReviews = [
+          {
+            ...review,
+            rating: 5,
+            isApproved: true,
+          },
+          {
+            id: 'review-2',
+            user: {
+              id: 'user-2',
+            },
+            product,
+            rating: 4,
+            isApproved: true,
+            comment: 'Very good.',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ] as Review[];
+    
+        reviewRepository.findById.mockResolvedValue(review);
+    
+        reviewRepository.save.mockResolvedValue(review);
+    
+        reviewRepository.findApprovedByProductId.mockResolvedValue(
+          approvedReviews,
+        );
+    
+        productRepository.save.mockResolvedValue(product);
+    
+        const result = await service.approveReview(reviewId);
+    
+        expect(
+          reviewRepository.findById,
+        ).toHaveBeenCalledWith(reviewId);
+    
+        expect(review.isApproved).toBe(true);
+    
+        expect(
+          reviewRepository.findApprovedByProductId,
+        ).toHaveBeenCalledWith('product-id');
+    
+        /**
+         * (5 + 4) / 2 = 4.5
+         */
+        expect(product.rating).toBe(4.5);
+    
+        expect(
+          productRepository.save,
+        ).toHaveBeenCalledWith(product);
+    
+        expect(result.isApproved).toBe(true);
+      });
+    
+      it('should reject approving an already approved review', async () => {
+        const review = {
+          id: 'review-id',
+          user: {
+            id: 'user-id',
+          },
+          product: {
+            id: 'product-id',
+          } as Product,
+          rating: 5,
+          isApproved: true,
+          comment: 'Excellent.',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as Review;
+    
+        reviewRepository.findById.mockResolvedValue(review);
+    
+        await expect(
+          service.approveReview('review-id'),
+        ).rejects.toThrow(
+          'Review is already approved.',
+        );
+    
+        expect(
+          reviewRepository.save,
+        ).not.toHaveBeenCalled();
+      });
+    });
       /**
        * --------------------------------------------------
        * Successful review approval
