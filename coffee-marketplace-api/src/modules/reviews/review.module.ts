@@ -6,8 +6,6 @@ import { Review } from './entities/review.entity';
 
 import { Product } from '../products/entities/product.entity';
 
-import { Order } from '../orders/entities/order.entity';
-
 import { ReviewController } from './controllers/review.controller';
 
 import { AdminReviewController } from './controllers/admin-review.controller';
@@ -15,6 +13,9 @@ import { AdminReviewController } from './controllers/admin-review.controller';
 import { ReviewService } from './services/review.service';
 
 import { ReviewRepository } from './repositories/review.repository';
+import { User } from '../users/entities/user.entity';
+import { Order } from '../orders/entities';
+import { OrdersModule } from '../orders/order.module';
 
 /**
  * ------------------------------------------------------------------------
@@ -35,7 +36,10 @@ import { ReviewRepository } from './repositories/review.repository';
  * ------------------------------------------------------------------------
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Review, Product, Order])],
+  imports: [
+    TypeOrmModule.forFeature([Review, Product, Order, User]),
+    OrdersModule,
+  ],
 
   controllers: [ReviewController, AdminReviewController],
 
