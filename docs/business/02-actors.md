@@ -43,6 +43,7 @@ Has a user account.
 - Manage addresses
 - View product details
 - View notifications
+- Mark notifications as read
 - View articles
 - View user reviews
 - Apply discount code
@@ -104,10 +105,9 @@ External payment system
 -----------------------------------
 
 ## 6. Notification Service
-Message sending system
+External SMS and email delivery system.
 
 ### Responsibilities
 
 - Send email
 - Send SMS
-- Send notifications

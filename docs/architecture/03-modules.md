@@ -140,8 +140,10 @@ Responsible for:
 Responsible for:
 
 - Creating notifications
-- Managing notification history
-- Communicating with external SMS and email providers
+- Listing user notifications
+- Marking notifications as read
+- Sending SMS through SMS Provider
+- Sending email through Email Provider
 
 -------------------------------------
 

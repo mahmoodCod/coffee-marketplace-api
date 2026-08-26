@@ -84,9 +84,12 @@
 
 ## Notifications
 
+- Users can only view their own notifications.
+- Users can only mark their own notifications as read.
+- New notifications are unread by default.
+- Users receive a notification upon successful registration.
 - Users receive a notification after a successful payment.
 - Users receive a notification when their order status changes.
-- Users receive a notification upon successful registration.
 
 -------------------------------
 
