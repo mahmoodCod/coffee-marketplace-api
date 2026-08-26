@@ -310,6 +310,90 @@ describe('ReviewService', () => {
           productId,
         );
       });
+
+      /**
+       * ------------------------------------------------------------------------
+       * Get Product Reviews
+       * ------------------------------------------------------------------------
+       */
+      describe('getProductReviews', () => {
+        it('should return only approved reviews', async () => {
+          const productId = 'product-id';
+
+          const approvedReviews = [
+            {
+              id: 'review-1',
+
+              user: {
+                id: 'user-1',
+              },
+
+              product: {
+                id: productId,
+              },
+
+              rating: 5,
+
+              comment: 'Excellent coffee.',
+
+              isApproved: true,
+
+              createdAt: new Date(),
+
+              updatedAt: new Date(),
+            },
+            {
+              id: 'review-2',
+
+              user: {
+                id: 'user-2',
+              },
+
+              product: {
+                id: productId,
+              },
+
+              rating: 4,
+
+              comment: 'Very good.',
+
+              isApproved: true,
+
+              createdAt: new Date(),
+
+              updatedAt: new Date(),
+            },
+          ] as Review[];
+
+          reviewRepository.findApprovedByProductId.mockResolvedValue(
+            approvedReviews,
+          );
+
+          const result = await service.getProductReviews(productId);
+
+          expect(reviewRepository.findApprovedByProductId).toHaveBeenCalledWith(
+            productId,
+          );
+
+          expect(result).toHaveLength(2);
+
+          expect(result.every((review) => review.isApproved)).toBe(true);
+        });
+
+        it('should return an empty array when product has no approved reviews', async () => {
+          const productId = 'product-id';
+
+          reviewRepository.findApprovedByProductId.mockResolvedValue([]);
+
+          const result = await service.getProductReviews(productId);
+
+          expect(reviewRepository.findApprovedByProductId).toHaveBeenCalledWith(
+            productId,
+          );
+
+          expect(result).toEqual([]);
+        });
+      });
     });
 
     /**
