@@ -1,10 +1,14 @@
-import { Controller, Param, Patch } from '@nestjs/common';
+import { Controller, Param, Patch, UseGuards } from '@nestjs/common';
 
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ReviewService } from '../services/review.service';
 
 import { ReviewResponseDto } from '../dto/review-response.dto';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { Role } from 'src/modules/roles/entities/role.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -25,6 +29,9 @@ import { ReviewResponseDto } from '../dto/review-response.dto';
  * - Rejected reviews do not affect product ratings.
  * ------------------------------------------------------------------------
  */
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin')
 @ApiTags('Admin Reviews')
 @Controller('admin/reviews')
 export class AdminReviewController {
