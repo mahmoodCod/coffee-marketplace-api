@@ -11,6 +11,8 @@ import { Repository } from 'typeorm';
 
 import { OrderRepository } from '../../orders/repositories/order.repository';
 
+import { OrderStatus } from '../../orders/enums';
+
 import { Product } from '../../products/entities/product.entity';
 
 import { ReviewRepository } from '../repositories/review.repository';
@@ -32,16 +34,19 @@ import { User } from '../../users/entities/user.entity';
  *
  * Handles review business logic.
  *
- * Current Responsibilities:
- *
+ * Responsibilities:
  * - Create product reviews.
+ * - Retrieve approved product reviews.
+ * - Update and delete own reviews.
+ * - Approve and reject reviews.
+ * - Recalculate product ratings from approved reviews.
  *
  * Business Rules:
- *
  * - Product must exist.
  * - Customer must have purchased the product.
  * - A customer can submit only one review per product.
  * - New reviews are not publicly visible until approved.
+ * - Only approved reviews affect product rating.
  * --------------------------------------------------------------------------
  */
 @Injectable()
@@ -56,28 +61,13 @@ export class ReviewService {
   ) {}
 
   /**
-   * ------------------------------------------------------------------------
-   * Create Review
-   * ------------------------------------------------------------------------
-   *
    * Creates a review for a product.
-   *
-   * Business Rules:
-   *
-   * 1. Product must exist.
-   * 2. Customer must have previously purchased the product.
-   * 3. Customer can only submit one review per product.
-   * 4. New reviews are created as unapproved.
-   * ------------------------------------------------------------------------
    */
   async createReview(
     userId: string,
     productId: string,
     dto: CreateReviewDto,
   ): Promise<ReviewResponseDto> {
-    /**
-     * Ensure that the product exists.
-     */
     const product = await this.productRepository.findOne({
       where: {
         id: productId,
@@ -88,10 +78,6 @@ export class ReviewService {
       throw new NotFoundException('Product not found.');
     }
 
-    /**
-     * Check whether the user has already submitted
-     * a review for this product.
-     */
     const existingReview = await this.reviewRepository.findByUserIdAndProductId(
       userId,
       productId,
@@ -104,19 +90,15 @@ export class ReviewService {
     }
 
     /**
-     * Find all orders belonging to the user.
-     *
-     * The customer must have purchased the product
-     * before being allowed to submit a review.
+     * The customer must have completed a purchase
+     * for the product before submitting a review.
      */
     const orders = await this.orderRepository.findAllByUserId(userId);
 
-    /**
-     * Check whether the requested product exists
-     * in at least one of the user's orders.
-     */
-    const hasPurchasedProduct = orders.some((order) =>
-      order.items?.some((item) => item.product.id === productId),
+    const hasPurchasedProduct = orders.some(
+      (order) =>
+        this.isCompletedPurchase(order.status) &&
+        order.items?.some((item) => item.product.id === productId),
     );
 
     if (!hasPurchasedProduct) {
@@ -125,12 +107,6 @@ export class ReviewService {
       );
     }
 
-    /**
-     * Create a new review.
-     *
-     * Every new review requires admin approval
-     * before becoming publicly visible.
-     */
     const review = this.reviewRepository.create({
       user: {
         id: userId,
@@ -145,33 +121,15 @@ export class ReviewService {
       isApproved: false,
     });
 
-    /**
-     * Save the new review.
-     */
     const savedReview = await this.reviewRepository.save(review);
 
     return this.toReviewResponse(savedReview);
   }
 
   /**
-   * ------------------------------------------------------------------------
-   * Get Product Reviews
-   * ------------------------------------------------------------------------
-   *
-   * Returns all approved reviews belonging
-   * to a specific product.
-   *
-   * Business Rules:
-   *
-   * - Product must exist.
-   * - Only approved reviews are visible publicly.
-   * - Reviews are returned in descending creation order.
-   * ------------------------------------------------------------------------
+   * Returns approved reviews for a product.
    */
   async getProductReviews(productId: string): Promise<ReviewResponseDto[]> {
-    /**
-     * Ensure that the requested product exists.
-     */
     const product = await this.productRepository.findOne({
       where: {
         id: productId,
@@ -182,100 +140,49 @@ export class ReviewService {
       throw new NotFoundException('Product not found.');
     }
 
-    /**
-     * Retrieve only approved reviews.
-     *
-     * Pending or rejected reviews must not
-     * be visible to customers.
-     */
     const reviews =
       await this.reviewRepository.findApprovedByProductId(productId);
 
-    /**
-     * Convert review entities into
-     * public response DTOs.
-     */
     return reviews.map((review) => this.toReviewResponse(review));
   }
 
   /**
-   * ------------------------------------------------------------------------
-   * Map Review To Response DTO
-   * ------------------------------------------------------------------------
-   *
-   * Converts a Review entity into
-   * the API response structure.
-   * ------------------------------------------------------------------------
+   * Returns all reviews for admin moderation.
    */
-  private toReviewResponse(review: Review): ReviewResponseDto {
-    return {
-      id: review.id,
+  async getAllReviews(): Promise<ReviewResponseDto[]> {
+    const reviews = await this.reviewRepository.findAll();
 
-      userId: review.user.id,
-
-      productId: review.product.id,
-
-      rating: review.rating,
-
-      isApproved: review.isApproved,
-
-      comment: review.comment,
-
-      createdAt: review.createdAt,
-
-      updatedAt: review.updatedAt,
-    };
+    return reviews.map((review) => this.toReviewResponse(review));
   }
 
   /**
-   * ------------------------------------------------------------------------
-   * Update Review
-   * ------------------------------------------------------------------------
-   *
    * Updates a review belonging to the authenticated user.
    *
-   * Business Rules:
-   *
-   * - Review must exist.
-   * - User can only update their own review.
-   * - Updated reviews require approval again.
-   * ------------------------------------------------------------------------
+   * Updated reviews require approval again.
    */
   async updateReview(
     userId: string,
     reviewId: string,
     dto: UpdateReviewDto,
   ): Promise<ReviewResponseDto> {
-    /**
-     * Find the review together with
-     * its related user and product.
-     */
     const review = await this.reviewRepository.findById(reviewId);
 
     if (!review) {
       throw new NotFoundException('Review not found.');
     }
 
-    /**
-     * Ensure that users can only
-     * update their own reviews.
-     */
     if (review.user.id !== userId) {
       throw new ForbiddenException(
         'You do not have permission to update this review.',
       );
     }
 
-    /**
-     * Update rating only when provided.
-     */
+    const wasApproved = review.isApproved;
+
     if (dto.rating !== undefined) {
       review.rating = dto.rating;
     }
 
-    /**
-     * Update comment only when provided.
-     */
     if (dto.comment !== undefined) {
       review.comment = dto.comment;
     }
@@ -288,105 +195,118 @@ export class ReviewService {
 
     const updatedReview = await this.reviewRepository.save(review);
 
+    /**
+     * If the review was previously approved,
+     * recalculate the product rating without it.
+     */
+    if (wasApproved) {
+      await this.recalculateProductRating(updatedReview.product.id);
+    }
+
     return this.toReviewResponse(updatedReview);
   }
 
   /**
-   * ------------------------------------------------------------------------
-   * Delete Review
-   * ------------------------------------------------------------------------
-   *
-   * Deletes a review belonging to
-   * the authenticated user.
-   *
-   * Business Rules:
-   *
-   * - Review must exist.
-   * - Users can only delete their own reviews.
-   * ------------------------------------------------------------------------
+   * Deletes a review belonging to the authenticated user.
    */
   async deleteReview(userId: string, reviewId: string): Promise<void> {
-    /**
-     * Find the review before deletion.
-     */
     const review = await this.reviewRepository.findById(reviewId);
 
     if (!review) {
       throw new NotFoundException('Review not found.');
     }
 
-    /**
-     * Ensure that users can only
-     * delete their own reviews.
-     */
     if (review.user.id !== userId) {
       throw new ForbiddenException(
         'You do not have permission to delete this review.',
       );
     }
 
-    /**
-     * Delete the review after
-     * ownership validation.
-     */
+    const wasApproved = review.isApproved;
+    const productId = review.product.id;
+
     await this.reviewRepository.remove(review);
+
+    if (wasApproved) {
+      await this.recalculateProductRating(productId);
+    }
   }
 
   /**
-   * ------------------------------------------------------------------------
-   * Approve Review
-   * ------------------------------------------------------------------------
-   *
-   * Approves a product review.
-   *
-   * After approval, the related product rating
-   * is recalculated using all approved reviews.
-   *
-   * Business Rules:
-   *
-   * - Review must exist.
-   * - An already approved review cannot be approved again.
-   * - Only approved reviews affect product rating.
-   * ------------------------------------------------------------------------
+   * Approves a product review and recalculates rating.
    */
   async approveReview(reviewId: string): Promise<ReviewResponseDto> {
-    /**
-     * Find the review together with
-     * its related product.
-     */
     const review = await this.reviewRepository.findById(reviewId);
 
     if (!review) {
       throw new NotFoundException('Review not found.');
     }
 
-    /**
-     * Prevent approving a review
-     * that is already approved.
-     */
     if (review.isApproved) {
       throw new BadRequestException('Review is already approved.');
     }
 
-    /**
-     * Approve the review.
-     */
     review.isApproved = true;
 
     const approvedReview = await this.reviewRepository.save(review);
 
-    /**
-     * Load all approved reviews belonging
-     * to the related product.
-     */
-    const approvedReviews = await this.reviewRepository.findApprovedByProductId(
-      approvedReview.product.id,
-    );
+    await this.recalculateProductRating(approvedReview.product.id);
 
-    /**
-     * Calculate the average product rating
-     * using only approved reviews.
-     */
+    return this.toReviewResponse(approvedReview);
+  }
+
+  /**
+   * Rejects a product review and recalculates rating when needed.
+   */
+  async rejectReview(reviewId: string): Promise<ReviewResponseDto> {
+    const review = await this.reviewRepository.findById(reviewId);
+
+    if (!review) {
+      throw new NotFoundException('Review not found.');
+    }
+
+    const wasApproved = review.isApproved;
+
+    review.isApproved = false;
+
+    const rejectedReview = await this.reviewRepository.save(review);
+
+    if (wasApproved) {
+      await this.recalculateProductRating(rejectedReview.product.id);
+    }
+
+    return this.toReviewResponse(rejectedReview);
+  }
+
+  /**
+   * A completed purchase means the order was paid
+   * and may already be shipped or delivered.
+   */
+  private isCompletedPurchase(status: OrderStatus): boolean {
+    return (
+      status === OrderStatus.PAID ||
+      status === OrderStatus.SHIPPED ||
+      status === OrderStatus.DELIVERED
+    );
+  }
+
+  /**
+   * Recalculates product rating from approved reviews.
+   */
+  private async recalculateProductRating(productId: string): Promise<void> {
+    const product = await this.productRepository.findOne({
+      where: {
+        id: productId,
+      },
+    });
+
+    if (!product) {
+      return;
+    }
+
+    const approvedReviews =
+      await this.reviewRepository.findApprovedByProductId(productId);
+
     const totalRating = approvedReviews.reduce(
       (total, currentReview) => total + currentReview.rating,
       0,
@@ -395,87 +315,24 @@ export class ReviewService {
     const averageRating =
       approvedReviews.length > 0 ? totalRating / approvedReviews.length : 0;
 
-    /**
-     * Update the product rating.
-     */
-    approvedReview.product.rating = Number(averageRating.toFixed(2));
+    product.rating = Number(averageRating.toFixed(2));
 
-    await this.productRepository.save(approvedReview.product);
-
-    return this.toReviewResponse(approvedReview);
+    await this.productRepository.save(product);
   }
 
   /**
-   * ------------------------------------------------------------------------
-   * Reject Review
-   * ------------------------------------------------------------------------
-   *
-   * Rejects a product review.
-   *
-   * Rejected reviews are not visible to customers
-   * and do not affect the product rating.
-   *
-   * Business Rules:
-   *
-   * - Review must exist.
-   * - A rejected review must not remain approved.
-   * - Product rating must be recalculated when
-   *   an approved review is rejected.
-   * ------------------------------------------------------------------------
+   * Maps a Review entity to the public response DTO.
    */
-  async rejectReview(reviewId: string): Promise<ReviewResponseDto> {
-    /**
-     * Find the review before updating
-     * its approval status.
-     */
-    const review = await this.reviewRepository.findById(reviewId);
-
-    if (!review) {
-      throw new NotFoundException('Review not found.');
-    }
-
-    /**
-     * Store the previous approval state.
-     *
-     * Product rating only needs to be recalculated
-     * when an approved review becomes rejected.
-     */
-    const wasApproved = review.isApproved;
-
-    /**
-     * Reject the review.
-     */
-    review.isApproved = false;
-
-    const rejectedReview = await this.reviewRepository.save(review);
-
-    /**
-     * Recalculate the product rating only when
-     * the rejected review previously affected it.
-     */
-    if (wasApproved) {
-      const approvedReviews =
-        await this.reviewRepository.findApprovedByProductId(
-          rejectedReview.product.id,
-        );
-
-      const totalRating = approvedReviews.reduce(
-        (total, currentReview) => total + currentReview.rating,
-        0,
-      );
-
-      const averageRating =
-        approvedReviews.length > 0 ? totalRating / approvedReviews.length : 0;
-
-      /**
-       * Update the product rating using only
-       * the remaining approved reviews.
-       */
-      rejectedReview.product.rating = Number(averageRating.toFixed(2));
-
-      await this.productRepository.save(rejectedReview.product);
-    }
-
-    return this.toReviewResponse(rejectedReview);
+  private toReviewResponse(review: Review): ReviewResponseDto {
+    return {
+      id: review.id,
+      userId: review.user.id,
+      productId: review.product.id,
+      rating: review.rating,
+      isApproved: review.isApproved,
+      comment: review.comment,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+    };
   }
 }

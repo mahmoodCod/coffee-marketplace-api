@@ -3,14 +3,19 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 
 import {
+  ApiBearerAuth,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -26,6 +31,10 @@ import {
 
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 
+import { Public } from '../../../common/decorators/public.decorator';
+
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+
 import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
 
 /**
@@ -36,39 +45,27 @@ import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
  * Handles customer review operations.
  *
  * Responsibilities:
- *
  * - Create product reviews.
  * - Retrieve approved product reviews.
+ * - Update own reviews.
+ * - Delete own reviews.
  *
- * Business Rules:
- *
- * - Only authenticated users can create reviews.
- * - User identity is extracted from the JWT payload.
- * - Only approved reviews are visible publicly.
- *
+ * Authentication:
+ * - Create, update, and delete require JWT.
+ * - Product review listing is public.
  * --------------------------------------------------------------------------
  */
 @ApiTags('Reviews')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller()
 export class ReviewController {
   constructor(private readonly reviewService: ReviewService) {}
 
   /**
-   * ------------------------------------------------------------------------
    * POST /reviews
-   * ------------------------------------------------------------------------
    *
    * Creates a review for a purchased product.
-   *
-   * The authenticated user's ID is extracted
-   * from the JWT payload.
-   *
-   * The service is responsible for validating:
-   *
-   * - Product existence.
-   * - Previous purchase.
-   * - Duplicate review prevention.
-   * ------------------------------------------------------------------------
    */
   @Post('reviews')
   @ApiOperation({
@@ -81,57 +78,39 @@ export class ReviewController {
     @CurrentUser()
     user: JwtPayload,
 
-    @Param('productId', ParseUUIDPipe)
-    productId: string,
-
     @Body()
     dto: CreateReviewDto,
   ): Promise<ReviewResponseDto> {
-    return this.reviewService.createReview(user.sub, productId, dto);
+    return this.reviewService.createReview(user.sub, dto.productId, dto);
   }
 
   /**
-   * ------------------------------------------------------------------------
    * GET /products/:productId/reviews
-   * ------------------------------------------------------------------------
    *
    * Returns approved reviews belonging
    * to a specific product.
-   *
-   * Unapproved reviews are not returned
-   * to customers.
-   * ------------------------------------------------------------------------
    */
+  @Public()
   @Get('products/:productId/reviews')
   @ApiOperation({
     summary: 'Get approved product reviews',
   })
   @ApiOkResponse({
-    type: [ReviewResponseDto],
+    type: ReviewResponseDto,
+    isArray: true,
   })
   async getProductReviews(
-    @Param('productId')
+    @Param('productId', new ParseUUIDPipe())
     productId: string,
   ): Promise<ReviewResponseDto[]> {
     return this.reviewService.getProductReviews(productId);
   }
 
   /**
-   * ------------------------------------------------------------------------
    * PATCH /reviews/:id
-   * ------------------------------------------------------------------------
    *
    * Updates a review belonging to
    * the authenticated user.
-   *
-   * The user ID is extracted from
-   * the JWT payload.
-   *
-   * Business Rules:
-   *
-   * - Users can only update their own reviews.
-   * - Updated reviews require approval again.
-   * ------------------------------------------------------------------------
    */
   @Patch('reviews/:id')
   @ApiOperation({
@@ -141,60 +120,39 @@ export class ReviewController {
     type: ReviewResponseDto,
   })
   async updateReview(
-    @Param('id')
+    @Param('id', new ParseUUIDPipe())
     reviewId: string,
 
-    /**
-     * Get the authenticated user
-     * from the JWT payload.
-     */
     @CurrentUser()
     user: JwtPayload,
 
     @Body()
     dto: UpdateReviewDto,
   ): Promise<ReviewResponseDto> {
-    /**
-     * Pass the authenticated user ID,
-     * review ID, and update data
-     * to the service layer.
-     */
     return this.reviewService.updateReview(user.sub, reviewId, dto);
   }
 
   /**
-   * ------------------------------------------------------------------------
    * DELETE /reviews/:id
-   * ------------------------------------------------------------------------
    *
    * Deletes a review belonging to
    * the authenticated user.
-   *
-   * Business Rules:
-   *
-   * - Users can only delete their own reviews.
-   * - The authenticated user ID is extracted
-   *   from the JWT payload.
-   * ------------------------------------------------------------------------
    */
   @Delete('reviews/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete own review',
   })
-  @ApiOkResponse({
+  @ApiNoContentResponse({
     description: 'Review deleted successfully.',
   })
   async deleteReview(
-    @Param('id')
+    @Param('id', new ParseUUIDPipe())
     reviewId: string,
 
     @CurrentUser()
     user: JwtPayload,
   ): Promise<void> {
-    /**
-     * Pass the authenticated user ID
-     * and review ID to the service.
-     */
     await this.reviewService.deleteReview(user.sub, reviewId);
   }
 }

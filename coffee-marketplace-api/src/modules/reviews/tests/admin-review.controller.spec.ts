@@ -5,28 +5,26 @@ import { AdminReviewController } from '../controllers/admin-review.controller';
 import { ReviewService } from '../services/review.service';
 
 import { ReviewResponseDto } from '../dto/review-response.dto';
-import { Role } from 'src/modules/roles/entities/role.entity';
-import { Roles } from 'src/common/decorators/roles.decorator';
+
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+
+import { RolesGuard } from '../../../common/guards/roles.guard';
+
+import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 
 describe('AdminReviewController', () => {
   let controller: AdminReviewController;
 
   let service: {
+    getAllReviews: jest.Mock;
     approveReview: jest.Mock;
-
     rejectReview: jest.Mock;
   };
 
   beforeEach(async () => {
-    /**
-     * Mock ReviewService.
-     *
-     * The controller only delegates
-     * moderation operations to the service.
-     */
     service = {
+      getAllReviews: jest.fn(),
       approveReview: jest.fn(),
-
       rejectReview: jest.fn(),
     };
 
@@ -36,13 +34,51 @@ describe('AdminReviewController', () => {
       providers: [
         {
           provide: ReviewService,
-
           useValue: service,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({
+        canActivate: () => true,
+      })
+      .overrideGuard(RolesGuard)
+      .useValue({
+        canActivate: () => true,
+      })
+      .compile();
 
     controller = module.get<AdminReviewController>(AdminReviewController);
+  });
+
+  /**
+   * ------------------------------------------------------------------------
+   * Get All Reviews
+   * ------------------------------------------------------------------------
+   */
+  describe('getAllReviews', () => {
+    it('should return all reviews for admin', async () => {
+      const response = [
+        {
+          id: 'review-id',
+          userId: 'user-id',
+          productId: 'product-id',
+          rating: 5,
+          isApproved: false,
+          comment: 'Excellent coffee.',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ] as ReviewResponseDto[];
+
+      service.getAllReviews.mockResolvedValue(response);
+
+      const result = await controller.getAllReviews();
+
+      expect(service.getAllReviews).toHaveBeenCalled();
+
+      expect(result).toEqual(response);
+    });
   });
 
   /**
@@ -56,38 +92,21 @@ describe('AdminReviewController', () => {
 
       const response = {
         id: reviewId,
-
         userId: 'user-id',
-
         productId: 'product-id',
-
         rating: 5,
-
         isApproved: true,
-
         comment: 'Excellent coffee.',
-
         createdAt: new Date(),
-
         updatedAt: new Date(),
       } as ReviewResponseDto;
 
-      /**
-       * Mock successful service response.
-       */
       service.approveReview.mockResolvedValue(response);
 
       const result = await controller.approveReview(reviewId);
 
-      /**
-       * Controller must pass the
-       * review ID to the service.
-       */
       expect(service.approveReview).toHaveBeenCalledWith(reviewId);
 
-      /**
-       * Controller returns the service response.
-       */
       expect(result).toEqual(response);
     });
   });
@@ -103,59 +122,42 @@ describe('AdminReviewController', () => {
 
       const response = {
         id: reviewId,
-
         userId: 'user-id',
-
         productId: 'product-id',
-
         rating: 2,
-
         isApproved: false,
-
         comment: 'Bad coffee.',
-
         createdAt: new Date(),
-
         updatedAt: new Date(),
       } as ReviewResponseDto;
 
-      /**
-       * Mock successful service response.
-       */
       service.rejectReview.mockResolvedValue(response);
 
       const result = await controller.rejectReview(reviewId);
 
-      /**
-       * Controller must pass the
-       * review ID to the service.
-       */
       expect(service.rejectReview).toHaveBeenCalledWith(reviewId);
 
-      /**
-       * Controller returns the service response.
-       */
       expect(result).toEqual(response);
     });
+  });
 
-    /**
-     * ------------------------------------------------------------------------
-     * Access Control
-     * ------------------------------------------------------------------------
-     */
-    describe('access control', () => {
-      it('should require JwtAuthGuard', () => {
-        const guards = Reflect.getMetadata('__guards__', AdminReviewController);
+  /**
+   * ------------------------------------------------------------------------
+   * Access Control
+   * ------------------------------------------------------------------------
+   */
+  describe('access control', () => {
+    it('should require JwtAuthGuard and RolesGuard', () => {
+      const guards = Reflect.getMetadata('__guards__', AdminReviewController);
 
-        expect(guards).toBeDefined();
-        expect(guards.length).toBe(2);
-      });
+      expect(guards).toBeDefined();
+      expect(guards.length).toBe(2);
+    });
 
-      it('should require ADMIN role', () => {
-        const roles = Reflect.getMetadata('roles', AdminReviewController);
+    it('should require ADMIN role', () => {
+      const roles = Reflect.getMetadata('roles', AdminReviewController);
 
-        expect(roles).toContain('admin');
-      });
+      expect(roles).toContain(SYSTEM_ROLES.ADMIN);
     });
   });
 });

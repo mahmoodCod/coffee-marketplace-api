@@ -1,3 +1,5 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
+
 import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 /**
@@ -8,16 +10,14 @@ import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
  * Defines the data that a customer can update
  * for their own review.
  *
- * Business Rules:
+ * Used by:
+ * PATCH /reviews/:id
  *
+ * Business Rules:
  * - Rating is optional.
  * - Comment is optional.
  * - Rating must be between 1 and 5.
- *
- * Note:
- *
- * Updating a review may require the review
- * to be approved again.
+ * - Updating a review requires approval again.
  * --------------------------------------------------------------------------
  */
 export class UpdateReviewDto {
@@ -26,6 +26,11 @@ export class UpdateReviewDto {
    *
    * Must be between 1 and 5.
    */
+  @ApiPropertyOptional({
+    example: 4,
+    minimum: 1,
+    maximum: 5,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -35,6 +40,9 @@ export class UpdateReviewDto {
   /**
    * Updated review comment.
    */
+  @ApiPropertyOptional({
+    example: 'Updated review comment.',
+  })
   @IsOptional()
   @IsString()
   comment?: string;

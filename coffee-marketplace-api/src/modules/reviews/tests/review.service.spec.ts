@@ -14,6 +14,8 @@ import { ReviewRepository } from '../repositories/review.repository';
 
 import { OrderRepository } from '../../orders/repositories/order.repository';
 
+import { OrderStatus } from '../../orders/enums';
+
 import { Product } from '../../products/entities/product.entity';
 
 import { CreateReviewDto } from '../dto/index.dto';
@@ -112,6 +114,7 @@ describe('ReviewService', () => {
     const productId = 'product-id';
 
     const dto: CreateReviewDto = {
+      productId,
       rating: 5,
       comment: 'Excellent coffee product.',
     };
@@ -136,6 +139,8 @@ describe('ReviewService', () => {
     const createPurchasedOrder = () => {
       return {
         id: 'order-id',
+
+        status: OrderStatus.PAID,
 
         items: [
           {
@@ -907,6 +912,8 @@ describe('ReviewService', () => {
 
         reviewRepository.save.mockResolvedValue(review);
 
+        productRepository.findOne.mockResolvedValue(product);
+
         reviewRepository.findApprovedByProductId.mockResolvedValue(
           approvedReviews,
         );
@@ -1000,6 +1007,8 @@ describe('ReviewService', () => {
           reviewRepository.findById.mockResolvedValue(review);
 
           reviewRepository.save.mockResolvedValue(review);
+
+          productRepository.findOne.mockResolvedValue(product);
 
           reviewRepository.findApprovedByProductId.mockResolvedValue(
             remainingApprovedReviews,
