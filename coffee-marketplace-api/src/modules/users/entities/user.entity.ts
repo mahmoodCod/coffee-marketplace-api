@@ -15,7 +15,7 @@ import { UserStatus } from '../enums/user-status.enum';
 import { Address } from './address.entity';
 import { Cart } from '../../../modules/cart/entities';
 import { Review } from '../../../modules/reviews/entities/review.entity';
-import { Notification } from 'src/modules/notifications/entities/notification.entity';
+import { Notification } from '../../../modules/notifications/entities/notification.entity';
 
 /**
  * ------------------------------------------------------------------------
