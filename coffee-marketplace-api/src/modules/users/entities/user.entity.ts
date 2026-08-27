@@ -15,6 +15,7 @@ import { UserStatus } from '../enums/user-status.enum';
 import { Address } from './address.entity';
 import { Cart } from '../../../modules/cart/entities';
 import { Review } from '../../../modules/reviews/entities/review.entity';
+import { Notification } from 'src/modules/notifications/entities/notification.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -121,6 +122,21 @@ export class User {
    */
   @OneToMany(() => Review, (review) => review.user)
   reviews: Review[];
+
+  /**
+   * ------------------------------------------------------------------------
+   * Notifications
+   * ------------------------------------------------------------------------
+   *
+   * Notifications that belong to this user.
+   *
+   * Relationship:
+   *
+   * User 1 ---- * Notifications
+   * ------------------------------------------------------------------------
+   */
+  @OneToMany(() => Notification, (notification) => notification.user)
+  notifications: Notification[];
 
   @UpdateDateColumn({
     name: 'updated_at',
