@@ -9,6 +9,7 @@ import { NotificationController } from './controllers/notification.controller';
 import { NotificationService } from './services/notification.service';
 
 import { NotificationRepository } from './repositories/notification.repository';
+import { User } from '../users/entities/user.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -28,7 +29,7 @@ import { NotificationRepository } from './repositories/notification.repository';
  * ------------------------------------------------------------------------
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Notification])],
+  imports: [TypeOrmModule.forFeature([Notification, User])],
 
   controllers: [NotificationController],
 

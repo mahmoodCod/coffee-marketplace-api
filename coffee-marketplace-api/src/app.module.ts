@@ -15,6 +15,7 @@ import { CartModule } from './modules/cart/cart.module';
 import { OrdersModule } from './modules/orders/order.module';
 import { PaymentModule } from './modules/payments/payment.module';
 import { ReviewsModule } from './modules/reviews/review.module';
+import { NotificationsModule } from './modules/notifications/notification.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ReviewsModule } from './modules/reviews/review.module';
     OrdersModule,
     PaymentModule,
     ReviewsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
