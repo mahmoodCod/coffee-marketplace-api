@@ -19,6 +19,8 @@ import { Order } from '../../../modules/orders/entities';
 import { Inventory } from '../../../modules/inventoryes/entities/inventory.entity';
 import { Product } from '../../../modules/products/entities/product.entity';
 import { Payment } from '../entities/payment.entity';
+import { NotificationService } from 'src/modules/notifications/services/notification.service';
+import { NotificationType } from 'src/modules/notifications/enums/notification-type.enum';
 
 /**
  * Payment Service
@@ -46,6 +48,8 @@ export class PaymentService {
 
     @Inject(PAYMENT_GATEWAY)
     private readonly paymentGateway: PaymentGateway,
+
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
@@ -238,7 +242,8 @@ export class PaymentService {
      * Complete payment settlement inside
      * a single database transaction.
      */
-    await this.dataSource.transaction(async (manager: EntityManager) => {
+    const paymentUserId = await this.dataSource.transaction(
+      async (manager: EntityManager) => {
       /**
        * Load the latest payment state inside
        * the current transaction.
@@ -248,7 +253,9 @@ export class PaymentService {
           id: payment.id,
         },
         relations: {
-          order: true,
+          order: {
+            user: true,
+          },
         },
       });
 
@@ -281,7 +288,23 @@ export class PaymentService {
        * sales statistics using the same transaction.
        */
       await this.settleOrder(manager, transactionalPayment.order.id);
-    });
+
+      return transactionalPayment.order.user.id;
+    },
+    );
+
+    /**
+     * Create a notification after successful payment settlement.
+     *
+     * This runs outside the payment transaction so a notification
+     * failure does not roll back payment and inventory changes.
+     */
+    await this.notificationService.createNotification(
+      paymentUserId,
+      'Payment Successful',
+      NotificationType.PAYMENT_SUCCESS,
+      'Your payment was completed successfully.',
+    );
 
     /**
      * Return the latest payment data.

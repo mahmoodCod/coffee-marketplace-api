@@ -11,6 +11,7 @@ import { AuthService } from './services/auth.service';
 import { JwtTokenService } from './services/jwt-token.service';
 import { OtpService } from './services/otp.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { NotificationsModule } from '../notifications/notification.module';
 
 /**
  * ------------------------------------------------------------------------
@@ -53,6 +54,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     JwtModule.register({}),
     UsersModule,
     RolesModule,
+    NotificationsModule,
   ],
 
   controllers: [AuthController],

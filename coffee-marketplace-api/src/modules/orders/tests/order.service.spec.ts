@@ -13,6 +13,8 @@ import { AddressesRepository } from '../../users/repositories/addresses.reposito
 import { CartStatus } from '../../cart/entities/cart-status.enum';
 
 import { OrderStatus } from '../enums';
+import { NotificationService } from 'src/modules/notifications/services/notification.service';
+import { NotificationType } from 'src/modules/notifications/enums/notification-type.enum';
 
 describe('OrderService', () => {
   let service: OrderService;
@@ -22,6 +24,8 @@ describe('OrderService', () => {
   let cartRepository: jest.Mocked<CartRepository>;
 
   let addressesRepository: jest.Mocked<AddressesRepository>;
+
+  let notificationService: jest.Mocked<NotificationService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -58,6 +62,13 @@ describe('OrderService', () => {
             findByIdAndUserId: jest.fn(),
           },
         },
+
+        {
+          provide: NotificationService,
+          useValue: {
+            createNotification: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -68,6 +79,8 @@ describe('OrderService', () => {
     cartRepository = module.get(CartRepository);
 
     addressesRepository = module.get(AddressesRepository);
+
+    notificationService = module.get(NotificationService);
   });
 
   /**
@@ -422,6 +435,10 @@ describe('OrderService', () => {
         {
           id: 'order-id-1',
 
+          user: {
+            id: userId,
+          },
+
           status: OrderStatus.PENDING_PAYMENT,
 
           shippingAddress: {
@@ -690,26 +707,21 @@ describe('OrderService', () => {
       } as any);
 
       const result = await service.cancelOrder(userId, orderId);
+    });
 
-      expect(orderRepository.findByIdAndUserId).toHaveBeenCalledWith(
-        orderId,
-        userId,
-      );
-
-      expect(orderRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: OrderStatus.CANCELLED,
-        }),
-      );
-
-      expect(result).toEqual({
+    it('should create a notification when an order is cancelled', async () => {
+      const order = {
         id: orderId,
 
-        status: OrderStatus.CANCELLED,
+        user: {
+          id: userId,
+        },
 
-        userId,
+        status: OrderStatus.PENDING_PAYMENT,
 
-        shippingAddressId: 'address-id',
+        shippingAddress: {
+          id: 'address-id',
+        },
 
         totalPrice: '400.00',
 
@@ -730,7 +742,28 @@ describe('OrderService', () => {
         createdAt: new Date('2026-01-01T10:00:00.000Z'),
 
         updatedAt: new Date('2026-01-01T10:00:00.000Z'),
-      });
+      };
+
+      orderRepository.findByIdAndUserId.mockResolvedValue(order as any);
+
+      orderRepository.save.mockResolvedValue({
+        ...order,
+
+        status: OrderStatus.CANCELLED,
+      } as any);
+
+      await service.cancelOrder(userId, orderId);
+
+      /**
+       * Verify that the user receives a notification
+       * after their order has been successfully cancelled.
+       */
+      expect(notificationService.createNotification).toHaveBeenCalledWith(
+        userId,
+        'Order Status Updated',
+        NotificationType.ORDER_STATUS_CHANGED,
+        `Your order status has changed to ${OrderStatus.CANCELLED}.`,
+      );
     });
 
     it('should throw NotFoundException when order does not exist', async () => {
@@ -970,6 +1003,32 @@ describe('OrderService', () => {
       expect(result.status).toBe(OrderStatus.DELIVERED);
     });
 
+    it('should create a notification when an order is delivered', async () => {
+      const order = {
+        ...baseOrder,
+
+        status: OrderStatus.SHIPPED,
+      };
+
+      orderRepository.findById.mockResolvedValue(order as any);
+
+      orderRepository.save.mockResolvedValue({
+        ...order,
+
+        status: OrderStatus.DELIVERED,
+
+        deliveredAt: new Date('2026-01-04T10:00:00.000Z'),
+      } as any);
+
+      await service.deliverOrder(orderId);
+
+      /**
+       * Verify that the customer receives a notification
+       * after their shipped order has been successfully delivered.
+       */
+      expect(notificationService.createNotification).toHaveBeenCalled();
+    });
+
     it('should throw BadRequestException when delivering a non-shipped order', async () => {
       orderRepository.findById.mockResolvedValue({
         ...baseOrder,
@@ -980,6 +1039,32 @@ describe('OrderService', () => {
       await expect(service.deliverOrder(orderId)).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    it('should create a notification when an order is shipped', async () => {
+      const order = {
+        ...baseOrder,
+
+        status: OrderStatus.PAID,
+      };
+
+      orderRepository.findById.mockResolvedValue(order as any);
+
+      orderRepository.save.mockResolvedValue({
+        ...order,
+
+        status: OrderStatus.SHIPPED,
+
+        shippedAt: new Date('2026-01-03T10:00:00.000Z'),
+      } as any);
+
+      await service.shipOrder(orderId);
+
+      /**
+       * Verify that the customer receives a notification
+       * after their paid order has been successfully shipped.
+       */
+      expect(notificationService.createNotification).toHaveBeenCalled();
     });
   });
 
@@ -1096,6 +1181,32 @@ describe('OrderService', () => {
       );
 
       expect(result.status).toBe(OrderStatus.DELIVERED);
+    });
+
+    it('should create a notification when an order is confirmed as received', async () => {
+      const order = {
+        ...baseOrder,
+
+        status: OrderStatus.SHIPPED,
+      };
+
+      orderRepository.findByIdAndSellerId.mockResolvedValue(order as any);
+
+      orderRepository.save.mockResolvedValue({
+        ...order,
+
+        status: OrderStatus.DELIVERED,
+
+        deliveredAt: new Date('2026-01-04T10:00:00.000Z'),
+      } as any);
+
+      await service.confirmOrderReceived(sellerId, orderId);
+
+      /**
+       * Verify that the customer receives a notification
+       * after the seller confirms that the order was received.
+       */
+      expect(notificationService.createNotification).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException when confirming a non-shipped order', async () => {

@@ -17,6 +17,8 @@ import { OtpService } from './otp.service';
 import { LoginDto, RefreshTokenDto, RegisterDto, VerifyOtpDto } from '../dto';
 import { OtpPurpose } from '../enums/otp-purpose.enum';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
+import { NotificationService } from 'src/modules/notifications/services/notification.service';
+import { NotificationType } from 'src/modules/notifications/enums/notification-type.enum';
 
 /**
  * ------------------------------------------------------------------------
@@ -55,6 +57,7 @@ export class AuthService {
     private readonly rolesRepository: RolesRepository,
     private readonly otpService: OtpService,
     private readonly jwtTokenService: JwtTokenService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
@@ -114,6 +117,17 @@ export class AuthService {
 
     if (dto.purpose === OtpPurpose.REGISTER) {
       user = await this.createCustomer(dto.phone);
+
+      /**
+       * Create a notification after
+       * successful user registration.
+       */
+      await this.notificationService.createNotification(
+        user.id,
+        'Registration Successful',
+        NotificationType.REGISTRATION,
+        'Your account has been created successfully.',
+      );
     } else {
       const existing = await this.usersRepository.findByPhone(dto.phone);
 
