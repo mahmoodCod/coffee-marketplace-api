@@ -16,6 +16,7 @@ import { OtpService } from './otp.service';
 import { LoginDto, RefreshTokenDto, RegisterDto, VerifyOtpDto } from '../dto';
 import { OtpPurpose } from '../enums/otp-purpose.enum';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
+import { NotificationService } from 'src/modules/notifications/services/notification.service';
 
 /**
  * ------------------------------------------------------------------------
@@ -54,6 +55,7 @@ export class AuthService {
     private readonly rolesRepository: RolesRepository,
     private readonly otpService: OtpService,
     private readonly jwtTokenService: JwtTokenService,
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
