@@ -20,6 +20,8 @@ import { usersRepositoryMock } from './mocks/users.repository.mock';
 import { rolesRepositoryMock } from './mocks/roles.repository.mock';
 import { otpServiceMock } from './mocks/otp.service.mock';
 import { jwtTokenServiceMock } from './mocks/jwt-token.service.mock';
+import { NotificationService } from 'src/modules/notifications/services/notification.service';
+import { NotificationType } from 'src/modules/notifications/enums/notification-type.enum';
 
 /**
  * ------------------------------------------------------------------------
@@ -44,6 +46,10 @@ describe('AuthService', () => {
 
   let jwtTokenService: jest.Mocked<JwtTokenService>;
 
+  let notificationService: {
+    createNotification: jest.Mock;
+  };
+
   const phone = '09123456789';
 
   const customerRole = {
@@ -64,6 +70,10 @@ describe('AuthService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+
+    notificationService = {
+      createNotification: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -87,6 +97,11 @@ describe('AuthService', () => {
         {
           provide: JwtTokenService,
           useValue: jwtTokenServiceMock,
+        },
+
+        {
+          provide: NotificationService,
+          useValue: notificationService,
         },
       ],
     }).compile();
@@ -351,6 +366,49 @@ describe('AuthService', () => {
           purpose: OtpPurpose.LOGIN,
         }),
       ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should create a registration notification for a new user', async () => {
+      const user = {
+        id: 'user-id',
+        phone: '09123456789',
+        status: UserStatus.ACTIVE,
+        role: {
+          name: 'customer',
+        },
+      } as User;
+
+      otpService.verify.mockReturnValue(undefined);
+
+      usersRepository.findByPhone.mockResolvedValue(null);
+
+      rolesRepository.findByName.mockResolvedValue({
+        id: 'role-id',
+        name: 'customer',
+      });
+
+      usersRepository.create.mockResolvedValue(user);
+
+      notificationService.createNotification.mockResolvedValue({
+        id: 'notification-id',
+      });
+
+      jwtTokenService.generateAccessToken.mockResolvedValue('access-token');
+
+      jwtTokenService.generateRefreshToken.mockResolvedValue('refresh-token');
+
+      await service.verifyOtp({
+        phone: '09123456789',
+        otp: '123456',
+        purpose: OtpPurpose.REGISTER,
+      });
+
+      expect(notificationService.createNotification).toHaveBeenCalledWith(
+        user,
+        'Registration Successful',
+        NotificationType.REGISTRATION,
+        'Your account has been created successfully.',
+      );
     });
   });
 
