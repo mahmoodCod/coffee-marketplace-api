@@ -707,6 +707,58 @@ describe('OrderService', () => {
 
       const result = await service.cancelOrder(userId, orderId);
 
+      it('should create a notification when an order is cancelled', async () => {
+        const order = {
+          id: orderId,
+
+          user: {
+            id: userId,
+          },
+
+          status: OrderStatus.PENDING_PAYMENT,
+
+          shippingAddress: {
+            id: 'address-id',
+          },
+
+          totalPrice: '400.00',
+
+          finalPrice: '400.00',
+
+          couponId: null,
+
+          trackingCode: null,
+
+          paidAt: null,
+
+          shippedAt: null,
+
+          deliveredAt: null,
+
+          items: [],
+
+          createdAt: new Date('2026-01-01T10:00:00.000Z'),
+
+          updatedAt: new Date('2026-01-01T10:00:00.000Z'),
+        };
+
+        orderRepository.findByIdAndUserId.mockResolvedValue(order as any);
+
+        orderRepository.save.mockResolvedValue({
+          ...order,
+
+          status: OrderStatus.CANCELLED,
+        } as any);
+
+        await service.cancelOrder(userId, orderId);
+
+        /**
+         * Verify that the user receives a notification
+         * after their order has been successfully cancelled.
+         */
+        expect(notificationService.createNotification).toHaveBeenCalled();
+      });
+
       expect(orderRepository.findByIdAndUserId).toHaveBeenCalledWith(
         orderId,
         userId,
