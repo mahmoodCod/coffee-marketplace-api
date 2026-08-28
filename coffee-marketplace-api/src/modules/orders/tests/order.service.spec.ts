@@ -13,6 +13,7 @@ import { AddressesRepository } from '../../users/repositories/addresses.reposito
 import { CartStatus } from '../../cart/entities/cart-status.enum';
 
 import { OrderStatus } from '../enums';
+import { NotificationService } from 'src/modules/notifications/services/notification.service';
 
 describe('OrderService', () => {
   let service: OrderService;
@@ -22,6 +23,8 @@ describe('OrderService', () => {
   let cartRepository: jest.Mocked<CartRepository>;
 
   let addressesRepository: jest.Mocked<AddressesRepository>;
+
+  let notificationService: jest.Mocked<NotificationService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -58,6 +61,13 @@ describe('OrderService', () => {
             findByIdAndUserId: jest.fn(),
           },
         },
+
+        {
+          provide: NotificationService,
+          useValue: {
+            createNotification: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -68,6 +78,8 @@ describe('OrderService', () => {
     cartRepository = module.get(CartRepository);
 
     addressesRepository = module.get(AddressesRepository);
+
+    notificationService = module.get(NotificationService);
   });
 
   /**
@@ -421,6 +433,10 @@ describe('OrderService', () => {
       const orders = [
         {
           id: 'order-id-1',
+
+          user: {
+            id: userId,
+          },
 
           status: OrderStatus.PENDING_PAYMENT,
 
