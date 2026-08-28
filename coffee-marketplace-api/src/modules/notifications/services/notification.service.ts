@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
+import { User } from '../../users/entities/user.entity';
+
 import { NotificationType } from '../enums/notification-type.enum';
 
 import { Notification } from '../entities/notification.entity';
@@ -54,7 +56,7 @@ export class NotificationService {
     const notification = this.notificationRepository.create({
       user: {
         id: userId,
-      },
+      } as User,
       title,
       type,
       message,

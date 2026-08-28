@@ -242,9 +242,8 @@ export class PaymentService {
      * Complete payment settlement inside
      * a single database transaction.
      */
-    let paymentUserId: string;
-
-    await this.dataSource.transaction(async (manager: EntityManager) => {
+    const paymentUserId = await this.dataSource.transaction(
+      async (manager: EntityManager) => {
       /**
        * Load the latest payment state inside
        * the current transaction.
@@ -263,8 +262,6 @@ export class PaymentService {
       if (!transactionalPayment) {
         throw new NotFoundException('Payment not found.');
       }
-
-      paymentUserId = transactionalPayment.order.user.id;
 
       /**
        * Mark the payment as successfully completed.
@@ -291,7 +288,10 @@ export class PaymentService {
        * sales statistics using the same transaction.
        */
       await this.settleOrder(manager, transactionalPayment.order.id);
-    });
+
+      return transactionalPayment.order.user.id;
+    },
+    );
 
     /**
      * Create a notification after successful payment settlement.
