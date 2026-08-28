@@ -19,6 +19,8 @@ import { Order } from '../../../modules/orders/entities';
 import { Inventory } from '../../../modules/inventoryes/entities/inventory.entity';
 import { Product } from '../../../modules/products/entities/product.entity';
 import { Payment } from '../entities/payment.entity';
+import { NotificationService } from 'src/modules/notifications/services/notification.service';
+import { NotificationType } from 'src/modules/notifications/enums/notification-type.enum';
 
 /**
  * Payment Service
@@ -46,6 +48,8 @@ export class PaymentService {
 
     @Inject(PAYMENT_GATEWAY)
     private readonly paymentGateway: PaymentGateway,
+
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
@@ -248,7 +252,9 @@ export class PaymentService {
           id: payment.id,
         },
         relations: {
-          order: true,
+          order: {
+            user: true,
+          },
         },
       });
 
@@ -266,6 +272,17 @@ export class PaymentService {
       transactionalPayment.paidAt = new Date();
 
       await manager.save(Payment, transactionalPayment);
+
+      /**
+       * Create a notification after
+       * successful payment.
+       */
+      await this.notificationService.createNotification(
+        transactionalPayment.order.user,
+        'Payment Successful',
+        NotificationType.PAYMENT_SUCCESS,
+        'Your payment was completed successfully.',
+      );
 
       /**
        * Mark the related order as paid.
