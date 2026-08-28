@@ -9,6 +9,7 @@ import { Notification } from '../entities/notification.entity';
 import { User } from '../../users/entities/user.entity';
 
 import { NotificationType } from '../enums/notification-type.enum';
+import { NotFoundException } from '@nestjs/common';
 
 describe('NotificationController', () => {
   let controller: NotificationController;
@@ -170,6 +171,21 @@ describe('NotificationController', () => {
         isRead: notification.isRead,
         createdAt: notification.createdAt,
       });
+    });
+
+    it('should propagate NotFoundException when notification does not exist', async () => {
+      notificationService.markAsRead.mockRejectedValue(
+        new NotFoundException('Notification not found.'),
+      );
+
+      await expect(
+        controller.markNotificationAsRead(userId, notificationId),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(notificationService.markAsRead).toHaveBeenCalledWith(
+        userId,
+        notificationId,
+      );
     });
   });
 });
