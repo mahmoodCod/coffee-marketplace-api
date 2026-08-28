@@ -9,7 +9,12 @@ import { CartStatus } from '../../cart/entities/cart-status.enum';
 
 import { AddressesRepository } from '../../users/repositories/addresses.repository';
 
-import { CreateOrderDto, OrderItemResponseDto, OrderResponseDto, UpdateOrderStatusDto } from '../dto';
+import {
+  CreateOrderDto,
+  OrderItemResponseDto,
+  OrderResponseDto,
+  UpdateOrderStatusDto,
+} from '../dto';
 
 import { Order } from '../entities/order.entity';
 import { OrderStatus } from '../enums';
@@ -19,6 +24,8 @@ import { OrderRepository } from '../repositories/order.repository';
 import { User } from '../../users/entities/user.entity';
 
 import { OrderItem } from '../entities/order-item.entity';
+import { NotificationService } from 'src/modules/notifications/services/notification.service';
+import { NotificationType } from 'src/modules/notifications/enums/notification-type.enum';
 
 /**
  * Order Service
@@ -59,6 +66,8 @@ export class OrderService {
     private readonly cartRepository: CartRepository,
 
     private readonly addressRepository: AddressesRepository,
+
+    private readonly notificationService: NotificationService,
   ) {}
 
   /**
@@ -263,6 +272,12 @@ export class OrderService {
 
     const cancelledOrder = await this.orderRepository.save(order);
 
+    /**
+     * Notify the customer after
+     * the order status changes to cancelled.
+     */
+    await this.notifyOrderStatusChange(cancelledOrder);
+
     return this.toOrderResponse(cancelledOrder, userId);
   }
 
@@ -311,6 +326,12 @@ export class OrderService {
 
     const updatedOrder = await this.orderRepository.save(order);
 
+    /**
+     * Notify the customer after
+     * the order status changes.
+     */
+    await this.notifyOrderStatusChange(updatedOrder);
+
     return this.toOrderResponse(updatedOrder);
   }
 
@@ -345,6 +366,12 @@ export class OrderService {
 
     const shippedOrder = await this.orderRepository.save(order);
 
+    /**
+     * Notify the customer after
+     * the order is shipped.
+     */
+    await this.notifyOrderStatusChange(shippedOrder);
+
     return this.toOrderResponse(shippedOrder);
   }
 
@@ -370,6 +397,12 @@ export class OrderService {
     order.deliveredAt = new Date();
 
     const deliveredOrder = await this.orderRepository.save(order);
+
+    /**
+     * Notify the customer after
+     * the order is delivered.
+     */
+    await this.notifyOrderStatusChange(deliveredOrder);
 
     return this.toOrderResponse(deliveredOrder);
   }
@@ -447,9 +480,28 @@ export class OrderService {
 
     const confirmedOrder = await this.orderRepository.save(order);
 
+    /**
+     * Notify the customer after
+     * the order is confirmed as received.
+     */
+    await this.notifyOrderStatusChange(confirmedOrder);
+
     return this.toOrderResponse(confirmedOrder);
   }
 
+  /**
+   * Create a notification when an order status changes.
+   *
+   * The notification is sent to the customer who owns the order.
+   */
+  private async notifyOrderStatusChange(order: Order): Promise<void> {
+    await this.notificationService.createNotification(
+      order.user,
+      'Order Status Updated',
+      NotificationType.ORDER_STATUS_CHANGED,
+      `Your order status has changed to ${order.status}.`,
+    );
+  }
   /**
    * Maps an Order entity to the public order response DTO.
    */
