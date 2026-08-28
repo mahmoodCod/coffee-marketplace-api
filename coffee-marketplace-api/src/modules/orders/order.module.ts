@@ -15,6 +15,7 @@ import { OrderService } from './services/order.service';
 import { OrderController } from './controllers/order.controller';
 import { AdminOrdersController } from './controllers/admin-orders.controller';
 import { SellerOrdersController } from './controllers/seller-orders.controller';
+import { NotificationsModule } from '../notifications/notification.module';
 
 /**
  * Orders Module
@@ -46,6 +47,7 @@ import { SellerOrdersController } from './controllers/seller-orders.controller';
     TypeOrmModule.forFeature([Order, OrderItem]),
     CartModule,
     UsersModule,
+    NotificationsModule,
   ],
 
   /**

@@ -15,6 +15,7 @@ import { OrdersModule } from '../orders/order.module';
 import { PaymentInfrastructureModule } from '../../infrastructure/payment/payment-infrastructure.module';
 import { InventoryModule } from '../inventoryes/inventory.module';
 import { ProductModule } from '../products/products.module';
+import { NotificationsModule } from '../notifications/notification.module';
 
 /**
  * Payment Module
@@ -59,6 +60,8 @@ import { ProductModule } from '../products/products.module';
      * after successful payment verification.
      */
     ProductModule,
+
+    NotificationsModule,
   ],
 
   controllers: [PaymentController],
