@@ -22,6 +22,8 @@ import { Payment } from '../entities/payment.entity';
 import { Order } from '../../orders/entities/order.entity';
 import { Inventory } from '../../inventoryes/entities/inventory.entity';
 import { Product } from '../../products/entities/product.entity';
+import { NotificationService } from 'src/modules/notifications/services/notification.service';
+import { NotificationType } from 'src/modules/notifications/enums/notification-type.enum';
 
 /**
  * ------------------------------------------------------------------------
@@ -53,6 +55,10 @@ describe('PaymentService', () => {
     verifyPayment: jest.Mock;
   };
 
+  let notificationService: {
+    createNotification: jest.Mock;
+  };
+
   /**
    * ----------------------------------------------------------------------
    * Test Data Helpers
@@ -69,8 +75,15 @@ describe('PaymentService', () => {
 
   const createOrder = () => ({
     id: orderId,
+
     status: OrderStatus.PENDING_PAYMENT,
+
     finalPrice: '500.00',
+
+    user: {
+      id: userId,
+      phone: '09123456789',
+    },
   });
 
   /**
@@ -96,6 +109,9 @@ describe('PaymentService', () => {
   });
 
   beforeEach(async () => {
+    notificationService = {
+      createNotification: jest.fn(),
+    };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentService,
@@ -159,6 +175,11 @@ describe('PaymentService', () => {
           useValue: {
             transaction: jest.fn(),
           },
+        },
+
+        {
+          provide: NotificationService,
+          useValue: notificationService,
         },
       ],
     }).compile();
@@ -605,6 +626,17 @@ describe('PaymentService', () => {
       expect(dataSource.transaction).toHaveBeenCalledTimes(1);
 
       expect(result).toBe(transactionalPayment);
+
+      /**
+       * Verify that the customer receives
+       * a notification after successful payment.
+       */
+      expect(notificationService.createNotification).toHaveBeenCalledWith(
+        transactionalOrder.user,
+        'Payment Successful',
+        NotificationType.PAYMENT_SUCCESS,
+        'Your payment was completed successfully.',
+      );
     });
 
     it('should throw NotFoundException when payment does not exist', async () => {
