@@ -997,6 +997,32 @@ describe('OrderService', () => {
       expect(result.status).toBe(OrderStatus.DELIVERED);
     });
 
+    it('should create a notification when an order is delivered', async () => {
+      const order = {
+        ...baseOrder,
+
+        status: OrderStatus.SHIPPED,
+      };
+
+      orderRepository.findById.mockResolvedValue(order as any);
+
+      orderRepository.save.mockResolvedValue({
+        ...order,
+
+        status: OrderStatus.DELIVERED,
+
+        deliveredAt: new Date('2026-01-04T10:00:00.000Z'),
+      } as any);
+
+      await service.deliverOrder(orderId);
+
+      /**
+       * Verify that the customer receives a notification
+       * after their shipped order has been successfully delivered.
+       */
+      expect(notificationService.createNotification).toHaveBeenCalled();
+    });
+
     it('should throw BadRequestException when delivering a non-shipped order', async () => {
       orderRepository.findById.mockResolvedValue({
         ...baseOrder,
