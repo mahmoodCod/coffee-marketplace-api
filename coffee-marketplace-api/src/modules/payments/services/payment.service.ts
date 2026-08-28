@@ -242,6 +242,8 @@ export class PaymentService {
      * Complete payment settlement inside
      * a single database transaction.
      */
+    let paymentUserId: string;
+
     await this.dataSource.transaction(async (manager: EntityManager) => {
       /**
        * Load the latest payment state inside
@@ -262,6 +264,8 @@ export class PaymentService {
         throw new NotFoundException('Payment not found.');
       }
 
+      paymentUserId = transactionalPayment.order.user.id;
+
       /**
        * Mark the payment as successfully completed.
        */
@@ -272,17 +276,6 @@ export class PaymentService {
       transactionalPayment.paidAt = new Date();
 
       await manager.save(Payment, transactionalPayment);
-
-      /**
-       * Create a notification after
-       * successful payment.
-       */
-      await this.notificationService.createNotification(
-        transactionalPayment.order.user,
-        'Payment Successful',
-        NotificationType.PAYMENT_SUCCESS,
-        'Your payment was completed successfully.',
-      );
 
       /**
        * Mark the related order as paid.
@@ -299,6 +292,19 @@ export class PaymentService {
        */
       await this.settleOrder(manager, transactionalPayment.order.id);
     });
+
+    /**
+     * Create a notification after successful payment settlement.
+     *
+     * This runs outside the payment transaction so a notification
+     * failure does not roll back payment and inventory changes.
+     */
+    await this.notificationService.createNotification(
+      paymentUserId,
+      'Payment Successful',
+      NotificationType.PAYMENT_SUCCESS,
+      'Your payment was completed successfully.',
+    );
 
     /**
      * Return the latest payment data.

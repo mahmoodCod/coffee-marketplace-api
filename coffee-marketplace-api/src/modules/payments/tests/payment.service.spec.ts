@@ -632,7 +632,7 @@ describe('PaymentService', () => {
        * a notification after successful payment.
        */
       expect(notificationService.createNotification).toHaveBeenCalledWith(
-        transactionalOrder.user,
+        transactionalOrder.user.id,
         'Payment Successful',
         NotificationType.PAYMENT_SUCCESS,
         'Your payment was completed successfully.',

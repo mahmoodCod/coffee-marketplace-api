@@ -122,7 +122,7 @@ export class AuthService {
        * successful user registration.
        */
       await this.notificationService.createNotification(
-        user,
+        user.id,
         'Registration Successful',
         NotificationType.REGISTRATION,
         'Your account has been created successfully.',

@@ -404,7 +404,7 @@ describe('AuthService', () => {
       });
 
       expect(notificationService.createNotification).toHaveBeenCalledWith(
-        user,
+        user.id,
         'Registration Successful',
         NotificationType.REGISTRATION,
         'Your account has been created successfully.',

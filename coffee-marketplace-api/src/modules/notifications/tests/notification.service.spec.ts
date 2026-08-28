@@ -98,8 +98,6 @@ describe('NotificationService', () => {
    */
   describe('createNotification', () => {
     it('should create and save a new unread notification', async () => {
-      const user = createUser();
-
       const notification = createNotification(false);
 
       notificationRepository.create.mockReturnValue(notification);
@@ -107,14 +105,16 @@ describe('NotificationService', () => {
       notificationRepository.save.mockResolvedValue(notification);
 
       const result = await service.createNotification(
-        user,
+        userId,
         'Payment Successful',
         NotificationType.PAYMENT_SUCCESS,
         'Your payment was completed successfully.',
       );
 
       expect(notificationRepository.create).toHaveBeenCalledWith({
-        user,
+        user: {
+          id: userId,
+        },
 
         title: 'Payment Successful',
 

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -276,7 +277,7 @@ export class OrderService {
      * Notify the customer after
      * the order status changes to cancelled.
      */
-    await this.notifyOrderStatusChange(cancelledOrder);
+    await this.notifyOrderStatusChange(cancelledOrder, userId);
 
     return this.toOrderResponse(cancelledOrder, userId);
   }
@@ -494,9 +495,20 @@ export class OrderService {
    *
    * The notification is sent to the customer who owns the order.
    */
-  private async notifyOrderStatusChange(order: Order): Promise<void> {
+  private async notifyOrderStatusChange(
+    order: Order,
+    userId?: string,
+  ): Promise<void> {
+    const targetUserId = userId ?? order.user?.id;
+
+    if (!targetUserId) {
+      throw new InternalServerErrorException(
+        'Order owner is required to create an order notification.',
+      );
+    }
+
     await this.notificationService.createNotification(
-      order.user,
+      targetUserId,
       'Order Status Updated',
       NotificationType.ORDER_STATUS_CHANGED,
       `Your order status has changed to ${order.status}.`,

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Patch } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Patch } from '@nestjs/common';
 
 import {
   ApiBearerAuth,
@@ -93,7 +93,7 @@ export class NotificationController {
   async markNotificationAsRead(
     @CurrentUser('id') userId: string,
 
-    @Param('id') notificationId: string,
+    @Param('id', new ParseUUIDPipe()) notificationId: string,
   ): Promise<NotificationResponseDto> {
     const notification = await this.notificationService.markAsRead(
       userId,

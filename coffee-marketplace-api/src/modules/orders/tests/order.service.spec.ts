@@ -14,6 +14,7 @@ import { CartStatus } from '../../cart/entities/cart-status.enum';
 
 import { OrderStatus } from '../enums';
 import { NotificationService } from 'src/modules/notifications/services/notification.service';
+import { NotificationType } from 'src/modules/notifications/enums/notification-type.enum';
 
 describe('OrderService', () => {
   let service: OrderService;
@@ -757,7 +758,12 @@ describe('OrderService', () => {
        * Verify that the user receives a notification
        * after their order has been successfully cancelled.
        */
-      expect(notificationService.createNotification).toHaveBeenCalled();
+      expect(notificationService.createNotification).toHaveBeenCalledWith(
+        userId,
+        'Order Status Updated',
+        NotificationType.ORDER_STATUS_CHANGED,
+        `Your order status has changed to ${OrderStatus.CANCELLED}.`,
+      );
     });
 
     it('should throw NotFoundException when order does not exist', async () => {

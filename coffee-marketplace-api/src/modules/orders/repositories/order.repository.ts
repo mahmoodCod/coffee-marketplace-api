@@ -140,6 +140,7 @@ export class OrderRepository {
         },
       },
       relations: {
+        user: true,
         items: {
           product: true,
         },
