@@ -129,6 +129,31 @@ export class ProductDiscountRepository {
   }
 
   /**
+   * ------------------------------------------------------------------------
+   * Find Product With Seller
+   * ------------------------------------------------------------------------
+   *
+   * Finds a product through the product-discount relationship
+   * and loads its seller information.
+   *
+   * Used to verify that the authenticated seller owns the product.
+   */
+  async findProductById(productId: string): Promise<ProductDiscount | null> {
+    return this.repository.findOne({
+      where: {
+        product: {
+          id: productId,
+        },
+      },
+      relations: {
+        product: {
+          seller: true,
+        },
+      },
+    });
+  }
+
+  /**
    * ----------------------------------------------------------------------
    * Create
    * ----------------------------------------------------------------------
