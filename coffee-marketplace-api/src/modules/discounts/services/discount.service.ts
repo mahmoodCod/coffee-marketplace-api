@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,6 +15,8 @@ import { Discount } from '../entitties/discount.entity';
 import { CreateDiscountDto } from '../dto/create-descount.dto';
 
 import { UpdateDiscountDto } from '../dto/update-discount.dto';
+import { ProductService } from 'src/modules/products/services/product.service';
+import { ProductDiscount } from '../entitties/product-discount.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -36,6 +40,8 @@ export class DiscountService {
     private readonly discountRepository: DiscountRepository,
 
     private readonly productDiscountRepository: ProductDiscountRepository,
+
+    private readonly productService: ProductService,
   ) {}
 
   /**
@@ -253,5 +259,78 @@ export class DiscountService {
         'Discount value must be a valid non-negative number.',
       );
     }
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Attach Discount To Product
+   * ------------------------------------------------------------------------
+   *
+   * Attaches a discount to a seller-owned product.
+   *
+   * Business Rules
+   * ------------------------------------------------------------------------
+   *
+   * - The product must exist.
+   * - The seller must own the product.
+   * - The discount must exist.
+   * - The discount cannot be attached twice to the same product.
+   * ------------------------------------------------------------------------
+   */
+  async attachDiscountToProduct(
+    sellerId: string,
+    discountId: string,
+    productId: string,
+  ): Promise<ProductDiscount> {
+    /**
+     * Load the product with its seller.
+     */
+    const product = await this.productService.findOne(productId);
+
+    /**
+     * Verify that the product belongs to the seller.
+     */
+    if (product.seller.id !== sellerId) {
+      throw new ForbiddenException(
+        'You cannot manage discounts for this product.',
+      );
+    }
+
+    /**
+     * Load the discount.
+     */
+    const discount = await this.discountRepository.findById(discountId);
+
+    if (!discount) {
+      throw new NotFoundException('Discount not found.');
+    }
+
+    /**
+     * Prevent duplicate product-discount associations.
+     */
+    const existing =
+      await this.productDiscountRepository.findByProductIdAndDiscountId(
+        productId,
+        discountId,
+      );
+
+    if (existing) {
+      throw new ConflictException(
+        'Discount is already attached to this product.',
+      );
+    }
+
+    /**
+     * Create the product-discount association.
+     */
+    const productDiscount = this.productDiscountRepository.create({
+      product,
+      discount,
+    });
+
+    /**
+     * Persist the association.
+     */
+    return this.productDiscountRepository.save(productDiscount);
   }
 }
