@@ -55,14 +55,18 @@ export class DiscountRepository {
     return this.repository.find({
       where: {
         products: {
-          seller: {
-            id: sellerId,
+          product: {
+            seller: {
+              id: sellerId,
+            },
           },
         },
       },
       relations: {
         products: {
-          seller: true,
+          product: {
+            seller: true,
+          },
         },
       },
       order: {
@@ -84,7 +88,9 @@ export class DiscountRepository {
       },
       relations: {
         products: {
-          seller: true,
+          product: {
+            seller: true,
+          },
         },
       },
     });
