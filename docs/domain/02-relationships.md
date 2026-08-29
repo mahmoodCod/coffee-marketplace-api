@@ -42,9 +42,17 @@
 
 --------------------------------------------
 
+## Discount
+
+- A discount can belong to many products.
+- A discount is linked to products through product_discounts.
+
+--------------------------------------------
+
 ## Coupon
 
 - A coupon can be applied to many orders.
+- An order can have at most one coupon.
 
 --------------------------------------------
 
@@ -97,12 +105,6 @@
 - A review belongs to one user.
 - A review belongs to one product.
 - A user can have only one review per product.
-
---------------------------------------------
-
-## Discount
-
-- A discount can belong to many products.
 
 --------------------------------------------
 

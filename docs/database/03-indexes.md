@@ -52,6 +52,8 @@ reviews.product_id
 
 notifications.user_id
 
+product_discounts.discount_id
+
 articles.author_id
 
 ----------------------------------------
@@ -91,6 +93,8 @@ notifications (user_id, is_read)
 products (status, created_at)
 
 products (seller_id, status)
+
+discounts (is_active, end_date)
 
 ----------------------------------------
 

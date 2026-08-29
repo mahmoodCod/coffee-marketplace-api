@@ -151,8 +151,12 @@ Responsible for:
 
 Responsible for:
 
-- Product discounts
-- Discount management
+- Creating product discounts
+- Updating product discounts
+- Deleting product discounts
+- Listing seller product discounts
+- Attaching discounts to seller products
+- Viewing all product discounts (admin)
 
 -------------------------------------
 
@@ -160,9 +164,13 @@ Responsible for:
 
 Responsible for:
 
-- Coupon generation
-- Coupon validation
-- Coupon usage tracking
+- Creating coupons
+- Updating coupons
+- Deleting coupons
+- Listing coupons
+- Validating coupon codes
+- Applying coupons to customer orders
+- Tracking coupon usage
 
 -------------------------------------
 
