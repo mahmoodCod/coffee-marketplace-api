@@ -1,7 +1,9 @@
+import { Product } from 'src/modules/products/entities/product.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
+  ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -149,6 +151,8 @@ export class Discount {
   })
   endDate: Date;
 
+  @ManyToMany(() => Product)
+  products: Product[];
   /**
    * Discount creation timestamp.
    */

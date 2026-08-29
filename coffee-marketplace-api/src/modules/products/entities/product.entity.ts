@@ -308,6 +308,22 @@ export class Product {
   reviews: Review[];
 
   /**
+   * ------------------------------------------------------------------------
+   * Product Discounts
+   * ------------------------------------------------------------------------
+   *
+   * A product can have multiple discounts.
+   *
+   * The relationship is managed through the
+   * ProductDiscount join entity.
+   * ------------------------------------------------------------------------
+   */
+  @OneToMany(
+    () => ProductDiscount,
+    (productDiscount) => productDiscount.product,
+  )
+  discounts: ProductDiscount[];
+  /**
    * Creation timestamp.
    */
   @CreateDateColumn({
