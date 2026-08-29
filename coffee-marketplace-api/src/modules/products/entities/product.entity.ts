@@ -18,6 +18,7 @@ import { Inventory } from '../../../modules/inventoryes/entities/inventory.entit
 import { CartItem } from '../../../modules/cart/entities';
 import { OrderItem } from '../../../modules/orders/entities/order-item.entity';
 import { Review } from '../../../modules/reviews/entities/review.entity';
+import { ProductDiscount } from './product-discount.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -314,8 +315,7 @@ export class Product {
    *
    * A product can have multiple discounts.
    *
-   * The relationship is managed through the
-   * ProductDiscount join entity.
+   * The relationship is managed through ProductDiscount.
    * ------------------------------------------------------------------------
    */
   @OneToMany(
@@ -323,13 +323,13 @@ export class Product {
     (productDiscount) => productDiscount.product,
   )
   discounts: ProductDiscount[];
+
   /**
    * Creation timestamp.
    */
   @CreateDateColumn({
     name: 'created_at',
   })
-  createdAt: Date;
 
   /**
    * Last update timestamp.

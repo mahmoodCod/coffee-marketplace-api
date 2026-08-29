@@ -1,9 +1,9 @@
-import { Product } from 'src/modules/products/entities/product.entity';
+import { ProductDiscount } from 'src/modules/products/entities/product-discount.entity';
 import {
   Column,
   CreateDateColumn,
   Entity,
-  ManyToMany,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -151,8 +151,21 @@ export class Discount {
   })
   endDate: Date;
 
-  @ManyToMany(() => Product)
-  products: Product[];
+  /**
+   * ------------------------------------------------------------------------
+   * Product Discounts
+   * ------------------------------------------------------------------------
+   *
+   * A discount can be attached to multiple products.
+   *
+   * The relationship is managed through ProductDiscount.
+   * ------------------------------------------------------------------------
+   */
+  @OneToMany(
+    () => ProductDiscount,
+    (productDiscount) => productDiscount.discount,
+  )
+  products: ProductDiscount[];
   /**
    * Discount creation timestamp.
    */
