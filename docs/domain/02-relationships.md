@@ -44,6 +44,7 @@
 
 ## Discount
 
+- A discount belongs to one seller.
 - A discount can belong to many products.
 - A discount is linked to products through product_discounts.
 

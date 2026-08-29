@@ -220,6 +220,8 @@ GET    /seller/discounts
 
 POST   /seller/discounts
 
+POST   /seller/discounts/:discountId/products/:productId
+
 PATCH  /seller/discounts/:id
 
 DELETE /seller/discounts/:id

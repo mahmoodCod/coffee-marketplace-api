@@ -42,6 +42,12 @@ users.id -> notifications.user_id
 
 ------------------------------------
 
+## Users & Discounts
+
+users.id -> discounts.seller_id
+
+------------------------------------
+
 ## Categories & Products
 
 products.id -> product_categories.product_id
