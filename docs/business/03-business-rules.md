@@ -46,6 +46,7 @@
 - An order can only be paid once.
 - Inventory decreases only after successful payment.
 - Orders cannot be canceled after shipment.
+- Order final_price is calculated from total_price after coupon discounts.
 
 -------------------------------
 
@@ -63,9 +64,25 @@
 
 ## Discounts
 
-- Discount codes have expiration dates.
-- Expired discount codes cannot be applied.
-- A discount code cannot reduce the final price below zero.
+- Only sellers can create product discounts.
+- Sellers can manage only discounts attached to their own products.
+- Admins can view all product discounts.
+- Only active discounts within start_date and end_date are applied.
+- Expired discounts cannot be applied to products.
+- A discount cannot make the product price less than zero.
+- Product discounts are linked to products through product_discounts.
+
+------------------------------
+
+## Coupons
+
+- Only admins can manage coupons.
+- Coupon codes have expiration dates.
+- Expired coupon codes cannot be applied.
+- Only active coupons can be applied.
+- A coupon cannot reduce the final order price below zero.
+- An order can have at most one coupon.
+- Coupon usage cannot exceed usage_limit.
 
 ------------------------------
 
@@ -108,6 +125,7 @@
 - Sellers can view only their own orders.
 - Sellers cannot access other sellers' information.
 - Sellers can confirm only delivered orders.
+- Sellers can manage only their own product discounts.
 
 -------------------------------
 

@@ -210,7 +210,13 @@ PATCH  /admin/reviews/:id/reject
 
 ## Discounts
 
+Admin
+
 GET    /admin/discounts
+
+Seller
+
+GET    /seller/discounts
 
 POST   /seller/discounts
 
@@ -222,19 +228,19 @@ DELETE /seller/discounts/:id
 
 ## Coupons
 
-GET /admin/coupons
+Admin
 
-POST /admin/coupons
+GET    /admin/coupons
 
-PATCH /admin/coupons/:id
+POST   /admin/coupons
+
+PATCH  /admin/coupons/:id
 
 DELETE /admin/coupons/:id
 
---------------------------------
-
 Customer
 
-POST /coupons/apply
+POST   /coupons/apply
 
 --------------------------------
 

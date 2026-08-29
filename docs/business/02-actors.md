@@ -46,7 +46,7 @@ Has a user account.
 - Mark notifications as read
 - View articles
 - View user reviews
-- Apply discount code
+- Apply coupon code
 
 ----------------------------------
 
@@ -66,7 +66,8 @@ System Administrator.
 - Manage comments
 - Management of articles
 - Manage filters
-- Management of discounts
+- View product discounts
+- Management of coupons
 - Management of roles
 - Warehouse management
 - Dashboard statistics and sales analytics
@@ -88,7 +89,7 @@ A vendor who can manage and sell products on the platform.
 - View own orders
 - Confirm delivered orders
 - View sales reports
-- Manage discounts
+- Manage product discounts
 - Access seller dashboard
 
 -----------------------------------
