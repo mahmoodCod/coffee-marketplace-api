@@ -313,6 +313,7 @@ export class Product {
   @CreateDateColumn({
     name: 'created_at',
   })
+  createdAt: Date;
 
   /**
    * Last update timestamp.
