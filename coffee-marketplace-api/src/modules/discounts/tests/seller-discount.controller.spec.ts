@@ -5,6 +5,7 @@ import { SellerDiscountController } from '../controllers/seller-discount.control
 import { DiscountService } from '../services/discount.service';
 
 import { Discount } from '../entitties/discount.entity';
+import { ForbiddenException } from '@nestjs/common';
 
 /**
  * ------------------------------------------------------------------------
@@ -25,6 +26,7 @@ describe('SellerDiscountController', () => {
   let controller: SellerDiscountController;
 
   let discountService: {
+    attachDiscountToProduct: any;
     getSellerDiscounts: jest.Mock;
 
     createDiscount: jest.Mock;
@@ -83,6 +85,8 @@ describe('SellerDiscountController', () => {
       updateDiscount: jest.fn(),
 
       deleteDiscount: jest.fn(),
+
+      attachDiscountToProduct: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -274,6 +278,42 @@ describe('SellerDiscountController', () => {
       );
 
       expect(result).toBeUndefined();
+    });
+
+    describe('attachDiscountToProduct', () => {
+      it('should attach a discount to a seller-owned product', async () => {
+        discountService.attachDiscountToProduct.mockResolvedValue({} as any);
+
+        await controller.attachDiscountToProduct(
+          sellerId,
+          discountId,
+          productId,
+        );
+
+        expect(discountService.attachDiscountToProduct).toHaveBeenCalledWith(
+          sellerId,
+          discountId,
+          productId,
+        );
+      });
+
+      it('should propagate an error from DiscountService', async () => {
+        discountService.attachDiscountToProduct.mockRejectedValue(
+          new ForbiddenException(
+            'You cannot manage discounts for this product.',
+          ),
+        );
+
+        await expect(
+          controller.attachDiscountToProduct(sellerId, discountId, productId),
+        ).rejects.toThrow(ForbiddenException);
+
+        expect(discountService.attachDiscountToProduct).toHaveBeenCalledWith(
+          sellerId,
+          discountId,
+          productId,
+        );
+      });
     });
   });
 });
