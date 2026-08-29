@@ -185,4 +185,35 @@ export class SellerDiscountController {
       updatedAt: discount.updatedAt,
     };
   }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Attach Discount To Product
+   * ------------------------------------------------------------------------
+   *
+   * Attaches an existing discount to a product owned by
+   * the authenticated seller.
+   *
+   * POST /seller/discounts/:discountId/products/:productId
+   * ------------------------------------------------------------------------
+   */
+  @Post(':discountId/products/:productId')
+  @ApiOperation({
+    summary: 'Attach a discount to a seller product',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Discount attached to product successfully.',
+  })
+  async attachDiscountToProduct(
+    @CurrentUser('id') sellerId: string,
+    @Param('discountId') discountId: string,
+    @Param('productId') productId: string,
+  ): Promise<void> {
+    await this.discountService.attachDiscountToProduct(
+      sellerId,
+      discountId,
+      productId,
+    );
+  }
 }
