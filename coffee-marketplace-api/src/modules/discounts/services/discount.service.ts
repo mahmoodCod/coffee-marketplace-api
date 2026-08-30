@@ -15,7 +15,7 @@ import { Discount } from '../entitties/discount.entity';
 import { CreateDiscountDto } from '../dto/create-descount.dto';
 
 import { UpdateDiscountDto } from '../dto/update-discount.dto';
-import { ProductService } from 'src/modules/products/services/product.service';
+import { ProductService } from '../../../modules/products/services/product.service';
 import { ProductDiscount } from '../entitties/product-discount.entity';
 
 /**

@@ -1,4 +1,4 @@
-import { ProductDiscount } from 'src/modules/products/entities/product-discount.entity';
+import { ProductDiscount } from '../../../modules/products/entities/product-discount.entity';
 import {
   Column,
   CreateDateColumn,
