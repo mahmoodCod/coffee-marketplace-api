@@ -63,7 +63,7 @@ export class SellerDiscountController {
     isArray: true,
   })
   async getSellerDiscounts(
-    @CurrentUser('id') sellerId: string,
+    @CurrentUser('sub') sellerId: string,
   ): Promise<DiscountResponseDto[]> {
     const discounts = await this.discountService.getSellerDiscounts(sellerId);
 
@@ -80,7 +80,7 @@ export class SellerDiscountController {
     type: DiscountResponseDto,
   })
   async createDiscount(
-    @CurrentUser('id') sellerId: string,
+    @CurrentUser('sub') sellerId: string,
     @Body() dto: CreateDiscountDto,
   ): Promise<DiscountResponseDto> {
     const discount = await this.discountService.createDiscount(sellerId, dto);
@@ -98,7 +98,7 @@ export class SellerDiscountController {
     description: 'Discount attached to product successfully.',
   })
   async attachDiscountToProduct(
-    @CurrentUser('id') sellerId: string,
+    @CurrentUser('sub') sellerId: string,
     @Param('discountId', new ParseUUIDPipe()) discountId: string,
     @Param('productId', new ParseUUIDPipe()) productId: string,
   ): Promise<void> {
@@ -119,7 +119,7 @@ export class SellerDiscountController {
     type: DiscountResponseDto,
   })
   async updateDiscount(
-    @CurrentUser('id') sellerId: string,
+    @CurrentUser('sub') sellerId: string,
     @Param('id', new ParseUUIDPipe()) discountId: string,
     @Body() dto: UpdateDiscountDto,
   ): Promise<DiscountResponseDto> {
@@ -142,7 +142,7 @@ export class SellerDiscountController {
     description: 'Discount deleted successfully.',
   })
   async deleteDiscount(
-    @CurrentUser('id') sellerId: string,
+    @CurrentUser('sub') sellerId: string,
     @Param('id', new ParseUUIDPipe()) discountId: string,
   ): Promise<void> {
     await this.discountService.deleteDiscount(sellerId, discountId);

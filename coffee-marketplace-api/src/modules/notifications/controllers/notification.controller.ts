@@ -55,7 +55,7 @@ export class NotificationController {
     isArray: true,
   })
   async getNotifications(
-    @CurrentUser('id') userId: string,
+    @CurrentUser('sub') userId: string,
   ): Promise<NotificationResponseDto[]> {
     const notifications =
       await this.notificationService.getUserNotifications(userId);
@@ -91,7 +91,7 @@ export class NotificationController {
     type: NotificationResponseDto,
   })
   async markNotificationAsRead(
-    @CurrentUser('id') userId: string,
+    @CurrentUser('sub') userId: string,
 
     @Param('id', new ParseUUIDPipe()) notificationId: string,
   ): Promise<NotificationResponseDto> {
