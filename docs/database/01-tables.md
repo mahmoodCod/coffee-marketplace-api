@@ -197,6 +197,7 @@
 ## discounts
 
 - id
+- seller_id
 - name
 - type
 - value

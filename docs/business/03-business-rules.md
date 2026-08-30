@@ -65,7 +65,7 @@
 ## Discounts
 
 - Only sellers can create product discounts.
-- Sellers can manage only discounts attached to their own products.
+- Sellers can manage only their own product discounts.
 - Admins can view all product discounts.
 - Only active discounts within start_date and end_date are applied.
 - Expired discounts cannot be applied to products.

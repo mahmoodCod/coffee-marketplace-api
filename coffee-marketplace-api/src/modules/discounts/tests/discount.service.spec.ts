@@ -17,6 +17,8 @@ import { Discount } from '../entities/discount.entity';
 
 import { ProductDiscount } from '../../products/entities/product-discount.entity';
 
+import { DiscountType } from '../enums/discount-type.enum';
+
 describe('DiscountService', () => {
   let service: DiscountService;
 
@@ -39,6 +41,7 @@ describe('DiscountService', () => {
 
   let productService: {
     findOne: jest.Mock;
+    applyDiscountedPrice: jest.Mock;
   };
 
   const sellerId = 'seller-id';
@@ -58,7 +61,7 @@ describe('DiscountService', () => {
 
       name: 'Summer Discount',
 
-      type: 'PERCENTAGE',
+      type: DiscountType.PERCENTAGE,
 
       value: '20',
 
@@ -74,9 +77,9 @@ describe('DiscountService', () => {
 
       isActive: true,
 
-      startDate: new Date('2026-06-01'),
+      startDate: new Date('2026-01-01'),
 
-      endDate: new Date('2026-07-01'),
+      endDate: new Date('2027-12-31'),
 
       createdAt: new Date(),
 
@@ -132,6 +135,7 @@ describe('DiscountService', () => {
 
     productService = {
       findOne: jest.fn(),
+      applyDiscountedPrice: jest.fn(),
     };
 
     service = new DiscountService(
@@ -177,7 +181,28 @@ describe('DiscountService', () => {
   });
 
   describe('calculateDiscountedPrice', () => {
-    // Keep existing tests unchanged.
+    it('should calculate a percentage discount correctly', () => {
+      const discount = {
+        ...createDiscount(),
+        type: DiscountType.PERCENTAGE,
+        value: '20',
+        maximumDiscountAmount: null,
+      } as Discount;
+
+      expect(service.calculateDiscountedPrice('100.00', discount)).toBe('80.00');
+    });
+
+    it('should throw when discount makes price negative', () => {
+      const discount = {
+        ...createDiscount(),
+        type: DiscountType.FIXED,
+        value: '150',
+      } as Discount;
+
+      expect(() => service.calculateDiscountedPrice('100.00', discount)).toThrow(
+        BadRequestException,
+      );
+    });
   });
 
   /**
@@ -189,7 +214,8 @@ describe('DiscountService', () => {
     it('should attach a discount to a seller-owned product', async () => {
       const product = {
         id: productId,
-
+        price: '100.00',
+        originalPrice: '100.00',
         seller: {
           id: sellerId,
         },
@@ -212,6 +238,8 @@ describe('DiscountService', () => {
       productDiscountRepository.findByProductIdAndDiscountId.mockResolvedValue(
         null,
       );
+
+      productService.applyDiscountedPrice.mockResolvedValue(undefined);
 
       productDiscountRepository.create.mockReturnValue(productDiscount);
 
@@ -241,6 +269,11 @@ describe('DiscountService', () => {
 
         discount,
       });
+
+      expect(productService.applyDiscountedPrice).toHaveBeenCalledWith(
+        productId,
+        '80.00',
+      );
 
       expect(productDiscountRepository.save).toHaveBeenCalledWith(
         productDiscount,
@@ -286,7 +319,8 @@ describe('DiscountService', () => {
     it('should throw NotFoundException when discount does not exist', async () => {
       const product = {
         id: productId,
-
+        price: '100.00',
+        originalPrice: '100.00',
         seller: {
           id: sellerId,
         },
@@ -325,7 +359,8 @@ describe('DiscountService', () => {
     it('should throw ConflictException when discount is already attached to the product', async () => {
       const product = {
         id: productId,
-
+        price: '100.00',
+        originalPrice: '100.00',
         seller: {
           id: sellerId,
         },

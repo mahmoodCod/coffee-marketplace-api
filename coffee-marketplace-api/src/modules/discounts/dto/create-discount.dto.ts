@@ -1,13 +1,17 @@
 import {
   IsBoolean,
   IsDateString,
+  IsEnum,
   IsNumberString,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
+
+import { DiscountType } from '../enums/discount-type.enum';
 
 /**
  * ------------------------------------------------------------------------
@@ -30,10 +34,8 @@ export class CreateDiscountDto {
   /**
    * Discount calculation type.
    */
-  @IsString()
-  @MinLength(1)
-  @MaxLength(50)
-  type: string;
+  @IsEnum(DiscountType)
+  type: DiscountType;
 
   /**
    * Discount value.

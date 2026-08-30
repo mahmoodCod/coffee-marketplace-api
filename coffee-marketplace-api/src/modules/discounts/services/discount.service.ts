@@ -19,6 +19,7 @@ import { CreateDiscountDto } from '../dto/create-discount.dto';
 import { UpdateDiscountDto } from '../dto/update-discount.dto';
 import { ProductService } from '../../../modules/products/services/product.service';
 import { ProductDiscount } from '../../products/entities/product-discount.entity';
+import { DiscountType } from '../enums/discount-type.enum';
 
 /**
  * ------------------------------------------------------------------------
@@ -44,7 +45,7 @@ export class DiscountService {
   ): Promise<Discount> {
     this.validateDiscountDates(dto.startDate, dto.endDate);
 
-    this.validateDiscountValue(dto.value);
+    this.validateDiscountValue(dto.type, dto.value);
 
     const discount = this.discountRepository.create({
       seller: {
@@ -118,10 +119,14 @@ export class DiscountService {
       discount.endDate = endDate;
     }
 
+    const nextType = dto.type ?? (discount.type as DiscountType);
+
     if (dto.value !== undefined) {
-      this.validateDiscountValue(dto.value);
+      this.validateDiscountValue(nextType, dto.value);
 
       discount.value = dto.value;
+    } else if (dto.type !== undefined) {
+      this.validateDiscountValue(nextType, discount.value);
     }
 
     if (dto.name !== undefined) {
@@ -176,28 +181,6 @@ export class DiscountService {
     await this.discountRepository.delete(discountId);
   }
 
-  private validateDiscountDates(startDate: string, endDate: string): void {
-    const start = new Date(startDate);
-
-    const end = new Date(endDate);
-
-    if (start >= end) {
-      throw new BadRequestException(
-        'Discount start date must be before the end date.',
-      );
-    }
-  }
-
-  private validateDiscountValue(value: string): void {
-    const numericValue = Number(value);
-
-    if (!Number.isFinite(numericValue) || numericValue < 0) {
-      throw new BadRequestException(
-        'Discount value must be a valid non-negative number.',
-      );
-    }
-  }
-
   async attachDiscountToProduct(
     sellerId: string,
     discountId: string,
@@ -222,6 +205,8 @@ export class DiscountService {
       );
     }
 
+    this.assertDiscountIsApplicable(discount);
+
     const existing =
       await this.productDiscountRepository.findByProductIdAndDiscountId(
         productId,
@@ -234,11 +219,98 @@ export class DiscountService {
       );
     }
 
+    const basePrice = String(product.originalPrice ?? product.price);
+
+    const discountedPrice = this.calculateDiscountedPrice(basePrice, discount);
+
+    await this.productService.applyDiscountedPrice(productId, discountedPrice);
+
     const productDiscount = this.productDiscountRepository.create({
       product,
       discount,
     });
 
     return this.productDiscountRepository.save(productDiscount);
+  }
+
+  private validateDiscountDates(startDate: string, endDate: string): void {
+    const start = new Date(startDate);
+
+    const end = new Date(endDate);
+
+    if (start >= end) {
+      throw new BadRequestException(
+        'Discount start date must be before the end date.',
+      );
+    }
+  }
+
+  private validateDiscountValue(type: DiscountType, value: string): void {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+      throw new BadRequestException(
+        'Discount value must be a valid non-negative number.',
+      );
+    }
+
+    if (type === DiscountType.PERCENTAGE && numericValue > 100) {
+      throw new BadRequestException(
+        'Percentage discount value cannot be greater than 100.',
+      );
+    }
+  }
+
+  private assertDiscountIsApplicable(discount: Discount): void {
+    if (!discount.isActive) {
+      throw new BadRequestException('Inactive discounts cannot be applied.');
+    }
+
+    const now = new Date();
+
+    if (now < discount.startDate || now > discount.endDate) {
+      throw new BadRequestException(
+        'Expired or not-yet-active discounts cannot be applied.',
+      );
+    }
+  }
+
+  calculateDiscountedPrice(basePrice: string, discount: Discount): string {
+    const originalPrice = Number(basePrice);
+
+    const discountValue = Number(discount.value);
+
+    if (!Number.isFinite(originalPrice) || originalPrice <= 0) {
+      throw new BadRequestException(
+        'Product price must be greater than zero before applying a discount.',
+      );
+    }
+
+    let discountedAmount = 0;
+
+    if (discount.type === DiscountType.PERCENTAGE) {
+      discountedAmount = (originalPrice * discountValue) / 100;
+
+      if (discount.maximumDiscountAmount !== null) {
+        discountedAmount = Math.min(
+          discountedAmount,
+          Number(discount.maximumDiscountAmount),
+        );
+      }
+    } else if (discount.type === DiscountType.FIXED) {
+      discountedAmount = discountValue;
+    } else {
+      throw new BadRequestException('Unsupported discount type.');
+    }
+
+    const finalPrice = originalPrice - discountedAmount;
+
+    if (finalPrice < 0) {
+      throw new BadRequestException(
+        'A discount cannot make the product price less than zero.',
+      );
+    }
+
+    return finalPrice.toFixed(2);
   }
 }

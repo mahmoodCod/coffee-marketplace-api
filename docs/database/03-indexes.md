@@ -54,6 +54,8 @@ notifications.user_id
 
 product_discounts.discount_id
 
+discounts.seller_id
+
 articles.author_id
 
 ----------------------------------------

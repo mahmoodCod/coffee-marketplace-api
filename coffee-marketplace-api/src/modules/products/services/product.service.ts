@@ -395,6 +395,21 @@ export class ProductService {
   }
 
   /**
+   * Updates the selling price of a product after
+   * a product discount has been applied.
+   */
+  async applyDiscountedPrice(
+    productId: string,
+    discountedPrice: string,
+  ): Promise<void> {
+    const product = await this.findProductOrFail(productId);
+
+    product.price = Number(discountedPrice);
+
+    await this.productsRepository.save(product);
+  }
+
+  /**
    * ------------------------------------------------------------------------
    * Find All Products For Admin
    * ------------------------------------------------------------------------
