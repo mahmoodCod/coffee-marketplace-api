@@ -40,6 +40,8 @@ describe('SellerDiscountController', () => {
 
   const discountId = 'discount-id';
 
+  const productId = 'product-id';
+
   /**
    * ------------------------------------------------------------------------
    * Create Mock Discount
