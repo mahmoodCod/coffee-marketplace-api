@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 import { Repository } from 'typeorm';
 
-import { Discount } from '../entitties/discount.entity';
+import { Discount } from '../entities/discount.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -12,16 +12,6 @@ import { Discount } from '../entitties/discount.entity';
  * ------------------------------------------------------------------------
  *
  * Handles database access related to product discounts.
- *
- * Responsibilities:
- * - Find all product discounts for admin management.
- * - Find discounts attached to a seller's products.
- * - Find a single discount by ID.
- * - Create discount entities.
- * - Save discounts.
- * - Delete discounts.
- *
- * Business logic should remain inside DiscountService.
  * ------------------------------------------------------------------------
  */
 @Injectable()
@@ -33,11 +23,12 @@ export class DiscountRepository {
 
   /**
    * Find all discounts.
-   *
-   * Used by admin discount management endpoints.
    */
   async findAll(): Promise<Discount[]> {
     return this.repository.find({
+      relations: {
+        seller: true,
+      },
       order: {
         createdAt: 'DESC',
       },
@@ -45,28 +36,13 @@ export class DiscountRepository {
   }
 
   /**
-   * Find all discounts attached to products
-   * owned by the given seller.
-   *
-   * The product-discount relationship is loaded
-   * so the service can verify seller ownership.
+   * Find all discounts created by the given seller.
    */
   async findAllBySellerId(sellerId: string): Promise<Discount[]> {
     return this.repository.find({
       where: {
-        products: {
-          product: {
-            seller: {
-              id: sellerId,
-            },
-          },
-        },
-      },
-      relations: {
-        products: {
-          product: {
-            seller: true,
-          },
+        seller: {
+          id: sellerId,
         },
       },
       order: {
@@ -77,9 +53,6 @@ export class DiscountRepository {
 
   /**
    * Find a discount by ID.
-   *
-   * Product and seller relations are loaded because
-   * seller operations need to verify ownership.
    */
   async findById(discountId: string): Promise<Discount | null> {
     return this.repository.findOne({
@@ -87,6 +60,7 @@ export class DiscountRepository {
         id: discountId,
       },
       relations: {
+        seller: true,
         products: {
           product: {
             seller: true,
@@ -97,27 +71,30 @@ export class DiscountRepository {
   }
 
   /**
-   * Create a new discount entity.
-   *
-   * This method only creates the entity in memory.
-   * The caller must use save() to persist it.
+   * Find a discount owned by the given seller.
    */
+  async findByIdAndSellerId(
+    discountId: string,
+    sellerId: string,
+  ): Promise<Discount | null> {
+    return this.repository.findOne({
+      where: {
+        id: discountId,
+        seller: {
+          id: sellerId,
+        },
+      },
+    });
+  }
+
   create(data: Partial<Discount>): Discount {
     return this.repository.create(data);
   }
 
-  /**
-   * Save a discount entity.
-   *
-   * Used for both creating and updating discounts.
-   */
   async save(discount: Discount): Promise<Discount> {
     return this.repository.save(discount);
   }
 
-  /**
-   * Delete a discount by ID.
-   */
   async delete(discountId: string): Promise<void> {
     await this.repository.delete(discountId);
   }

@@ -4,7 +4,7 @@ import { SellerDiscountController } from '../controllers/seller-discount.control
 
 import { DiscountService } from '../services/discount.service';
 
-import { Discount } from '../entitties/discount.entity';
+import { Discount } from '../entities/discount.entity';
 import { ForbiddenException } from '@nestjs/common';
 
 /**

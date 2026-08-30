@@ -3,9 +3,13 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 
 import {
@@ -15,47 +19,39 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+
+import { RolesGuard } from '../../../common/guards/roles.guard';
+
+import { Roles } from '../../../common/decorators/roles.decorator';
+
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+
+import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 
 import { DiscountService } from '../services/discount.service';
 
-import { CreateDiscountDto } from '../dto/create-descount.dto';
+import { CreateDiscountDto } from '../dto/create-discount.dto';
 
 import { UpdateDiscountDto } from '../dto/update-discount.dto';
 
 import { DiscountResponseDto } from '../dto/discount-response.dto';
 
+import { Discount } from '../entities/discount.entity';
+
 /**
  * ------------------------------------------------------------------------
  * Seller Discount Controller
- * ------------------------------------------------------------------------
- *
- * Handles discount management operations for sellers.
- *
- * Sellers can:
- * - View their product discounts.
- * - Create discounts.
- * - Update their own product discounts.
- * - Delete their own product discounts.
  * ------------------------------------------------------------------------
  */
 @ApiTags('Seller Discounts')
 @ApiBearerAuth()
 @Controller('seller/discounts')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(SYSTEM_ROLES.SELLER)
 export class SellerDiscountController {
   constructor(private readonly discountService: DiscountService) {}
 
-  /**
-   * ------------------------------------------------------------------------
-   * Get Seller Discounts
-   * ------------------------------------------------------------------------
-   *
-   * Returns all discounts attached to products
-   * owned by the authenticated seller.
-   *
-   * GET /seller/discounts
-   * ------------------------------------------------------------------------
-   */
   @Get()
   @ApiOperation({
     summary: 'Get seller discounts',
@@ -74,16 +70,6 @@ export class SellerDiscountController {
     return discounts.map((discount) => this.toResponse(discount));
   }
 
-  /**
-   * ------------------------------------------------------------------------
-   * Create Discount
-   * ------------------------------------------------------------------------
-   *
-   * Creates a new discount for the authenticated seller.
-   *
-   * POST /seller/discounts
-   * ------------------------------------------------------------------------
-   */
   @Post()
   @ApiOperation({
     summary: 'Create a product discount',
@@ -102,16 +88,27 @@ export class SellerDiscountController {
     return this.toResponse(discount);
   }
 
-  /**
-   * ------------------------------------------------------------------------
-   * Update Discount
-   * ------------------------------------------------------------------------
-   *
-   * Updates a discount belonging to one of the seller's products.
-   *
-   * PATCH /seller/discounts/:id
-   * ------------------------------------------------------------------------
-   */
+  @Post(':discountId/products/:productId')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Attach a discount to a seller product',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Discount attached to product successfully.',
+  })
+  async attachDiscountToProduct(
+    @CurrentUser('id') sellerId: string,
+    @Param('discountId', new ParseUUIDPipe()) discountId: string,
+    @Param('productId', new ParseUUIDPipe()) productId: string,
+  ): Promise<void> {
+    await this.discountService.attachDiscountToProduct(
+      sellerId,
+      discountId,
+      productId,
+    );
+  }
+
   @Patch(':id')
   @ApiOperation({
     summary: 'Update a seller discount',
@@ -123,7 +120,7 @@ export class SellerDiscountController {
   })
   async updateDiscount(
     @CurrentUser('id') sellerId: string,
-    @Param('id') discountId: string,
+    @Param('id', new ParseUUIDPipe()) discountId: string,
     @Body() dto: UpdateDiscountDto,
   ): Promise<DiscountResponseDto> {
     const discount = await this.discountService.updateDiscount(
@@ -135,17 +132,8 @@ export class SellerDiscountController {
     return this.toResponse(discount);
   }
 
-  /**
-   * ------------------------------------------------------------------------
-   * Delete Discount
-   * ------------------------------------------------------------------------
-   *
-   * Deletes a discount belonging to one of the seller's products.
-   *
-   * DELETE /seller/discounts/:id
-   * ------------------------------------------------------------------------
-   */
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
     summary: 'Delete a seller discount',
   })
@@ -155,19 +143,12 @@ export class SellerDiscountController {
   })
   async deleteDiscount(
     @CurrentUser('id') sellerId: string,
-    @Param('id') discountId: string,
+    @Param('id', new ParseUUIDPipe()) discountId: string,
   ): Promise<void> {
     await this.discountService.deleteDiscount(sellerId, discountId);
   }
 
-  /**
-   * ------------------------------------------------------------------------
-   * Response Mapper
-   * ------------------------------------------------------------------------
-   *
-   * Converts the domain entity into the API response DTO.
-   */
-  private toResponse(discount: any): DiscountResponseDto {
+  private toResponse(discount: Discount): DiscountResponseDto {
     return {
       id: discount.id,
       name: discount.name,
@@ -184,36 +165,5 @@ export class SellerDiscountController {
       createdAt: discount.createdAt,
       updatedAt: discount.updatedAt,
     };
-  }
-
-  /**
-   * ------------------------------------------------------------------------
-   * Attach Discount To Product
-   * ------------------------------------------------------------------------
-   *
-   * Attaches an existing discount to a product owned by
-   * the authenticated seller.
-   *
-   * POST /seller/discounts/:discountId/products/:productId
-   * ------------------------------------------------------------------------
-   */
-  @Post(':discountId/products/:productId')
-  @ApiOperation({
-    summary: 'Attach a discount to a seller product',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Discount attached to product successfully.',
-  })
-  async attachDiscountToProduct(
-    @CurrentUser('id') sellerId: string,
-    @Param('discountId') discountId: string,
-    @Param('productId') productId: string,
-  ): Promise<void> {
-    await this.discountService.attachDiscountToProduct(
-      sellerId,
-      discountId,
-      productId,
-    );
   }
 }

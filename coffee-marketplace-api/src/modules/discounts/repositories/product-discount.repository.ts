@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 
 import { Repository } from 'typeorm';
 
-import { ProductDiscount } from '../entitties/product-discount.entity';
+import { ProductDiscount } from '../../products/entities/product-discount.entity';
 
 /**
  * ------------------------------------------------------------------------

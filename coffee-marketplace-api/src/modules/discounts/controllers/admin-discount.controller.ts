@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 
 import {
   ApiBearerAuth,
@@ -6,6 +6,14 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+
+import { RolesGuard } from '../../../common/guards/roles.guard';
+
+import { Roles } from '../../../common/decorators/roles.decorator';
+
+import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 
 import { DiscountService } from '../services/discount.service';
 
@@ -15,31 +23,15 @@ import { DiscountResponseDto } from '../dto/discount-response.dto';
  * ------------------------------------------------------------------------
  * Admin Discount Controller
  * ------------------------------------------------------------------------
- *
- * Handles discount management operations available to administrators.
- *
- * Admins can:
- * - View all product discounts.
- *
- * Sellers are responsible for creating and managing their own discounts.
- * ------------------------------------------------------------------------
  */
 @ApiTags('Admin Discounts')
 @ApiBearerAuth()
 @Controller('admin/discounts')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(SYSTEM_ROLES.ADMIN)
 export class AdminDiscountController {
   constructor(private readonly discountService: DiscountService) {}
 
-  /**
-   * ------------------------------------------------------------------------
-   * Get All Discounts
-   * ------------------------------------------------------------------------
-   *
-   * Returns all product discounts in the system.
-   *
-   * GET /admin/discounts
-   * ------------------------------------------------------------------------
-   */
   @Get()
   @ApiOperation({
     summary: 'Get all product discounts',

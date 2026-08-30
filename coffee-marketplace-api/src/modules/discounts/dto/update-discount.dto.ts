@@ -1,6 +1,6 @@
 import { PartialType } from '@nestjs/swagger';
 
-import { CreateDiscountDto } from '../dto/create-descount.dto';
+import { CreateDiscountDto } from '../dto/create-discount.dto';
 
 /**
  * ------------------------------------------------------------------------

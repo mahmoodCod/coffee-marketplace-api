@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 
 import { Product } from './product.entity';
-import { Discount } from '../../discounts/entitties/discount.entity';
+import { Discount } from '../../discounts/entities/discount.entity';
 
 /**
  * ------------------------------------------------------------------------

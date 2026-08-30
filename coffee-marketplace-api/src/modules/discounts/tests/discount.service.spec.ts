@@ -13,9 +13,9 @@ import { ProductDiscountRepository } from '../repositories/product-discount.repo
 
 import { ProductService } from '../../products/services/product.service';
 
-import { Discount } from '../entitties/discount.entity';
+import { Discount } from '../entities/discount.entity';
 
-import { ProductDiscount } from '../entitties/product-discount.entity';
+import { ProductDiscount } from '../../products/entities/product-discount.entity';
 
 describe('DiscountService', () => {
   let service: DiscountService;
@@ -24,6 +24,7 @@ describe('DiscountService', () => {
     findAll: jest.Mock;
     findAllBySellerId: jest.Mock;
     findById: jest.Mock;
+    findByIdAndSellerId: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
     delete: jest.Mock;
@@ -109,6 +110,8 @@ describe('DiscountService', () => {
       findAllBySellerId: jest.fn(),
 
       findById: jest.fn(),
+
+      findByIdAndSellerId: jest.fn(),
 
       create: jest.fn(),
 
@@ -204,7 +207,7 @@ describe('DiscountService', () => {
 
       productService.findOne.mockResolvedValue(product);
 
-      discountRepository.findById.mockResolvedValue(discount);
+      discountRepository.findByIdAndSellerId.mockResolvedValue(discount);
 
       productDiscountRepository.findByProductIdAndDiscountId.mockResolvedValue(
         null,
@@ -224,7 +227,10 @@ describe('DiscountService', () => {
 
       expect(productService.findOne).toHaveBeenCalledWith(productId);
 
-      expect(discountRepository.findById).toHaveBeenCalledWith(discountId);
+      expect(discountRepository.findByIdAndSellerId).toHaveBeenCalledWith(
+        discountId,
+        sellerId,
+      );
 
       expect(
         productDiscountRepository.findByProductIdAndDiscountId,
@@ -266,7 +272,7 @@ describe('DiscountService', () => {
 
       expect(productService.findOne).toHaveBeenCalledWith(productId);
 
-      expect(discountRepository.findById).not.toHaveBeenCalled();
+      expect(discountRepository.findByIdAndSellerId).not.toHaveBeenCalled();
 
       expect(
         productDiscountRepository.findByProductIdAndDiscountId,
@@ -288,7 +294,7 @@ describe('DiscountService', () => {
 
       productService.findOne.mockResolvedValue(product);
 
-      discountRepository.findById.mockResolvedValue(null);
+      discountRepository.findByIdAndSellerId.mockResolvedValue(null);
 
       await expect(
         service.attachDiscountToProduct(
@@ -302,7 +308,10 @@ describe('DiscountService', () => {
 
       expect(productService.findOne).toHaveBeenCalledWith(productId);
 
-      expect(discountRepository.findById).toHaveBeenCalledWith(discountId);
+      expect(discountRepository.findByIdAndSellerId).toHaveBeenCalledWith(
+        discountId,
+        sellerId,
+      );
 
       expect(
         productDiscountRepository.findByProductIdAndDiscountId,
@@ -328,7 +337,7 @@ describe('DiscountService', () => {
 
       productService.findOne.mockResolvedValue(product);
 
-      discountRepository.findById.mockResolvedValue(discount);
+      discountRepository.findByIdAndSellerId.mockResolvedValue(discount);
 
       productDiscountRepository.findByProductIdAndDiscountId.mockResolvedValue(
         existingProductDiscount,
@@ -346,7 +355,10 @@ describe('DiscountService', () => {
 
       expect(productService.findOne).toHaveBeenCalledWith(productId);
 
-      expect(discountRepository.findById).toHaveBeenCalledWith(discountId);
+      expect(discountRepository.findByIdAndSellerId).toHaveBeenCalledWith(
+        discountId,
+        sellerId,
+      );
 
       expect(
         productDiscountRepository.findByProductIdAndDiscountId,

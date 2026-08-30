@@ -4,7 +4,7 @@ import { AdminDiscountController } from '../controllers/admin-discount.controlle
 
 import { DiscountService } from '../services/discount.service';
 
-import { Discount } from '../entitties/discount.entity';
+import { Discount } from '../entities/discount.entity';
 
 /**
  * ------------------------------------------------------------------------

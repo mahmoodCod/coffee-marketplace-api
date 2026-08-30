@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { Discount } from './entitties/discount.entity';
+import { Discount } from './entities/discount.entity';
 
-import { ProductDiscount } from './entitties/product-discount.entity';
+import { ProductDiscount } from '../products/entities/product-discount.entity';
 
 import { DiscountService } from './services/discount.service';
 
@@ -15,7 +15,6 @@ import { ProductDiscountRepository } from './repositories/product-discount.repos
 import { AdminDiscountController } from './controllers/admin-discount.controller';
 
 import { SellerDiscountController } from './controllers/seller-discount.controller';
-
 import { ProductModule } from '../products/products.module';
 
 /**
@@ -23,28 +22,12 @@ import { ProductModule } from '../products/products.module';
  * Discount Module
  * ------------------------------------------------------------------------
  *
- * Responsible for:
- *
- * - Creating product discounts
- * - Updating product discounts
- * - Deleting product discounts
- * - Listing seller product discounts
- * - Attaching discounts to seller products
- * - Viewing all product discounts by admins
- *
- * Database entities:
- *
- * - Discount
- * - ProductDiscount
- *
- * The ProductModule is imported because DiscountService
- * uses ProductService to verify product ownership.
+ * Responsible for product discount management.
  * ------------------------------------------------------------------------
  */
 @Module({
   imports: [
     TypeOrmModule.forFeature([Discount, ProductDiscount]),
-
     ProductModule,
   ],
 

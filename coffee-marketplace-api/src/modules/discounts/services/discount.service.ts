@@ -6,17 +6,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { User } from '../../users/entities/user.entity';
+
 import { DiscountRepository } from '../repositories/discount.repository';
 
 import { ProductDiscountRepository } from '../repositories/product-discount.repository';
 
-import { Discount } from '../entitties/discount.entity';
+import { Discount } from '../entities/discount.entity';
 
-import { CreateDiscountDto } from '../dto/create-descount.dto';
+import { CreateDiscountDto } from '../dto/create-discount.dto';
 
 import { UpdateDiscountDto } from '../dto/update-discount.dto';
 import { ProductService } from '../../../modules/products/services/product.service';
-import { ProductDiscount } from '../entitties/product-discount.entity';
+import { ProductDiscount } from '../../products/entities/product-discount.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -24,14 +26,6 @@ import { ProductDiscount } from '../entitties/product-discount.entity';
  * ------------------------------------------------------------------------
  *
  * Contains business logic related to product discounts.
- *
- * Responsibilities:
- * - Create discounts for sellers.
- * - Retrieve seller discounts.
- * - Retrieve all discounts for admins.
- * - Update seller-owned discounts.
- * - Delete seller-owned discounts.
- * - Validate discount business rules.
  * ------------------------------------------------------------------------
  */
 @Injectable()
@@ -44,16 +38,6 @@ export class DiscountService {
     private readonly productService: ProductService,
   ) {}
 
-  /**
-   * ------------------------------------------------------------------------
-   * Create Discount
-   * ------------------------------------------------------------------------
-   *
-   * Creates a new discount.
-   *
-   * Seller ownership is established later when the discount
-   * is attached to one of the seller's products.
-   */
   async createDiscount(
     sellerId: string,
     dto: CreateDiscountDto,
@@ -63,74 +47,42 @@ export class DiscountService {
     this.validateDiscountValue(dto.value);
 
     const discount = this.discountRepository.create({
+      seller: {
+        id: sellerId,
+      } as User,
       name: dto.name,
-
       type: dto.type,
-
       value: dto.value,
-
       description: dto.description ?? null,
-
       minimumOrderAmount: dto.minimumOrderAmount ?? null,
-
       maximumDiscountAmount: dto.maximumDiscountAmount ?? null,
-
       usageLimit: dto.usageLimit ?? null,
-
       usedCount: 0,
-
       isActive: dto.isActive ?? true,
-
       startDate: new Date(dto.startDate),
-
       endDate: new Date(dto.endDate),
     });
 
     return this.discountRepository.save(discount);
   }
 
-  /**
-   * ------------------------------------------------------------------------
-   * Get Seller Discounts
-   * ------------------------------------------------------------------------
-   *
-   * Returns discounts attached to products owned by the seller.
-   */
   async getSellerDiscounts(sellerId: string): Promise<Discount[]> {
     return this.discountRepository.findAllBySellerId(sellerId);
   }
 
-  /**
-   * ------------------------------------------------------------------------
-   * Get All Discounts
-   * ------------------------------------------------------------------------
-   *
-   * Returns all discounts.
-   *
-   * Intended for admin management.
-   */
   async getAllDiscounts(): Promise<Discount[]> {
     return this.discountRepository.findAll();
   }
 
-  /**
-   * ------------------------------------------------------------------------
-   * Update Discount
-   * ------------------------------------------------------------------------
-   *
-   * Updates a discount only when it is attached to
-   * at least one product owned by the seller.
-   */
   async updateDiscount(
     sellerId: string,
     discountId: string,
     dto: UpdateDiscountDto,
   ): Promise<Discount> {
-    const discount =
-      await this.productDiscountRepository.findByDiscountIdAndSellerId(
-        discountId,
-        sellerId,
-      );
+    const discount = await this.discountRepository.findByIdAndSellerId(
+      discountId,
+      sellerId,
+    );
 
     if (!discount) {
       throw new NotFoundException(
@@ -145,86 +97,77 @@ export class DiscountService {
     if (dto.startDate) {
       const startDate = new Date(dto.startDate);
 
-      if (startDate >= discount.discount.endDate) {
+      if (startDate >= discount.endDate) {
         throw new BadRequestException(
           'Discount start date must be before the end date.',
         );
       }
 
-      discount.discount.startDate = startDate;
+      discount.startDate = startDate;
     }
 
     if (dto.endDate) {
       const endDate = new Date(dto.endDate);
 
-      if (endDate <= discount.discount.startDate) {
+      if (endDate <= discount.startDate) {
         throw new BadRequestException(
           'Discount end date must be after the start date.',
         );
       }
 
-      discount.discount.endDate = endDate;
+      discount.endDate = endDate;
     }
 
     if (dto.value !== undefined) {
       this.validateDiscountValue(dto.value);
 
-      discount.discount.value = dto.value;
+      discount.value = dto.value;
     }
 
     if (dto.name !== undefined) {
-      discount.discount.name = dto.name;
+      discount.name = dto.name;
     }
 
     if (dto.type !== undefined) {
-      discount.discount.type = dto.type;
+      discount.type = dto.type;
     }
 
     if (dto.description !== undefined) {
-      discount.discount.description = dto.description;
+      discount.description = dto.description;
     }
 
     if (dto.minimumOrderAmount !== undefined) {
-      discount.discount.minimumOrderAmount = dto.minimumOrderAmount;
+      discount.minimumOrderAmount = dto.minimumOrderAmount;
     }
 
     if (dto.maximumDiscountAmount !== undefined) {
-      discount.discount.maximumDiscountAmount = dto.maximumDiscountAmount;
+      discount.maximumDiscountAmount = dto.maximumDiscountAmount;
     }
 
     if (dto.usageLimit !== undefined) {
-      if (dto.usageLimit < discount.discount.usedCount) {
+      if (dto.usageLimit < discount.usedCount) {
         throw new BadRequestException(
           'Usage limit cannot be lower than the current used count.',
         );
       }
 
-      discount.discount.usageLimit = dto.usageLimit;
+      discount.usageLimit = dto.usageLimit;
     }
 
     if (dto.isActive !== undefined) {
-      discount.discount.isActive = dto.isActive;
+      discount.isActive = dto.isActive;
     }
 
-    return this.discountRepository.save(discount.discount);
+    return this.discountRepository.save(discount);
   }
 
-  /**
-   * ------------------------------------------------------------------------
-   * Delete Discount
-   * ------------------------------------------------------------------------
-   *
-   * Deletes a discount only when it is attached to
-   * one of the seller's products.
-   */
   async deleteDiscount(sellerId: string, discountId: string): Promise<void> {
-    const productDiscount =
-      await this.productDiscountRepository.findByDiscountIdAndSellerId(
-        discountId,
-        sellerId,
-      );
+    const discount = await this.discountRepository.findByIdAndSellerId(
+      discountId,
+      sellerId,
+    );
 
-    if (!productDiscount) {
+    if (!discount) {
       throw new NotFoundException(
         'Discount not found or does not belong to the seller.',
       );
@@ -232,12 +175,6 @@ export class DiscountService {
 
     await this.discountRepository.delete(discountId);
   }
-
-  /**
-   * ------------------------------------------------------------------------
-   * Validation
-   * ------------------------------------------------------------------------
-   */
 
   private validateDiscountDates(startDate: string, endDate: string): void {
     const start = new Date(startDate);
@@ -261,53 +198,30 @@ export class DiscountService {
     }
   }
 
-  /**
-   * ------------------------------------------------------------------------
-   * Attach Discount To Product
-   * ------------------------------------------------------------------------
-   *
-   * Attaches a discount to a seller-owned product.
-   *
-   * Business Rules
-   * ------------------------------------------------------------------------
-   *
-   * - The product must exist.
-   * - The seller must own the product.
-   * - The discount must exist.
-   * - The discount cannot be attached twice to the same product.
-   * ------------------------------------------------------------------------
-   */
   async attachDiscountToProduct(
     sellerId: string,
     discountId: string,
     productId: string,
   ): Promise<ProductDiscount> {
-    /**
-     * Load the product with its seller.
-     */
     const product = await this.productService.findOne(productId);
 
-    /**
-     * Verify that the product belongs to the seller.
-     */
     if (product.seller.id !== sellerId) {
       throw new ForbiddenException(
         'You cannot manage discounts for this product.',
       );
     }
 
-    /**
-     * Load the discount.
-     */
-    const discount = await this.discountRepository.findById(discountId);
+    const discount = await this.discountRepository.findByIdAndSellerId(
+      discountId,
+      sellerId,
+    );
 
     if (!discount) {
-      throw new NotFoundException('Discount not found.');
+      throw new NotFoundException(
+        'Discount not found or does not belong to the seller.',
+      );
     }
 
-    /**
-     * Prevent duplicate product-discount associations.
-     */
     const existing =
       await this.productDiscountRepository.findByProductIdAndDiscountId(
         productId,
@@ -320,17 +234,11 @@ export class DiscountService {
       );
     }
 
-    /**
-     * Create the product-discount association.
-     */
     const productDiscount = this.productDiscountRepository.create({
       product,
       discount,
     });
 
-    /**
-     * Persist the association.
-     */
     return this.productDiscountRepository.save(productDiscount);
   }
 }
