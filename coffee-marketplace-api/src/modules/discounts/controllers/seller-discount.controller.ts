@@ -63,7 +63,7 @@ export class SellerDiscountController {
     isArray: true,
   })
   async getSellerDiscounts(
-    @CurrentUser('id') sellerId: string,
+    @CurrentUser('sub') sellerId: string,
   ): Promise<DiscountResponseDto[]> {
     const discounts = await this.discountService.getSellerDiscounts(sellerId);
 
