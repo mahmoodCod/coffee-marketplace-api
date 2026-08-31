@@ -80,7 +80,7 @@ export class PaymentController {
     description: 'Order not found.',
   })
   async createPayment(
-    @CurrentUser('id') userId: string,
+    @CurrentUser('sub') userId: string,
 
     @Body() dto: CreatePaymentDto,
   ) {
