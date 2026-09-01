@@ -296,7 +296,6 @@ export class Product {
    */
   @OneToMany(() => OrderItem, (orderItem) => orderItem.product)
   orderItems: OrderItem[];
-  createdAt: Date;
 
   /**
    * Product reviews.
@@ -330,6 +329,7 @@ export class Product {
   @CreateDateColumn({
     name: 'created_at',
   })
+  createdAt: Date;
 
   /**
    * Last update timestamp.
