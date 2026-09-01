@@ -44,11 +44,17 @@ describe('ProductService', () => {
     findById: jest.fn(),
   };
 
+  const inventoryService = {
+    createForProduct: jest.fn(),
+  };
+
   beforeEach(() => {
     service = new ProductService(
       productsRepository as any,
 
       usersService as any,
+
+      inventoryService as any,
     );
 
     jest.clearAllMocks();
@@ -151,6 +157,12 @@ describe('ProductService', () => {
 
       productsRepository.save.mockResolvedValue(product);
 
+      inventoryService.createForProduct.mockResolvedValue({
+        id: 'inventory-id',
+        stock: 0,
+        reservedStock: 0,
+      });
+
       const result = await service.create(sellerPayload, dto as any);
 
       expect(productsRepository.exists).toHaveBeenCalledWith({
@@ -160,6 +172,10 @@ describe('ProductService', () => {
       });
 
       expect(productsRepository.create).toHaveBeenCalled();
+
+      expect(inventoryService.createForProduct).toHaveBeenCalledWith(
+        product.id,
+      );
 
       expect(result).toEqual(product);
     });

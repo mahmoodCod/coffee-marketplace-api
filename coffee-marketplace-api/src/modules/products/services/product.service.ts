@@ -16,6 +16,7 @@ import { JwtPayload } from '../../../modules/auth/interfaces/jwt-payload.interfa
 import { CreateProductDto, UpdateProductDto } from '../dto';
 import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 import { ProductStatus } from '../enums';
+import { InventoryService } from '../../inventoryes/services/inventory.service';
 
 /**
  * ------------------------------------------------------------------------
@@ -46,6 +47,7 @@ export class ProductService {
     @InjectRepository(Product)
     private readonly productsRepository: Repository<Product>,
     private readonly usersService: UsersService,
+    private readonly inventoryService: InventoryService,
   ) {}
 
   /**
@@ -178,6 +180,14 @@ export class ProductService {
      * Save product.
      */
     const created = await this.productsRepository.save(product);
+
+    /**
+     * Every product must have one inventory record.
+     *
+     * Create the initial inventory with zero stock
+     * immediately after product creation.
+     */
+    await this.inventoryService.createForProduct(created.id);
 
     return created;
   }

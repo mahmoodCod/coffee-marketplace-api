@@ -1,6 +1,26 @@
-import { Body, Controller, Param, Patch } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+
+import { RolesGuard } from '../../../common/guards/roles.guard';
+
+import { Roles } from '../../../common/decorators/roles.decorator';
+
+import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 
 import { InventoryService } from '../services/inventory.service';
 
@@ -32,7 +52,10 @@ import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
  * --------------------------------------------------------------------------
  */
 @ApiTags('Seller Inventory')
+@ApiBearerAuth()
 @Controller('seller/inventory')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(SYSTEM_ROLES.SELLER)
 export class SellerInventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
@@ -59,15 +82,13 @@ export class SellerInventoryController {
     type: InventoryResponseDto,
   })
   async updateInventory(
-    @Param('productId')
-    productId: string,
+    @Param('productId', new ParseUUIDPipe()) productId: string,
 
     /**
      * Get the currently authenticated user
      * from the JWT payload.
      */
-    @CurrentUser()
-    user: JwtPayload,
+    @CurrentUser() user: JwtPayload,
 
     @Body()
     dto: UpdateInventoryDto,
