@@ -1,5 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
+import { Type } from 'class-transformer';
+
 import { IsInt, IsOptional, Min } from 'class-validator';
 
 /**
@@ -32,6 +34,7 @@ export class UpdateInventoryDto {
     example: 50,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   stock?: number;
@@ -45,6 +48,7 @@ export class UpdateInventoryDto {
     example: 5,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   reservedStock?: number;

@@ -31,8 +31,14 @@ describe('InventoryService', () => {
        * Used for:
        *
        * - findByProductId()
+       * - getOrCreateInventory()
        */
       findOne: jest.fn(),
+
+      /**
+       * Mock create method.
+       */
+      create: jest.fn(),
 
       /**
        * Mock save method.
@@ -40,6 +46,7 @@ describe('InventoryService', () => {
        * Used for:
        *
        * - updateInventory()
+       * - createForProduct()
        */
       save: jest.fn(),
     };
@@ -183,6 +190,8 @@ describe('InventoryService', () => {
         )
         .mockResolvedValue(inventory as Inventory);
 
+      inventoriesRepository.findOne.mockResolvedValue(inventory as Inventory);
+
       inventoriesRepository.save.mockResolvedValue({
         ...inventory,
 
@@ -242,6 +251,8 @@ describe('InventoryService', () => {
         )
         .mockResolvedValue(inventory as Inventory);
 
+      inventoriesRepository.findOne.mockResolvedValue(inventory as Inventory);
+
       inventoriesRepository.save.mockResolvedValue({
         ...inventory,
 
@@ -257,6 +268,14 @@ describe('InventoryService', () => {
       );
 
       expect(result.reservedStock).toBe(20);
+    });
+
+    it('should throw error when update dto is empty', async () => {
+      await expect(
+        service.updateInventory('product-id', {}),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(inventoriesRepository.save).not.toHaveBeenCalled();
     });
 
     /**
@@ -295,6 +314,8 @@ describe('InventoryService', () => {
           'findByProductId',
         )
         .mockResolvedValue(inventory as Inventory);
+
+      inventoriesRepository.findOne.mockResolvedValue(inventory as Inventory);
 
       await expect(
         service.updateInventory(

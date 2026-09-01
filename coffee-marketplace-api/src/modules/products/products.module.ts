@@ -9,6 +9,7 @@ import { ProductCategory } from './entities/product-category.entity';
 import { ProductService } from './services/product.service';
 
 import { UsersModule } from '../users/users.module';
+import { InventoryModule } from '../inventoryes/inventory.module';
 import { ProductsController } from './controllers/products.controller';
 import { SellerProductsController } from './controllers/seller-products.controller';
 import { AdminProductsController } from './controllers/admin-products.controller';
@@ -39,7 +40,11 @@ import { AdminProductsController } from './controllers/admin-products.controller
  * ------------------------------------------------------------------------
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Product, ProductCategory]), UsersModule],
+  imports: [
+    TypeOrmModule.forFeature([Product, ProductCategory]),
+    UsersModule,
+    InventoryModule,
+  ],
 
   controllers: [
     ProductsController,

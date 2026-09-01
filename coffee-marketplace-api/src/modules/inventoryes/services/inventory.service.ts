@@ -70,6 +70,96 @@ export class InventoryService {
 
   /**
    * ------------------------------------------------------------------------
+   * Create Inventory For Product
+   * ------------------------------------------------------------------------
+   *
+   * Creates an inventory record for a product.
+   *
+   * Business Rule:
+   *
+   * - Every product must have one inventory.
+   * ------------------------------------------------------------------------
+   */
+  async createForProduct(
+    productId: string,
+    stock = 0,
+  ): Promise<Inventory> {
+    const existing = await this.inventoriesRepository.findOne({
+      where: {
+        product: {
+          id: productId,
+        },
+      },
+    });
+
+    if (existing) {
+      return existing;
+    }
+
+    const inventory = this.inventoriesRepository.create({
+      product: {
+        id: productId,
+      } as Product,
+      stock,
+      reservedStock: 0,
+    });
+
+    return this.inventoriesRepository.save(inventory);
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Validate Update DTO
+   * ------------------------------------------------------------------------
+   *
+   * Ensures at least one inventory field is provided.
+   *
+   * Prevents silent no-op updates when the client
+   * sends an empty request body.
+   * ------------------------------------------------------------------------
+   */
+  private validateUpdateDto(dto: UpdateInventoryDto): void {
+    if (dto.stock === undefined && dto.reservedStock === undefined) {
+      throw new BadRequestException(
+        'At least one inventory field must be provided.',
+      );
+    }
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Get Or Create Inventory
+   * ------------------------------------------------------------------------
+   *
+   * Finds the inventory associated with a product,
+   * or creates one if it does not exist yet.
+   *
+   * Business Rule:
+   *
+   * - Every product should have an inventory record.
+   * ------------------------------------------------------------------------
+   */
+  private async getOrCreateInventory(productId: string): Promise<Inventory> {
+    const inventory = await this.inventoriesRepository.findOne({
+      where: {
+        product: {
+          id: productId,
+        },
+      },
+      relations: {
+        product: true,
+      },
+    });
+
+    if (inventory) {
+      return inventory;
+    }
+
+    return this.createForProduct(productId);
+  }
+
+  /**
+   * ------------------------------------------------------------------------
    * Update Inventory
    * ------------------------------------------------------------------------
    *
@@ -80,7 +170,9 @@ export class InventoryService {
     productId: string,
     dto: UpdateInventoryDto,
   ): Promise<InventoryResponseDto> {
-    const inventory = await this.findByProductId(productId);
+    this.validateUpdateDto(dto);
+
+    const inventory = await this.getOrCreateInventory(productId);
 
     if (dto.stock !== undefined) {
       inventory.stock = dto.stock;
@@ -145,6 +237,8 @@ export class InventoryService {
     sellerId: string,
     dto: UpdateInventoryDto,
   ): Promise<InventoryResponseDto> {
+    this.validateUpdateDto(dto);
+
     /**
      * Find the product using both the product ID
      * and the authenticated seller ID.
@@ -173,23 +267,12 @@ export class InventoryService {
     }
 
     /**
-     * Find the inventory associated
-     * with the product.
-     */
-    const inventory = await this.inventoriesRepository.findOne({
-      where: {
-        product: {
-          id: productId,
-        },
-      },
-    });
-
-    /**
+     * Find the inventory associated with the product,
+     * or create one if it does not exist yet.
+     *
      * Every product should have an inventory record.
      */
-    if (!inventory) {
-      throw new NotFoundException('Inventory not found');
-    }
+    const inventory = await this.getOrCreateInventory(productId);
 
     /**
      * Update stock only when provided.

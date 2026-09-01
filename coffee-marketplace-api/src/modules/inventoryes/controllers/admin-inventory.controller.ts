@@ -1,6 +1,26 @@
-import { Body, Controller, Param, Patch } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+
+import { RolesGuard } from '../../../common/guards/roles.guard';
+
+import { Roles } from '../../../common/decorators/roles.decorator';
+
+import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 
 import { InventoryService } from '../services/inventory.service';
 
@@ -24,7 +44,10 @@ import { UpdateInventoryDto, InventoryResponseDto } from '../dto';
  */
 
 @ApiTags('Admin Inventory')
+@ApiBearerAuth()
 @Controller('admin/inventory')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(SYSTEM_ROLES.ADMIN)
 export class AdminInventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
@@ -44,8 +67,7 @@ export class AdminInventoryController {
     type: InventoryResponseDto,
   })
   async updateInventory(
-    @Param('productId')
-    productId: string,
+    @Param('productId', new ParseUUIDPipe()) productId: string,
 
     @Body()
     dto: UpdateInventoryDto,
