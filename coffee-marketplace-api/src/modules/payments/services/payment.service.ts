@@ -244,53 +244,53 @@ export class PaymentService {
      */
     const paymentUserId = await this.dataSource.transaction(
       async (manager: EntityManager) => {
-      /**
-       * Load the latest payment state inside
-       * the current transaction.
-       */
-      const transactionalPayment = await manager.findOne(Payment, {
-        where: {
-          id: payment.id,
-        },
-        relations: {
-          order: {
-            user: true,
+        /**
+         * Load the latest payment state inside
+         * the current transaction.
+         */
+        const transactionalPayment = await manager.findOne(Payment, {
+          where: {
+            id: payment.id,
           },
-        },
-      });
+          relations: {
+            order: {
+              user: true,
+            },
+          },
+        });
 
-      if (!transactionalPayment) {
-        throw new NotFoundException('Payment not found.');
-      }
+        if (!transactionalPayment) {
+          throw new NotFoundException('Payment not found.');
+        }
 
-      /**
-       * Mark the payment as successfully completed.
-       */
-      transactionalPayment.status = PaymentStatus.SUCCESS;
+        /**
+         * Mark the payment as successfully completed.
+         */
+        transactionalPayment.status = PaymentStatus.SUCCESS;
 
-      transactionalPayment.transactionId = gatewayResponse.transactionId;
+        transactionalPayment.transactionId = gatewayResponse.transactionId;
 
-      transactionalPayment.paidAt = new Date();
+        transactionalPayment.paidAt = new Date();
 
-      await manager.save(Payment, transactionalPayment);
+        await manager.save(Payment, transactionalPayment);
 
-      /**
-       * Mark the related order as paid.
-       */
-      transactionalPayment.order.status = OrderStatus.PAID;
+        /**
+         * Mark the related order as paid.
+         */
+        transactionalPayment.order.status = OrderStatus.PAID;
 
-      await manager.save(Order, transactionalPayment.order);
+        await manager.save(Order, transactionalPayment.order);
 
-      /**
-       * Settle the successfully paid order.
-       *
-       * This updates inventory and product
-       * sales statistics using the same transaction.
-       */
-      await this.settleOrder(manager, transactionalPayment.order.id);
+        /**
+         * Settle the successfully paid order.
+         *
+         * This updates inventory and product
+         * sales statistics using the same transaction.
+         */
+        await this.settleOrder(manager, transactionalPayment.order.id);
 
-      return transactionalPayment.order.user.id;
-    },
+        return transactionalPayment.order.user.id;
+      },
     );
 
     /**

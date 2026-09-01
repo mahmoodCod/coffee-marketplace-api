@@ -1,4 +1,8 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import {
+  createParamDecorator,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 
 import { JwtPayload } from '../../modules/auth/interfaces/jwt-payload.interface';
 
@@ -18,8 +22,10 @@ export const CurrentUser = createParamDecorator(
       .switchToHttp()
       .getRequest<Request & { user: JwtPayload }>();
 
-    const user = request.user;
+    if (!request.user) {
+      throw new UnauthorizedException('Authenticated user not found.');
+    }
 
-    return data ? user[data] : user;
+    return data ? request.user[data] : request.user;
   },
 );
