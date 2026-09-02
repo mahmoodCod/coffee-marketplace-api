@@ -52,8 +52,10 @@
 
 ## Coupon
 
+- A coupon is managed by administrators.
 - A coupon can be applied to many orders.
 - An order can have at most one coupon.
+- A coupon affects orders.final_price, not individual product prices.
 
 --------------------------------------------
 

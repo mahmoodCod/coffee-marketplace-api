@@ -225,14 +225,27 @@
 
 - id
 - code
+- name
 - type
 - value
+- description
+- minimum_order_amount
+- maximum_discount_amount
 - usage_limit
-- is_active
 - used_count
+- is_active
 - expires_at
 - created_at
 - updated_at
+
+Field notes:
+
+- code: unique coupon code entered by customers.
+- type: PERCENTAGE or FIXED.
+- value: percentage (0-100) or fixed discount amount.
+- expires_at: coupon expiration timestamp.
+- minimum_order_amount: optional minimum order total required to apply the coupon.
+- maximum_discount_amount: optional cap for percentage-type coupons.
 
 ---------------------------
 

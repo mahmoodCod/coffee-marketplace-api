@@ -41,5 +41,5 @@
 
 ## Marketing
 
-- Discount
-- Coupon
+- Discount (product-level, seller-managed)
+- Coupon (order-level, admin-managed)
