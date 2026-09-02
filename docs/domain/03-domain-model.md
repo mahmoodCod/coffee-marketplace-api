@@ -41,8 +41,8 @@ Product ── Inventory
 
 Product ── Discount
 
-Order ── Address
+Order ── Coupon (optional, at most one)
 
-Order ── Coupon
+Order ── Address
 
 Order ── Payment

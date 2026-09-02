@@ -97,6 +97,7 @@ Responsible for:
 - Viewing order history
 - Canceling orders
 - Managing order status
+- Applying and removing coupons on unpaid orders (via Coupon Module)
 
 -------------------------------------
 
@@ -162,6 +163,13 @@ Responsible for:
 
 ## Coupon Module
 
+Order-level discount codes managed by administrators.
+
+Scope:
+
+- Applies to the entire order total, not individual products.
+- Separate from the Discount Module, which handles product-level discounts created by sellers.
+
 Responsible for:
 
 - Creating coupons
@@ -170,7 +178,13 @@ Responsible for:
 - Listing coupons
 - Validating coupon codes
 - Applying coupons to customer orders
+- Removing coupons from unpaid orders
 - Tracking coupon usage
+
+Dependencies:
+
+- Order Module (coupon is stored on orders.coupon_id and affects final_price)
+- Payment Module (used_count increments after successful payment)
 
 -------------------------------------
 

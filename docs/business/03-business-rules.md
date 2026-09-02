@@ -46,7 +46,9 @@
 - An order can only be paid once.
 - Inventory decreases only after successful payment.
 - Orders cannot be canceled after shipment.
+- Order total_price is the sum of order item prices at order creation.
 - Order final_price is calculated from total_price after coupon discounts.
+- Product-level discounts are applied before order creation and reflected in order item unit_price.
 
 -------------------------------
 
@@ -76,13 +78,31 @@
 
 ## Coupons
 
-- Only admins can manage coupons.
+Order-level discount codes managed by administrators.
+
+Difference from Discounts:
+
+- Discounts are product-level and managed by sellers.
+- Coupons are order-level and managed by admins.
+- A product can have many discounts; an order can have at most one coupon.
+
+Rules:
+
+- Only admins can create, update, delete, and list coupons.
+- Only customers can apply coupons to their own orders.
+- Coupon codes must be unique.
 - Coupon codes have expiration dates.
 - Expired coupon codes cannot be applied.
 - Only active coupons can be applied.
-- A coupon cannot reduce the final order price below zero.
+- Coupons can only be applied to orders with PENDING_PAYMENT status.
 - An order can have at most one coupon.
 - Coupon usage cannot exceed usage_limit.
+- used_count increments only after successful payment.
+- A coupon cannot reduce the final order price below zero.
+- minimum_order_amount must be met before a coupon can be applied.
+- maximum_discount_amount caps the discount for percentage-type coupons.
+- Coupon type must be PERCENTAGE or FIXED.
+- Removing a coupon from an unpaid order restores final_price to total_price.
 
 ------------------------------
 

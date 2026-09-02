@@ -46,7 +46,8 @@ Has a user account.
 - Mark notifications as read
 - View articles
 - View user reviews
-- Apply coupon code
+- Apply coupon code to own unpaid orders
+- Remove coupon code from own unpaid orders
 
 ----------------------------------
 

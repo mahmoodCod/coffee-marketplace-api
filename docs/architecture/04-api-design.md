@@ -172,6 +172,10 @@ POST   /orders
 
 PATCH  /orders/:id/cancel
 
+POST   /orders/:id/coupon
+
+DELETE /orders/:id/coupon
+
 -------------------------------
 
 ## Payments
@@ -234,6 +238,8 @@ Admin
 
 GET    /admin/coupons
 
+GET    /admin/coupons/:id
+
 POST   /admin/coupons
 
 PATCH  /admin/coupons/:id
@@ -242,7 +248,18 @@ DELETE /admin/coupons/:id
 
 Customer
 
-POST   /coupons/apply
+POST   /orders/:id/coupon
+
+DELETE /orders/:id/coupon
+
+Notes:
+
+- Apply/remove coupon endpoints require authentication.
+- Coupons can only be applied to the customer's own orders.
+- Coupons can only be applied while the order status is PENDING_PAYMENT.
+- POST /orders/:id/coupon request body: { "code": "SUMMER20" }
+- Applying a coupon updates orders.final_price based on orders.total_price.
+- Removing a coupon resets orders.coupon_id to null and restores final_price to total_price.
 
 --------------------------------
 
