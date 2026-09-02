@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 
 import {
@@ -22,6 +23,7 @@ import { CreatePaymentDto } from '../dto/create-payment.dto';
 import { PaymentService } from '../services/payment.service';
 import { VerifyPaymentDto } from '../dto/verify-payment.dto';
 import { Public } from 'src/common/decorators/public.decorator';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 
 /**
  * ------------------------------------------------------------------------
@@ -39,6 +41,7 @@ import { Public } from 'src/common/decorators/public.decorator';
  * Business logic remains inside PaymentService.
  * ------------------------------------------------------------------------
  */
+@UseGuards(JwtAuthGuard)
 @ApiTags('Payments')
 @Controller('payments')
 export class PaymentController {
