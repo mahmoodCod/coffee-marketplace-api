@@ -21,6 +21,7 @@ import { Product } from '../../../modules/products/entities/product.entity';
 import { Payment } from '../entities/payment.entity';
 import { NotificationService } from 'src/modules/notifications/services/notification.service';
 import { NotificationType } from 'src/modules/notifications/enums/notification-type.enum';
+import { Coupon } from 'src/modules/coupons/entities/coupon.entity';
 
 /**
  * Payment Service
@@ -255,6 +256,7 @@ export class PaymentService {
           relations: {
             order: {
               user: true,
+              coupon: true,
             },
           },
         });
@@ -280,6 +282,23 @@ export class PaymentService {
         transactionalPayment.order.status = OrderStatus.PAID;
 
         await manager.save(Order, transactionalPayment.order);
+
+        /**
+         * Increment coupon usage after successful payment.
+         *
+         * Coupon usage is counted only after the payment
+         * has been successfully verified.
+         */
+        if (transactionalPayment.order.coupon) {
+          await manager.increment(
+            Coupon,
+            {
+              id: transactionalPayment.order.coupon.id,
+            },
+            'usedCount',
+            1,
+          );
+        }
 
         /**
          * Settle the successfully paid order.
