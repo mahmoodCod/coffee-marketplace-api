@@ -17,6 +17,7 @@ import { OrderStatus } from '../enums';
 
 import { OrderItem } from './order-item.entity';
 import { Payment } from '../../../modules/payments/entities/payment.entity';
+import { Coupon } from '../../../modules/coupons/entities/coupon.entity';
 
 /**
  * Order Entity
@@ -76,15 +77,16 @@ export class Order {
   /**
    * Optional coupon applied to this order.
    *
-   * Stored as a UUID reference until the Coupon
-   * module is implemented.
+   * An order can have at most one coupon.
    */
-  @Column({
-    name: 'coupon_id',
-    type: 'uuid',
+  @ManyToOne(() => Coupon, (coupon) => coupon.orders, {
     nullable: true,
+    onDelete: 'SET NULL',
   })
-  couponId: string | null;
+  @JoinColumn({
+    name: 'coupon_id',
+  })
+  coupon: Coupon | null;
 
   /**
    * Shipment tracking code assigned by an administrator.
@@ -182,4 +184,5 @@ export class Order {
     name: 'updated_at',
   })
   updatedAt: Date;
+  couponId: string | null;
 }

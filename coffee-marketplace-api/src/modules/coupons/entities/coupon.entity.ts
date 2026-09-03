@@ -1,3 +1,4 @@
+import { Order } from 'src/modules/orders/entities';
 import {
   Column,
   CreateDateColumn,
@@ -7,8 +8,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-
-import { Order } from '../../orders/entities/order.entity';
 
 /**
  * ------------------------------------------------------------------------
