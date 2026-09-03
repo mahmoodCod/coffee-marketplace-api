@@ -16,6 +16,7 @@ import { PaymentInfrastructureModule } from '../../infrastructure/payment/paymen
 import { InventoryModule } from '../inventoryes/inventory.module';
 import { ProductModule } from '../products/products.module';
 import { NotificationsModule } from '../notifications/notification.module';
+import { CouponModule } from '../coupons/coupon.module';
 
 /**
  * Payment Module
@@ -62,6 +63,8 @@ import { NotificationsModule } from '../notifications/notification.module';
     ProductModule,
 
     NotificationsModule,
+
+    CouponModule,
   ],
 
   controllers: [PaymentController],
