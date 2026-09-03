@@ -70,8 +70,14 @@ export class CouponService {
    * - Maximum discount is only valid for percentage coupons.
    */
   async createCoupon(dto: CreateCouponDto): Promise<Coupon> {
+    /**
+     * Normalize the coupon code so lookups remain
+     * case-insensitive and consistent.
+     */
+    const code = this.normalizeCouponCode(dto.code);
+
     // Prevent duplicate coupon codes.
-    const existingCoupon = await this.couponRepository.findByCode(dto.code);
+    const existingCoupon = await this.couponRepository.findByCode(code);
 
     if (existingCoupon) {
       throw new BadRequestException('Coupon code already exists');
@@ -82,7 +88,7 @@ export class CouponService {
 
     // Create a new coupon entity from the validated DTO.
     const coupon = this.couponRepository.create({
-      code: dto.code,
+      code,
       name: dto.name,
       type: dto.type,
       value: dto.value,
@@ -112,9 +118,16 @@ export class CouponService {
     // Make sure the coupon exists before updating it.
     const coupon = await this.getCouponById(couponId);
 
+    /**
+     * Normalize the new code when provided so uniqueness
+     * checks and storage stay consistent.
+     */
+    const nextCode =
+      dto.code !== undefined ? this.normalizeCouponCode(dto.code) : undefined;
+
     // If the coupon code is being changed, make sure the new code is unique.
-    if (dto.code && dto.code !== coupon.code) {
-      const existingCoupon = await this.couponRepository.findByCode(dto.code);
+    if (nextCode && nextCode !== coupon.code) {
+      const existingCoupon = await this.couponRepository.findByCode(nextCode);
 
       if (existingCoupon && existingCoupon.id !== couponId) {
         throw new BadRequestException('Coupon code already exists');
@@ -124,10 +137,12 @@ export class CouponService {
     // Validate the new values against the existing coupon data.
     this.validateCouponData(dto, coupon);
 
+    const nextType = dto.type ?? (coupon.type as CouponType);
+
     // Update only the fields provided in the request.
     Object.assign(coupon, {
-      ...(dto.code !== undefined && {
-        code: dto.code,
+      ...(nextCode !== undefined && {
+        code: nextCode,
       }),
       ...(dto.name !== undefined && {
         name: dto.name,
@@ -157,6 +172,19 @@ export class CouponService {
         expiresAt: new Date(dto.expiresAt),
       }),
     });
+
+    /**
+     * Maximum discount is only valid for percentage coupons.
+     *
+     * Clear the leftover value when the coupon type
+     * is changed to FIXED.
+     */
+    if (
+      nextType === CouponType.FIXED &&
+      coupon.maximumDiscountAmount !== null
+    ) {
+      coupon.maximumDiscountAmount = null;
+    }
 
     return this.couponRepository.save(coupon);
   }
@@ -218,8 +246,10 @@ export class CouponService {
       throw new BadRequestException('Order already has a coupon');
     }
 
-    // Find the coupon using the submitted code.
-    const coupon = await this.couponRepository.findByCode(dto.code);
+    // Find the coupon using the normalized submitted code.
+    const coupon = await this.couponRepository.findByCode(
+      this.normalizeCouponCode(dto.code),
+    );
 
     if (!coupon) {
       throw new NotFoundException('Coupon not found');
@@ -300,6 +330,18 @@ export class CouponService {
       totalPrice: savedOrder.totalPrice,
       finalPrice: savedOrder.finalPrice,
     };
+  }
+
+  /**
+   * ------------------------------------------------------------------------
+   * Normalize coupon code
+   * ------------------------------------------------------------------------
+   *
+   * Trims whitespace and uppercases the coupon code
+   * so create, update, and apply operations stay consistent.
+   */
+  private normalizeCouponCode(code: string): string {
+    return code.trim().toUpperCase();
   }
 
   /**

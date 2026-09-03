@@ -4,10 +4,18 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
+
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
@@ -30,7 +38,8 @@ import { CouponService } from '../services/coupon.service';
  * - The ADMIN system role.
  * ------------------------------------------------------------------------
  */
-
+@ApiTags('Admin Coupons')
+@ApiBearerAuth()
 @Controller('admin/coupons')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(SYSTEM_ROLES.ADMIN)
@@ -48,6 +57,8 @@ export class CouponController {
    * - Admin only
    */
   @Get()
+  @ApiOperation({ summary: 'Get all coupons' })
+  @ApiOkResponse({ description: 'Coupons retrieved successfully' })
   async getAllCoupons() {
     return this.couponService.getAllCoupons();
   }
@@ -63,7 +74,9 @@ export class CouponController {
    * - Admin only
    */
   @Get(':id')
-  async getCouponById(@Param('id') id: string) {
+  @ApiOperation({ summary: 'Get coupon by ID' })
+  @ApiOkResponse({ description: 'Coupon retrieved successfully' })
+  async getCouponById(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.couponService.getCouponById(id);
   }
 
@@ -80,6 +93,8 @@ export class CouponController {
    * - Admin only
    */
   @Post()
+  @ApiOperation({ summary: 'Create coupon' })
+  @ApiOkResponse({ description: 'Coupon created successfully' })
   async createCoupon(@Body() dto: CreateCouponDto) {
     return this.couponService.createCoupon(dto);
   }
@@ -97,7 +112,12 @@ export class CouponController {
    * - Admin only
    */
   @Patch(':id')
-  async updateCoupon(@Param('id') id: string, @Body() dto: UpdateCouponDto) {
+  @ApiOperation({ summary: 'Update coupon' })
+  @ApiOkResponse({ description: 'Coupon updated successfully' })
+  async updateCoupon(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateCouponDto,
+  ) {
     return this.couponService.updateCoupon(id, dto);
   }
 
@@ -115,7 +135,9 @@ export class CouponController {
    * - Admin only
    */
   @Delete(':id')
-  async deleteCoupon(@Param('id') id: string) {
+  @ApiOperation({ summary: 'Delete coupon' })
+  @ApiOkResponse({ description: 'Coupon deleted successfully' })
+  async deleteCoupon(@Param('id', new ParseUUIDPipe()) id: string) {
     await this.couponService.deleteCoupon(id);
 
     return {

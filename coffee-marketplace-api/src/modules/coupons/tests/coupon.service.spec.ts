@@ -175,6 +175,48 @@ describe('CouponService', () => {
       expect(couponRepository.save).not.toHaveBeenCalled();
     });
 
+    it('should clear maximum discount when changing type to FIXED', async () => {
+      const coupon = createCoupon({
+        type: CouponType.PERCENTAGE,
+        maximumDiscountAmount: '50000',
+      });
+
+      couponRepository.findById.mockResolvedValue(coupon);
+      couponRepository.save.mockImplementation(async (value) => value);
+
+      const result = await service.updateCoupon('coupon-1', {
+        type: CouponType.FIXED,
+        value: '100000',
+      });
+
+      expect(result.type).toBe(CouponType.FIXED);
+      expect(result.maximumDiscountAmount).toBeNull();
+    });
+
+    it('should normalize coupon codes to uppercase', async () => {
+      const coupon = createCoupon();
+
+      couponRepository.findByCode.mockResolvedValue(null);
+      couponRepository.create.mockReturnValue(coupon);
+      couponRepository.save.mockResolvedValue(coupon);
+
+      await service.createCoupon({
+        code: ' welcome10 ',
+        name: 'Welcome Discount',
+        type: CouponType.PERCENTAGE,
+        value: '10',
+        expiresAt: '2026-12-31T23:59:59.000Z',
+      });
+
+      expect(couponRepository.findByCode).toHaveBeenCalledWith('WELCOME10');
+
+      expect(couponRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'WELCOME10',
+        }),
+      );
+    });
+
     it('should reject percentage values greater than 100', async () => {
       couponRepository.findByCode.mockResolvedValue(null);
 

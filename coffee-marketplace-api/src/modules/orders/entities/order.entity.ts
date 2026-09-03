@@ -7,6 +7,7 @@ import {
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
+  RelationId,
   UpdateDateColumn,
 } from 'typeorm';
 
@@ -87,6 +88,15 @@ export class Order {
     name: 'coupon_id',
   })
   coupon: Coupon | null;
+
+  /**
+   * Foreign key of the applied coupon.
+   *
+   * Mapped from coupon_id so order responses can
+   * expose couponId without loading the coupon relation.
+   */
+  @RelationId((order: Order) => order.coupon)
+  couponId: string | null;
 
   /**
    * Shipment tracking code assigned by an administrator.
@@ -184,5 +194,4 @@ export class Order {
     name: 'updated_at',
   })
   updatedAt: Date;
-  couponId: string | null;
 }

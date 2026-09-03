@@ -236,7 +236,7 @@ export class PaymentService {
               isActive: true,
             })
             .andWhere('(usage_limit IS NULL OR used_count < usage_limit)')
-            .andWhere('(expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)')
+            .andWhere('expires_at > CURRENT_TIMESTAMP')
             .execute();
 
           /**
