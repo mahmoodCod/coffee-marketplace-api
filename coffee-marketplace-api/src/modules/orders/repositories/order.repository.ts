@@ -141,6 +141,7 @@ export class OrderRepository {
       },
       relations: {
         user: true,
+        coupon: true,
         items: {
           product: true,
         },

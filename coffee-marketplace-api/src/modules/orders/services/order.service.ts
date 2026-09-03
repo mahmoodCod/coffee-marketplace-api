@@ -145,7 +145,7 @@ export class OrderService {
 
       finalPrice: totalPrice.toFixed(2),
 
-      couponId: null,
+      coupon: null,
     });
 
     /**
