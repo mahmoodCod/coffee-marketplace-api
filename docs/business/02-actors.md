@@ -18,7 +18,7 @@ A user who has not yet logged into their account.
 - Search products
 - View product details
 - Contact Support
-- View articles
+- View articles (published only)
 - View user reviews
 - Register
 - Login
@@ -44,7 +44,7 @@ Has a user account.
 - View product details
 - View notifications
 - Mark notifications as read
-- View articles
+- View articles (published only)
 - View user reviews
 - Apply coupon code to own unpaid orders
 - Remove coupon code from own unpaid orders
@@ -65,7 +65,7 @@ System Administrator.
 - Management of reports
 - Suspension of users
 - Manage comments
-- Management of articles
+- Management of articles (create, update, delete, publish, attach products)
 - Manage filters
 - View product discounts
 - Management of coupons

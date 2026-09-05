@@ -46,3 +46,7 @@ Order ── Coupon (optional, at most one)
 Order ── Address
 
 Order ── Payment
+
+User ── Article (author)
+
+Article ── Product (many-to-many via article_products)

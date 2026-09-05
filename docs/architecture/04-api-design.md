@@ -273,15 +273,37 @@ PATCH  /notifications/:id/read
 
 ## Articles
 
+Public
+
 GET    /articles
 
 GET    /articles/:slug
 
-POST   /articles
+Admin
 
-PATCH  /articles/:id
+GET    /admin/articles
 
-DELETE /articles/:id
+GET    /admin/articles/:id
+
+POST   /admin/articles
+
+PATCH  /admin/articles/:id
+
+DELETE /admin/articles/:id
+
+POST   /admin/articles/:id/products/:productId
+
+DELETE /admin/articles/:id/products/:productId
+
+Notes:
+
+- Public endpoints return only published articles.
+- Admin endpoints require authentication and the ADMIN role.
+- Article slug must be unique.
+- Publishing sets published_at when an article becomes published for the first time.
+- Unpublishing keeps the article record but hides it from public listing and detail endpoints.
+- Product attach/remove endpoints manage the article_products junction table.
+- An article can be linked to many products; a product can appear in many articles.
 
 --------------------------------
 

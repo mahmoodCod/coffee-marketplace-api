@@ -27,6 +27,7 @@
 - A product can have many discounts.
 - A product can appear in many cart items.
 - A product can appear in many order items.
+- A product can appear in many articles.
 
 --------------------------------------------
 
@@ -38,7 +39,12 @@
 
 ## Article
 
-- An article can be created by an admin.
+- An article is created and managed by an administrator.
+- An article belongs to one author (user).
+- An article can be linked to many products.
+- A product can appear in many articles.
+- Article-product links are stored in article_products.
+- Only published articles are visible to guests and customers.
 
 --------------------------------------------
 

@@ -100,6 +100,8 @@ discounts (is_active, end_date)
 
 coupons (is_active, expires_at)
 
+articles (is_published, published_at)
+
 ----------------------------------------
 
 ## Search Indexes

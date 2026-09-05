@@ -138,6 +138,28 @@ Rules:
 
 -------------------------------
 
+## Articles
+
+Content articles managed by administrators.
+
+Rules:
+
+- Only admins can create, update, delete, publish, and unpublish articles.
+- Guests and customers can view only published articles.
+- Article slug must be unique.
+- Article title cannot be empty.
+- Article content cannot be empty.
+- Draft articles (is_published = false) are hidden from public endpoints.
+- published_at is set when an article is published for the first time.
+- Unpublishing an article hides it from public views without deleting it.
+- An article belongs to one author (admin user).
+- An article can be linked to many products through article_products.
+- A product can appear in many articles.
+- Attaching a product requires the product to exist.
+- The same product cannot be attached to the same article more than once.
+
+-------------------------------
+
 ## Seller
 
 - Sellers can view and update only their own profile.
@@ -149,7 +171,7 @@ Rules:
 
 -------------------------------
 
-## Business Rules
+## Inventory
 
 - Each product must have one inventory.
 - Stock cannot be negative.
