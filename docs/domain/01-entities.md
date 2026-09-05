@@ -12,8 +12,8 @@
 
 - Product
 - Category
-- Article
 - Inventory
+- Article (content / guides, admin-managed)
 
 ---------------------------
 

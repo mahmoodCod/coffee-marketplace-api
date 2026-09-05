@@ -265,9 +265,28 @@ Field notes:
 - created_at
 - updated_at
 
+Field notes:
+
+- author_id: admin user who created the article.
+- slug: unique public identifier used in URLs.
+- excerpt: short summary shown in article listings.
+- content: full article body.
+- thumbnail: optional cover image URL/path.
+- badge: optional label shown on the article card (for example "Guide" or "New").
+- read_time: estimated reading time in minutes.
+- is_published: controls public visibility.
+- published_at: timestamp set when the article is first published; null for drafts.
+
 ----------------------------
 
 ## article_products
 
 - article_id
 - product_id
+
+Field notes:
+
+- Junction table for many-to-many links between articles and products.
+- Composite unique key: (article_id, product_id).
+
+----------------------------

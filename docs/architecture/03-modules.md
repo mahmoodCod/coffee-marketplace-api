@@ -190,10 +190,29 @@ Dependencies:
 
 ## Article Module
 
+Content and educational articles managed by administrators.
+
+Scope:
+
+- Articles are platform content (blog / guides), not seller-owned product listings.
+- Articles can optionally link to related marketplace products.
+- Separate from Product Module, which manages sellable catalog items.
+
 Responsible for:
 
-- Managing articles
-- Publishing content
+- Creating articles
+- Updating articles
+- Deleting articles
+- Listing published articles for guests and customers
+- Listing all articles for administrators (including drafts)
+- Publishing and unpublishing articles
+- Attaching products to articles
+- Removing products from articles
+
+Dependencies:
+
+- User Module (author_id references the admin who created the article)
+- Product Module (optional product links through article_products)
 
 -------------------------------------
 
