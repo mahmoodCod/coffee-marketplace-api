@@ -19,6 +19,7 @@ import { CartItem } from '../../../modules/cart/entities';
 import { OrderItem } from '../../../modules/orders/entities/order-item.entity';
 import { Review } from '../../../modules/reviews/entities/review.entity';
 import { ProductDiscount } from './product-discount.entity';
+import { ArticleProduct } from 'src/modules/articles/entities/article-product.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -322,6 +323,18 @@ export class Product {
     (productDiscount) => productDiscount.product,
   )
   discounts: ProductDiscount[];
+
+  /**
+   * Articles related to this product.
+   *
+   * The relationship is managed through ArticleProduct.
+   *
+   * Relationship:
+   *
+   * Product 1 ---- N ArticleProduct
+   */
+  @OneToMany(() => ArticleProduct, (articleProduct) => articleProduct.product)
+  articles: ArticleProduct[];
 
   /**
    * Creation timestamp.

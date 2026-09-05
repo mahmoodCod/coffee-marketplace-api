@@ -16,6 +16,7 @@ import { Address } from './address.entity';
 import { Cart } from '../../../modules/cart/entities';
 import { Review } from '../../../modules/reviews/entities/review.entity';
 import { Notification } from '../../../modules/notifications/entities/notification.entity';
+import { Article } from 'src/modules/articles/entities/article.entity';
 
 /**
  * ------------------------------------------------------------------------
@@ -137,6 +138,18 @@ export class User {
    */
   @OneToMany(() => Notification, (notification) => notification.user)
   notifications: Notification[];
+
+  /**
+   * Articles created by the user.
+   *
+   * Only administrators are allowed to create articles.
+   *
+   * Relationship:
+   *
+   * User 1 ---- N Article
+   */
+  @OneToMany(() => Article, (article) => article.author)
+  articles: Article[];
 
   @UpdateDateColumn({
     name: 'updated_at',
