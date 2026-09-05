@@ -17,6 +17,7 @@ import { PaymentModule } from './modules/payments/payment.module';
 import { ReviewsModule } from './modules/reviews/review.module';
 import { NotificationsModule } from './modules/notifications/notification.module';
 import { DiscountModule } from './modules/discounts/discount.module';
+import { CouponModule } from './modules/coupons/coupon.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { DiscountModule } from './modules/discounts/discount.module';
     ReviewsModule,
     NotificationsModule,
     DiscountModule,
+    CouponModule,
   ],
   controllers: [AppController],
   providers: [AppService],

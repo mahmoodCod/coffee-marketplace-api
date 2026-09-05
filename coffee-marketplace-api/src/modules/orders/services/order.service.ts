@@ -129,8 +129,8 @@ export class OrderService {
     /**
      * Create the order.
      *
-     * Currently, no coupon functionality exists,
-     * so finalPrice is equal to totalPrice.
+     * Coupons are applied after order creation,
+     * so finalPrice starts equal to totalPrice.
      */
     const order = this.orderRepository.create({
       user: {
@@ -145,7 +145,7 @@ export class OrderService {
 
       finalPrice: totalPrice.toFixed(2),
 
-      couponId: null,
+      coupon: null,
     });
 
     /**
@@ -525,7 +525,7 @@ export class OrderService {
       shippingAddressId: order.shippingAddress.id,
       totalPrice: order.totalPrice,
       finalPrice: order.finalPrice,
-      couponId: order.couponId,
+      couponId: order.coupon?.id ?? order.couponId ?? null,
       trackingCode: order.trackingCode,
       paidAt: order.paidAt,
       shippedAt: order.shippedAt,

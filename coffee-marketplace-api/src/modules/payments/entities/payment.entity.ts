@@ -15,7 +15,7 @@ import { PaymentStatus } from '../enums/payment-status.enum';
 /**
  * Payment Entity
  *
- * Represents a payment attempt for an order.
+ * Represents the payment record associated with an order.
  *
  * Business Rules:
  * - A payment belongs to exactly one order.
@@ -35,9 +35,10 @@ export class Payment {
   /**
    * Order associated with this payment.
    *
-   * Each order can have at most one payment record.
+   * The unique one-to-one relation ensures
+   * that an order can have at most one payment.
    */
-  @OneToOne(() => Order, {
+  @OneToOne(() => Order, (order) => order.payment, {
     nullable: false,
     onDelete: 'CASCADE',
   })
@@ -87,8 +88,6 @@ export class Payment {
 
   /**
    * Current lifecycle status of the payment.
-   *
-   * New payment records start with PENDING status.
    */
   @Column({
     type: 'enum',

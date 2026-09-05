@@ -273,7 +273,7 @@ describe('OrderService', () => {
 
           finalPrice: '400.00',
 
-          couponId: null,
+          coupon: null,
         }),
       );
 
