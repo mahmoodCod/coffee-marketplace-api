@@ -44,10 +44,6 @@ GET    /seller/orders/:id
 
 PATCH  /seller/orders/:id/received
 
-GET    /seller/reports
-
-GET    /seller/dashboard
-
 ----------------------------
 
 ## Admin - User Management
@@ -315,20 +311,52 @@ Notes:
 
 ## Dashboard
 
-GET  /admin/dashboard/statistics
+Admin
 
-GET  /admin/dashboard/sales
+GET    /admin/dashboard/statistics
 
---------------------------------
+GET    /admin/dashboard/sales
 
-GET  /seller/dashboard
+Seller
+
+GET    /seller/dashboard
+
+Notes:
+
+- Dashboard endpoints require authentication.
+- Admin endpoints require the ADMIN role.
+- Seller endpoints require the SELLER role.
+- Dashboard endpoints are read-only.
+- Admin dashboard returns platform-wide metrics.
+- Seller dashboard returns metrics only for the authenticated seller's own products and orders.
+- GET /admin/dashboard/sales may accept optional query params such as from, to, and groupBy=day|month.
+- Revenue is calculated from paid orders using final_price.
 
 --------------------------------
 
 ## Reports
 
-GET  /admin/reports/orders
+Admin
 
-GET  /admin/reports/products
+GET    /admin/reports/orders
 
-GET  /admin/reports/users
+GET    /admin/reports/products
+
+GET    /admin/reports/users
+
+Seller
+
+GET    /seller/reports/orders
+
+GET    /seller/reports/products
+
+Notes:
+
+- Report endpoints require authentication.
+- Admin endpoints require the ADMIN role.
+- Seller endpoints require the SELLER role.
+- Report endpoints are read-only.
+- Admin reports may include platform-wide filtered listings.
+- Seller reports must return only data related to the authenticated seller.
+- Reports may accept optional query filters such as from, to, status, and pagination params.
+- Dashboard provides overview metrics; Reports provide detailed listings.

@@ -62,7 +62,6 @@ System Administrator.
 - Product management
 - Management of orders
 - Management of reviews
-- Management of reports
 - Suspension of users
 - Manage comments
 - Management of articles (create, update, delete, publish, attach products)
@@ -72,6 +71,7 @@ System Administrator.
 - Management of roles
 - Warehouse management
 - Dashboard statistics and sales analytics
+- Management of reports
 
 -----------------------------------
 
@@ -89,9 +89,9 @@ A vendor who can manage and sell products on the platform.
 - Manage own inventory
 - View own orders
 - Confirm delivered orders
-- View sales reports
-- Manage product discounts
 - Access seller dashboard
+- View own sales reports
+- Manage product discounts
 
 -----------------------------------
 

@@ -97,4 +97,5 @@ Responsible for:
 - Allow sellers to manage products and inventory.
 - Allow customers to place orders and complete payments.
 - Provide administrators with monitoring and management tools.
+- Provide dashboard statistics and operational reports for admins and sellers.
 - Ensure scalability and maintainability.

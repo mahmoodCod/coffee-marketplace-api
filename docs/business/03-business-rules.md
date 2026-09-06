@@ -182,3 +182,36 @@ Rules:
 - Only product owner seller can update inventory.
 - Admin can update any inventory.
 - Inventory changes must be tracked.
+
+-------------------------------
+
+## Dashboard
+
+Read-only overview analytics for administrators and sellers.
+
+Rules:
+
+- Only admins can access admin dashboard endpoints.
+- Only sellers can access seller dashboard endpoints.
+- Dashboard endpoints are read-only and must not mutate business data.
+- Admin dashboard metrics are platform-wide.
+- Seller dashboard metrics must be scoped to the authenticated seller only.
+- Revenue is calculated from paid orders using final_price.
+- Pending payment orders are not counted as revenue.
+- Low-stock metrics are based on available inventory for active products.
+
+-------------------------------
+
+## Reports
+
+Read-only detailed reports for administrators and sellers.
+
+Rules:
+
+- Only admins can access admin report endpoints.
+- Only sellers can access seller report endpoints.
+- Report endpoints are read-only and must not mutate business data.
+- Admin reports may include platform-wide data.
+- Seller reports must include only the authenticated seller's products and related orders.
+- Reports may support date range and status filters.
+- Dashboard and Reports are separate concerns: overview metrics versus detailed listings.

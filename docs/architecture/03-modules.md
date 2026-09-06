@@ -45,8 +45,11 @@ Responsible for:
 - Managing seller inventory
 - Viewing seller orders
 - Confirming delivered orders
-- Viewing seller reports
-- Viewing seller dashboard
+
+Notes:
+
+- Seller dashboard and seller reports are provided by the Dashboard Module
+  and Report Module, not by the Seller Module itself.
 
 -------------------------------------
 
@@ -218,16 +221,79 @@ Dependencies:
 
 ## Dashboard Module
 
+Read-only analytics module for administrators and sellers.
+
+Scope:
+
+- Provides high-level overview metrics and sales summaries.
+- Does not own dedicated database tables.
+- Aggregates data from existing modules such as Orders, Payments, Products, Users, and Inventory.
+- Separate from the Report Module, which provides detailed filtered listings.
+
 Responsible for:
 
-- Dashboard statistics
-- Sales analytics
+- Admin platform statistics overview
+- Admin sales analytics over time
+- Seller dashboard overview for owned products and orders
+
+Admin statistics may include:
+
+- Total users
+- Total sellers
+- Total products
+- Total orders
+- Total successful payments
+- Total revenue from paid orders
+- Pending payment orders count
+- Low-stock products count
+
+Admin sales analytics may include:
+
+- Revenue grouped by day or month
+- Paid order counts over time
+
+Seller dashboard may include:
+
+- Own products count
+- Own orders count
+- Own paid revenue
+- Own pending orders count
+- Own low-stock products count
+
+Dependencies:
+
+- Orders Module
+- Payments Module
+- Products Module
+- Users Module
+- Inventory Module
 
 -------------------------------------
 
 ## Report Module
 
+Read-only reporting module for detailed operational data.
+
+Scope:
+
+- Provides detailed filtered reports rather than high-level dashboard cards.
+- Does not own dedicated database tables.
+- Aggregates and lists data from existing business modules.
+- Separate from the Dashboard Module, which provides overview statistics.
+
 Responsible for:
 
-- Generating reports
-- Monitoring system activity
+- Admin order reports
+- Admin product reports
+- Admin user reports
+- Seller order reports for owned products
+- Seller product sales reports for owned products
+
+Dependencies:
+
+- Orders Module
+- Products Module
+- Users Module
+- Payments Module
+
+-------------------------------------
