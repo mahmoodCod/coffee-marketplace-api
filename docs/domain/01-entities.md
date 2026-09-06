@@ -43,3 +43,11 @@
 
 - Discount (product-level, seller-managed)
 - Coupon (order-level, admin-managed)
+
+---------------------------
+
+## Analytics
+
+- Dashboard and Reports are read-only query modules.
+- They do not introduce dedicated database entities.
+- They aggregate data from Orders, Payments, Products, Users, and Inventory.
