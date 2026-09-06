@@ -1,13 +1,23 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { ArticleRepository } from '../repositories/article.repository';
 import { CreateArticleDto } from '../dto/create-article.dto';
 import { UpdateArticleDto } from '../dto/update-article.dto';
 import { Article } from '../entities/article.entity';
+import { ArticleProductRepository } from '../repositories/article-product.repository';
+import { ProductService } from 'src/modules/products/services/product.service';
 
 @Injectable()
 export class ArticlesService {
-  constructor(private readonly articleRepository: ArticleRepository) {}
+  constructor(
+    private readonly articleRepository: ArticleRepository,
+    private readonly articleProductRepository: ArticleProductRepository,
+    private readonly productsService: ProductService,
+  ) {}
 
   /**
    * Creates a new article.
@@ -202,5 +212,70 @@ export class ArticlesService {
 
     // Persist the updated publication state.
     return this.articleRepository.save(article);
+  }
+
+  /**
+   * Attaches an existing product to an existing article.
+   *
+   * The article and product are validated before creating the relationship.
+   * This keeps the article-product relationship consistent with the business rules
+   * and prevents references to non-existing products.
+   *
+   * A duplicate relationship is rejected before persistence.
+   * The ArticleProduct entity also uses article_id and product_id as a composite
+   * primary key, which provides an additional database-level uniqueness guarantee.
+   */
+  async attachProduct(articleId: string, productId: string): Promise<void> {
+    // Make sure the target article exists before creating the relationship.
+    await this.findOne(articleId);
+
+    // Make sure the target product exists before attaching it to the article.
+    // ProductsService remains responsible for product lookup and product rules.
+    await this.productsService.findOne(productId);
+
+    // Check the junction table before inserting to provide a clear business error
+    // instead of relying only on a database constraint violation.
+    const relationExists = await this.articleProductRepository.exists(
+      articleId,
+      productId,
+    );
+
+    if (relationExists) {
+      throw new ConflictException(
+        'This product is already attached to the article',
+      );
+    }
+
+    // Create only the relationship record.
+    // Neither the article nor the product itself is modified.
+    await this.articleProductRepository.create(articleId, productId);
+  }
+
+  /**
+   * Removes an existing product relationship from an article.
+   *
+   * The article must exist, and the specific article-product relationship
+   * must already exist. Removing the relationship does not delete either
+   * the article or the product.
+   */
+  async detachProduct(articleId: string, productId: string): Promise<void> {
+    // Make sure the article exists before accessing its relationships.
+    await this.findOne(articleId);
+
+    // Check whether the requested relationship actually exists.
+    const relationExists = await this.articleProductRepository.exists(
+      articleId,
+      productId,
+    );
+
+    if (!relationExists) {
+      throw new NotFoundException(
+        'This product is not attached to the article',
+      );
+    }
+
+    // Delete only the junction record.
+    // The original article and product remain untouched.
+    await this.articleProductRepository.delete(articleId, productId);
   }
 }
