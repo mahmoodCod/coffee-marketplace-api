@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
 } from '@nestjs/common';
@@ -280,81 +281,32 @@ export class AdminArticlesController {
   /**
    * Attaches an existing product to an existing article.
    *
-   * This endpoint is restricted to the admin article-management area.
-   * The article and product are validated inside ArticlesService before
-   * the relationship is created.
+   * UUID validation is performed at the HTTP boundary so invalid identifiers
+   * are rejected before the request reaches the service or database layer.
    */
   @Post(':id/products/:productId')
-  @ApiOperation({
-    summary: 'Attach a product to an article',
-    description:
-      'Creates a relationship between an existing article and product.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'Article UUID',
-    example: '7f7d9e2e-7c7a-4f7d-9e2e-7c7a4f7d9e2e',
-  })
-  @ApiParam({
-    name: 'productId',
-    description: 'Product UUID',
-    example: '9e2e7c7a-4f7d-9e2e-7c7a4f7d9e2e7c7a',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Product successfully attached to the article.',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Article or product was not found.',
-  })
-  @ApiResponse({
-    status: 409,
-    description: 'Product is already attached to the article.',
-  })
   async attachProduct(
-    @Param('id') articleId: string,
-    @Param('productId') productId: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) articleId: string,
+    @Param('productId', new ParseUUIDPipe({ version: '4' }))
+    productId: string,
   ): Promise<void> {
-    // Delegate validation and relationship creation to the service layer.
-    // The controller should only handle HTTP input and output.
+    // Delegate article existence, product existence, duplicate detection,
+    // and relationship creation to the service layer.
     await this.articlesService.attachProduct(articleId, productId);
   }
 
   /**
-   * Removes a product relationship from an article.
+   * Removes an existing product relationship from an article.
    *
-   * This deletes only the record from article_products.
-   * The article and product themselves are not deleted.
+   * Both identifiers must be valid UUIDs before the service attempts
+   * to locate or delete the relationship.
    */
   @Delete(':id/products/:productId')
-  @ApiOperation({
-    summary: 'Detach a product from an article',
-    description:
-      'Removes the relationship between an article and product without deleting either record.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'Article UUID',
-    example: '7f7d9e2e-7c7a-4f7d-9e2e-7c7a4f7d9e2e',
-  })
-  @ApiParam({
-    name: 'productId',
-    description: 'Product UUID',
-    example: '9e2e7c7a-4f7d-9e2e-7c7a4f7d9e2e7c7a',
-  })
-  @ApiResponse({
-    status: 204,
-    description: 'Product successfully detached from the article.',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Article or article-product relationship was not found.',
-  })
   @HttpCode(HttpStatus.NO_CONTENT)
   async detachProduct(
-    @Param('id') articleId: string,
-    @Param('productId') productId: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) articleId: string,
+    @Param('productId', new ParseUUIDPipe({ version: '4' }))
+    productId: string,
   ): Promise<void> {
     // Delegate relationship validation and deletion to the service layer.
     await this.articlesService.detachProduct(articleId, productId);
