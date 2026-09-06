@@ -14,42 +14,42 @@ import { ArticleProduct } from './entities/article-product.entity';
 import { ArticleRepository } from './repositories/article.repository';
 import { ArticleProductRepository } from './repositories/article-product.repository';
 
+import { ProductModule } from '../products/products.module';
+
 @Module({
   imports: [
-    // Register Article and ArticleProduct entities with TypeORM.
-    // This allows NestJS to inject their TypeORM repositories
-    // into the custom repository classes.
+    // Register article-related entities so their repositories can be injected.
     TypeOrmModule.forFeature([Article, ArticleProduct]),
+
+    // Import ProductsModule so ArticlesService can use ProductsService
+    // to validate that a product exists before attaching it to an article.
+    ProductModule,
   ],
 
   controllers: [
-    // Register public article endpoints.
+    // Public endpoints for published articles.
     ArticlesController,
 
-    // Register administrative article management endpoints.
+    // Admin endpoints for article management.
     AdminArticlesController,
   ],
 
   providers: [
-    // Register the service containing Article business logic.
+    // Main application service responsible for article business logic.
     ArticlesService,
 
-    // Register the repository responsible for Article persistence.
+    // Repository responsible for article persistence.
     ArticleRepository,
 
-    // Register the repository responsible for Article-Product relationships.
+    // Repository responsible for article-product relationships.
     ArticleProductRepository,
   ],
 
   exports: [
-    // Export the service so other modules can use article business logic.
+    // Export article services and repositories for other modules
+    // that may need to interact with the article domain.
     ArticlesService,
-
-    // Export the Article repository for modules that need article persistence.
     ArticleRepository,
-
-    // Export the junction repository for modules that need
-    // to manage Article-Product relationships.
     ArticleProductRepository,
   ],
 })
