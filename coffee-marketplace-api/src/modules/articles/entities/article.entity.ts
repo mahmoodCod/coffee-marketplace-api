@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 
 import { User } from '../../users/entities/user.entity';
-import { ArticleProduct } from './article-product.entity';
+import { ArticleProduct } from '../entities/article-product.entity';
 
 /**
  * ------------------------------------------------------------------------
