@@ -150,8 +150,10 @@ Rules:
 - Article title cannot be empty.
 - Article content cannot be empty.
 - Draft articles (is_published = false) are hidden from public endpoints.
+- New articles are created as drafts.
 - published_at is set when an article is published for the first time.
 - Unpublishing an article hides it from public views without deleting it.
+- Soft-deleted articles are hidden from both public and admin queries.
 - An article belongs to one author (admin user).
 - An article can be linked to many products through article_products.
 - A product can appear in many articles.
