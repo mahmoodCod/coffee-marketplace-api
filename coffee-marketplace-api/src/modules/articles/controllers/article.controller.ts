@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -21,6 +22,10 @@ import {
 import { ArticlesService } from '../services/article.service';
 import { CreateArticleDto } from '../dto/create-article.dto';
 import { UpdateArticleDto } from '../dto/update-article.dto';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { SYSTEM_ROLES } from 'src/common/constants/system-roles.constant';
 
 @ApiTags('Articles')
 @Controller('articles')
@@ -77,6 +82,8 @@ export class ArticlesController {
 }
 
 @ApiTags('Admin - Articles')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(SYSTEM_ROLES.ADMIN)
 @ApiBearerAuth()
 @Controller('admin/articles')
 export class AdminArticlesController {
