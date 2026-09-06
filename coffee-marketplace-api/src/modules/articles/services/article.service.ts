@@ -155,4 +155,50 @@ export class ArticlesService {
     // Mark the article as deleted without permanently removing its record.
     await this.articleRepository.softDelete(id);
   }
+
+  /**
+   * Publishes an article.
+   *
+   * An article can be published multiple times during its lifetime.
+   * However, publishedAt must represent the first time the article
+   * was ever published, so it must not be overwritten on later publishes.
+   */
+  async publish(id: string): Promise<Article> {
+    // Find the article before changing its publication state.
+    const article = await this.findOne(id);
+
+    // Mark the article as publicly visible.
+    article.isPublished = true;
+
+    // Store the first publication date only.
+    // If the article has already been published before,
+    // keep the original publishedAt value.
+    if (!article.publishedAt) {
+      article.publishedAt = new Date();
+    }
+
+    // Persist the publication state and publication date.
+    return this.articleRepository.save(article);
+  }
+
+  /**
+   * Unpublishes an article.
+   *
+   * Unpublishing only hides the article from public users.
+   * The original publishedAt value is intentionally preserved
+   * so the system knows when the article was first published.
+   */
+  async unpublish(id: string): Promise<Article> {
+    // Find the article before changing its publication state.
+    const article = await this.findOne(id);
+
+    // Hide the article from public endpoints.
+    article.isPublished = false;
+
+    // Do not clear publishedAt.
+    // The field represents the first publication date, not the current state.
+
+    // Persist the updated publication state.
+    return this.articleRepository.save(article);
+  }
 }
