@@ -2,8 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import {
-  ArticlesController,
   AdminArticlesController,
+  ArticlesController,
 } from './controllers/article.controller';
 import { ArticlesService } from './services/article.service';
 
@@ -14,35 +14,39 @@ import { ArticleRepository } from './repositories/article.repository';
 
 @Module({
   imports: [
-    // Register Article entities so TypeORM can inject their repositories
-    // and manage their database operations inside this module.
+    // Register Article and ArticleProduct with TypeORM.
+    // This makes their database repositories available inside
+    // the ArticlesModule through dependency injection.
     TypeOrmModule.forFeature([Article, ArticleProduct]),
   ],
 
   controllers: [
-    // Public endpoints for reading published articles.
+    // Register the public controller responsible for
+    // exposing published articles to customers and guests.
     ArticlesController,
 
-    // Administrative endpoints for creating, updating,
-    // publishing, unpublishing and deleting articles.
+    // Register the admin controller responsible for
+    // article management operations such as create, update,
+    // publish, unpublish and delete.
     AdminArticlesController,
   ],
 
   providers: [
-    // Register the service so NestJS can inject it into the controllers.
+    // Register the service that contains the business logic
+    // for creating, reading, updating and publishing articles.
     ArticlesService,
 
-    // Register the custom repository so the service can use
-    // database access methods through dependency injection.
+    // Register the custom repository responsible for
+    // communicating with the database.
     ArticleRepository,
   ],
 
   exports: [
-    // Export the service so other modules can use article-related
-    // business logic without accessing the database directly.
+    // Export the service so other modules can use
+    // article-related business operations when required.
     ArticlesService,
 
-    // Export the repository only when another module needs
+    // Export the repository for modules that may need
     // direct access to article persistence operations.
     ArticleRepository,
   ],
