@@ -26,6 +26,8 @@ import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
+import { Article } from '../entities/article.entity';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
 
 @ApiTags('Articles')
 @Controller('articles')
@@ -136,31 +138,28 @@ export class AdminArticlesController {
   }
 
   /**
-   * Creates a new article.
+   * Creates a new article as a draft.
    *
-   * The authenticated user's ID should be passed to the service
-   * by the authentication layer instead of accepting authorId from the client.
+   * The authenticated user's ID is extracted from the verified JWT payload
+   * through the CurrentUser decorator and passed to the service as the author ID.
+   *
+   * The author ID must come from the authenticated request rather than the
+   * request body, because clients must not be able to create articles on behalf
+   * of another user.
    */
   @Post()
-  @ApiOperation({
-    summary: 'Create an article',
-    description:
-      'Creates a new draft article. Only administrators can access this endpoint.',
-  })
+  @ApiOperation({ summary: 'Create a new article' })
   @ApiResponse({
     status: 201,
-    description: 'Article created successfully as a draft.',
+    description: 'The article was successfully created.',
+    type: Article,
   })
-  async create(@Body() createArticleDto: CreateArticleDto) {
-    /*
-     * Temporary author ID.
-     *
-     * This value will be replaced with the authenticated admin ID
-     * after CurrentUser decorator and authentication guards are wired
-     * into the controller.
-     */
-    const authorId = 'authenticated-user-id';
-
+  async create(
+    @Body() createArticleDto: CreateArticleDto,
+    @CurrentUser('sub') authorId: string,
+  ): Promise<Article> {
+    // Pass the authenticated user's UUID to the service.
+    // This replaces the previous placeholder value.
     return this.articlesService.create(createArticleDto, authorId);
   }
 
