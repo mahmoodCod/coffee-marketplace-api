@@ -80,6 +80,9 @@ describe('ArticlesService', () => {
 
       const authorId = '11111111-1111-4111-8111-111111111111';
 
+      // No existing article should use this slug.
+      articleRepository.findBySlug.mockResolvedValue(null);
+
       // Return the same entity that the repository receives.
       // This allows us to inspect the values prepared by the service.
       articleRepository.create.mockImplementation(
@@ -128,6 +131,8 @@ describe('ArticlesService', () => {
 
       const authorId = '22222222-2222-4222-8222-222222222222';
 
+      articleRepository.findBySlug.mockResolvedValue(null);
+
       articleRepository.create.mockImplementation(
         async (article: Article) => article,
       );
@@ -140,6 +145,25 @@ describe('ArticlesService', () => {
       expect(result.thumbnail).toBe(dto.thumbnail);
       expect(result.badge).toBe(dto.badge);
       expect(result.readTime).toBe(dto.readTime);
+    });
+
+    it('should reject duplicate article slugs', async () => {
+      const dto: CreateArticleDto = {
+        title: 'Coffee Brewing Guide',
+        slug: 'coffee-brewing-guide',
+        content: 'A guide to brewing coffee.',
+      };
+
+      articleRepository.findBySlug.mockResolvedValue({
+        id: 'existing-article',
+        slug: dto.slug,
+      } as Article);
+
+      await expect(
+        service.create(dto, '11111111-1111-4111-8111-111111111111'),
+      ).rejects.toThrow(ConflictException);
+
+      expect(articleRepository.create).not.toHaveBeenCalled();
     });
   });
 
@@ -270,6 +294,7 @@ describe('ArticlesService', () => {
       };
 
       articleRepository.findById.mockResolvedValue(article);
+      articleRepository.findBySlug.mockResolvedValue(null);
       articleRepository.save.mockImplementation(
         async (updatedArticle: Article) => updatedArticle,
       );

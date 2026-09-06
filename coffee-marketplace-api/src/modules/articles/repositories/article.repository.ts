@@ -15,6 +15,12 @@ export class ArticleRepository {
   async findBySlug(slug: string): Promise<Article | null> {
     return this.repository.findOne({
       where: { slug },
+      relations: {
+        products: {
+          product: true,
+        },
+        author: true,
+      },
     });
   }
 
@@ -22,6 +28,12 @@ export class ArticleRepository {
   async findById(id: string): Promise<Article | null> {
     return this.repository.findOne({
       where: { id },
+      relations: {
+        products: {
+          product: true,
+        },
+        author: true,
+      },
     });
   }
 
@@ -30,6 +42,9 @@ export class ArticleRepository {
     return this.repository.find({
       where: {
         isPublished: true,
+      },
+      relations: {
+        author: true,
       },
       order: {
         publishedAt: 'DESC',
@@ -40,6 +55,9 @@ export class ArticleRepository {
   // Find all articles for admin access, including drafts
   async findAllForAdmin(): Promise<Article[]> {
     return this.repository.find({
+      relations: {
+        author: true,
+      },
       order: {
         createdAt: 'DESC',
       },

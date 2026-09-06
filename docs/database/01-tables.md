@@ -264,6 +264,7 @@ Field notes:
 - published_at
 - created_at
 - updated_at
+- deleted_at
 
 Field notes:
 
@@ -276,6 +277,7 @@ Field notes:
 - read_time: estimated reading time in minutes.
 - is_published: controls public visibility.
 - published_at: timestamp set when the article is first published; null for drafts.
+- deleted_at: soft delete timestamp; null for active articles.
 
 ----------------------------
 

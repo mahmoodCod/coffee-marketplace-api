@@ -289,6 +289,10 @@ POST   /admin/articles
 
 PATCH  /admin/articles/:id
 
+POST   /admin/articles/:id/publish
+
+POST   /admin/articles/:id/unpublish
+
 DELETE /admin/articles/:id
 
 POST   /admin/articles/:id/products/:productId
@@ -300,8 +304,10 @@ Notes:
 - Public endpoints return only published articles.
 - Admin endpoints require authentication and the ADMIN role.
 - Article slug must be unique.
-- Publishing sets published_at when an article becomes published for the first time.
-- Unpublishing keeps the article record but hides it from public listing and detail endpoints.
+- New articles are created as drafts (is_published = false).
+- POST /admin/articles/:id/publish sets published_at only on the first publication.
+- POST /admin/articles/:id/unpublish hides the article but preserves published_at.
+- DELETE soft-deletes the article (sets deleted_at).
 - Product attach/remove endpoints manage the article_products junction table.
 - An article can be linked to many products; a product can appear in many articles.
 

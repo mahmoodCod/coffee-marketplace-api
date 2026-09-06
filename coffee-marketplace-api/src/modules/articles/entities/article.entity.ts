@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -36,6 +37,7 @@ import { ArticleProduct } from '../entities/article-product.entity';
 @Entity({
   name: 'articles',
 })
+@Index(['isPublished', 'publishedAt'])
 export class Article {
   /**
    * Article unique identifier.

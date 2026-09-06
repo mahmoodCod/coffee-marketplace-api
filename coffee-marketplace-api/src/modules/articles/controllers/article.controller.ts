@@ -27,7 +27,7 @@ import { RolesGuard } from '../../../common/guards/roles.guard';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 import { Article } from '../entities/article.entity';
-import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 
 @ApiTags('Articles')
 @Controller('articles')
@@ -133,7 +133,7 @@ export class AdminArticlesController {
     status: 404,
     description: 'Article not found.',
   })
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.articlesService.findOne(id);
   }
 
@@ -189,7 +189,7 @@ export class AdminArticlesController {
     description: 'Article not found.',
   })
   async update(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
     @Body() updateArticleDto: UpdateArticleDto,
   ) {
     return this.articlesService.update(id, updateArticleDto);
@@ -220,7 +220,7 @@ export class AdminArticlesController {
     status: 404,
     description: 'Article not found.',
   })
-  async publish(@Param('id') id: string) {
+  async publish(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.articlesService.publish(id);
   }
 
@@ -248,7 +248,7 @@ export class AdminArticlesController {
     status: 404,
     description: 'Article not found.',
   })
-  async unpublish(@Param('id') id: string) {
+  async unpublish(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.articlesService.unpublish(id);
   }
 
@@ -276,7 +276,7 @@ export class AdminArticlesController {
     status: 404,
     description: 'Article not found.',
   })
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id', new ParseUUIDPipe()) id: string) {
     await this.articlesService.remove(id);
 
     return {
@@ -291,9 +291,36 @@ export class AdminArticlesController {
    * are rejected before the request reaches the service or database layer.
    */
   @Post(':id/products/:productId')
+  @ApiOperation({
+    summary: 'Attach a product to an article',
+    description:
+      'Creates a relationship between an existing article and an existing product.',
+  })
+  @ApiParam({
+    name: 'id',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    description: 'Article UUID.',
+  })
+  @ApiParam({
+    name: 'productId',
+    example: '660e8400-e29b-41d4-a716-446655440000',
+    description: 'Product UUID.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Product attached to the article successfully.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Article or product not found.',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'The product is already attached to the article.',
+  })
   async attachProduct(
-    @Param('id', new ParseUUIDPipe({ version: '4' })) articleId: string,
-    @Param('productId', new ParseUUIDPipe({ version: '4' }))
+    @Param('id', new ParseUUIDPipe()) articleId: string,
+    @Param('productId', new ParseUUIDPipe())
     productId: string,
   ): Promise<void> {
     // Delegate article existence, product existence, duplicate detection,
@@ -309,9 +336,32 @@ export class AdminArticlesController {
    */
   @Delete(':id/products/:productId')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Detach a product from an article',
+    description:
+      'Removes the relationship between an article and a product without deleting either record.',
+  })
+  @ApiParam({
+    name: 'id',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+    description: 'Article UUID.',
+  })
+  @ApiParam({
+    name: 'productId',
+    example: '660e8400-e29b-41d4-a716-446655440000',
+    description: 'Product UUID.',
+  })
+  @ApiResponse({
+    status: 204,
+    description: 'Product detached from the article successfully.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Article not found or product is not attached.',
+  })
   async detachProduct(
-    @Param('id', new ParseUUIDPipe({ version: '4' })) articleId: string,
-    @Param('productId', new ParseUUIDPipe({ version: '4' }))
+    @Param('id', new ParseUUIDPipe()) articleId: string,
+    @Param('productId', new ParseUUIDPipe())
     productId: string,
   ): Promise<void> {
     // Delegate relationship validation and deletion to the service layer.

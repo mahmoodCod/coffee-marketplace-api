@@ -32,6 +32,9 @@ export class ArticlesService {
     createArticleDto: CreateArticleDto,
     authorId: string,
   ): Promise<Article> {
+    // Make sure the slug is unique before creating the article.
+    await this.ensureUniqueSlug(createArticleDto.slug);
+
     // Create a new Article entity in memory.
     // At this stage, the article has not been stored in the database.
     const article = new Article();
@@ -144,6 +147,14 @@ export class ArticlesService {
     // Reuse findOne so the update operation fails consistently
     // when the article does not exist.
     const article = await this.findOne(id);
+
+    // If the slug is being changed, make sure the new slug is unique.
+    if (
+      updateArticleDto.slug !== undefined &&
+      updateArticleDto.slug !== article.slug
+    ) {
+      await this.ensureUniqueSlug(updateArticleDto.slug, id);
+    }
 
     // Apply only the fields provided in the PATCH request.
     // Undefined fields are not included in the DTO transformation.
@@ -277,5 +288,25 @@ export class ArticlesService {
     // Delete only the junction record.
     // The original article and product remain untouched.
     await this.articleProductRepository.delete(articleId, productId);
+  }
+
+  /**
+   * Ensures that an article slug is unique.
+   *
+   * Soft-deleted articles are ignored by the repository automatically,
+   * so this check validates uniqueness among active articles.
+   */
+  private async ensureUniqueSlug(
+    slug: string,
+    excludeArticleId?: string,
+  ): Promise<void> {
+    const existingArticle = await this.articleRepository.findBySlug(slug);
+
+    if (
+      existingArticle &&
+      (!excludeArticleId || existingArticle.id !== excludeArticleId)
+    ) {
+      throw new ConflictException('Article slug already exists');
+    }
   }
 }

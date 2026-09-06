@@ -1,3 +1,5 @@
+import { Type } from 'class-transformer';
+
 import {
   IsInt,
   IsNotEmpty,
@@ -10,8 +12,19 @@ import {
 
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+/**
+ * ------------------------------------------------------------------------
+ * Create Article DTO
+ * ------------------------------------------------------------------------
+ *
+ * Defines the request body used by administrators
+ * when creating a new content article.
+ * ------------------------------------------------------------------------
+ */
 export class CreateArticleDto {
-  // Article title displayed to users
+  /**
+   * Article title displayed to users.
+   */
   @ApiProperty({
     example: 'How to Choose the Right Coffee Beans',
     description: 'The title of the article',
@@ -22,7 +35,9 @@ export class CreateArticleDto {
   @MaxLength(200)
   title: string;
 
-  // Unique URL-friendly identifier for the article
+  /**
+   * Unique URL-friendly identifier for the article.
+   */
   @ApiProperty({
     example: 'how-to-choose-the-right-coffee-beans',
     description: 'A unique URL-friendly identifier for the article',
@@ -33,16 +48,21 @@ export class CreateArticleDto {
   @MaxLength(220)
   slug: string;
 
-  // Short summary of the article
+  /**
+   * Short summary of the article.
+   */
   @ApiPropertyOptional({
-    example: 'A practical guide to choosing coffee beans based on roast and flavor.',
+    example:
+      'A practical guide to choosing coffee beans based on roast and flavor.',
     description: 'A short summary of the article',
   })
   @IsString()
   @IsOptional()
   excerpt?: string;
 
-  // Main article content
+  /**
+   * Main article content.
+   */
   @ApiProperty({
     example:
       'Choosing the right coffee beans depends on roast level, origin, and brewing method.',
@@ -52,7 +72,9 @@ export class CreateArticleDto {
   @IsNotEmpty()
   content: string;
 
-  // Optional article thumbnail URL
+  /**
+   * Optional article thumbnail URL.
+   */
   @ApiPropertyOptional({
     example: 'https://example.com/images/coffee-beans.jpg',
     description: 'The URL of the article thumbnail',
@@ -61,7 +83,9 @@ export class CreateArticleDto {
   @IsOptional()
   thumbnail?: string;
 
-  // Optional badge displayed on the article
+  /**
+   * Optional badge displayed on the article.
+   */
   @ApiPropertyOptional({
     example: 'Coffee Guide',
     description: 'A small badge displayed on the article',
@@ -72,14 +96,17 @@ export class CreateArticleDto {
   @MaxLength(50)
   badge?: string;
 
-  // Estimated reading time in minutes
+  /**
+   * Estimated reading time in minutes.
+   */
   @ApiPropertyOptional({
     example: 5,
     description: 'Estimated reading time in minutes',
     minimum: 1,
   })
+  @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
-  @IsOptional()
   readTime?: number;
 }
