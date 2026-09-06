@@ -30,15 +30,18 @@ export class ArticlesService {
     // The client cannot choose another author through the DTO.
     article.author = { id: authorId } as Article['author'];
 
-    // Copy the article content fields from the validated request.
-    // DTO validation has already checked the incoming data before this method runs.
+    // Copy required article fields from the validated request.
     article.title = createArticleDto.title;
     article.slug = createArticleDto.slug;
-    article.excerpt = createArticleDto.excerpt;
     article.content = createArticleDto.content;
-    article.thumbnail = createArticleDto.thumbnail;
-    article.badge = createArticleDto.badge;
-    article.readTime = createArticleDto.readTime;
+
+    // Optional DTO fields can be undefined when they are not provided.
+    // The entity expects null for missing database values,
+    // so convert undefined to null before assigning them.
+    article.excerpt = createArticleDto.excerpt ?? null;
+    article.thumbnail = createArticleDto.thumbnail ?? null;
+    article.badge = createArticleDto.badge ?? null;
+    article.readTime = createArticleDto.readTime ?? null;
 
     // New articles must start as drafts.
     // Drafts are not visible through public article endpoints.
@@ -52,7 +55,6 @@ export class ArticlesService {
     // from depending directly on TypeORM's Repository API.
     return this.articleRepository.create(article);
   }
-
   /**
    * Returns all published articles for public access.
    *
