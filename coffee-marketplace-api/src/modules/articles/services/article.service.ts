@@ -9,7 +9,7 @@ import { CreateArticleDto } from '../dto/create-article.dto';
 import { UpdateArticleDto } from '../dto/update-article.dto';
 import { Article } from '../entities/article.entity';
 import { ArticleProductRepository } from '../repositories/article-product.repository';
-import { ProductService } from 'src/modules/products/services/product.service';
+import { ProductService } from '../../../modules/products/services/product.service';
 
 @Injectable()
 export class ArticlesService {

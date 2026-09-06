@@ -16,7 +16,7 @@ import { Address } from './address.entity';
 import { Cart } from '../../../modules/cart/entities';
 import { Review } from '../../../modules/reviews/entities/review.entity';
 import { Notification } from '../../../modules/notifications/entities/notification.entity';
-import { Article } from 'src/modules/articles/entities/article.entity';
+import { Article } from '../../../modules/articles/entities/article.entity';
 
 /**
  * ------------------------------------------------------------------------

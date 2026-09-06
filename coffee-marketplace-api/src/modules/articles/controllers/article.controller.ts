@@ -22,10 +22,10 @@ import {
 import { ArticlesService } from '../services/article.service';
 import { CreateArticleDto } from '../dto/create-article.dto';
 import { UpdateArticleDto } from '../dto/update-article.dto';
-import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
-import { RolesGuard } from 'src/common/guards/roles.guard';
-import { Roles } from 'src/common/decorators/roles.decorator';
-import { SYSTEM_ROLES } from 'src/common/constants/system-roles.constant';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 
 @ApiTags('Articles')
 @Controller('articles')

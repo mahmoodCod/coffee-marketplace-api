@@ -19,7 +19,7 @@ import { CartItem } from '../../../modules/cart/entities';
 import { OrderItem } from '../../../modules/orders/entities/order-item.entity';
 import { Review } from '../../../modules/reviews/entities/review.entity';
 import { ProductDiscount } from './product-discount.entity';
-import { ArticleProduct } from 'src/modules/articles/entities/article-product.entity';
+import { ArticleProduct } from '../../../modules/articles/entities/article-product.entity';
 
 /**
  * ------------------------------------------------------------------------
