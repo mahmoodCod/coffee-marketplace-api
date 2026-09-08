@@ -196,9 +196,11 @@ Rules:
 - Dashboard endpoints are read-only and must not mutate business data.
 - Admin dashboard metrics are platform-wide.
 - Seller dashboard metrics must be scoped to the authenticated seller only.
-- Revenue is calculated from paid orders using final_price.
+- Revenue is calculated from paid orders using final_price (orders with paidAt set).
 - Pending payment orders are not counted as revenue.
+- Shipped and delivered orders remain included in revenue because payment was completed.
 - Low-stock metrics are based on available inventory for active products.
+- GET /admin/dashboard/sales groups by paidAt using groupBy=day|month.
 
 -------------------------------
 
