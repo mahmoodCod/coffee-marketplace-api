@@ -464,4 +464,31 @@ describe('DashboardRepository', () => {
       expect(result).toBe(0);
     });
   });
+
+  describe('countUsers', () => {
+    it('should return the total number of users', async () => {
+      const getCount = jest.fn().mockResolvedValue(10);
+
+      repository.userRepository = {
+        count: getCount,
+      } as any;
+
+      const result = await repository.countUsers();
+
+      expect(result).toBe(10);
+      expect(getCount).toHaveBeenCalledWith();
+    });
+
+    it('should return zero when no users exist', async () => {
+      const getCount = jest.fn().mockResolvedValue(0);
+
+      repository.userRepository = {
+        count: getCount,
+      } as any;
+
+      const result = await repository.countUsers();
+
+      expect(result).toBe(0);
+    });
+  });
 });
