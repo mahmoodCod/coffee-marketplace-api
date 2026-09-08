@@ -705,12 +705,12 @@ describe('DashboardRepository', () => {
       expect(result).toEqual([
         {
           period: '2026-08-01T00:00:00.000Z',
-          ordersCount: '3',
+          ordersCount: 3,
           revenue: '450000.00',
         },
         {
           period: '2026-08-02T00:00:00.000Z',
-          ordersCount: '2',
+          ordersCount: 2,
           revenue: '250000.00',
         },
       ]);
@@ -799,7 +799,7 @@ describe('DashboardRepository', () => {
       expect(result).toEqual([
         {
           period: '2026-08-01T00:00:00.000Z',
-          ordersCount: '10',
+          ordersCount: 10,
           revenue: '1500000.00',
         },
       ]);
