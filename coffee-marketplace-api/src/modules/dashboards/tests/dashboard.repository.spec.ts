@@ -409,4 +409,59 @@ describe('DashboardRepository', () => {
       expect(result).toBe(0);
     });
   });
+
+  describe('countSellerProducts', () => {
+    it('should count products belonging to the specified seller', async () => {
+      const getCount = jest.fn().mockResolvedValue(6);
+
+      const queryBuilder = {
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getCount,
+      };
+
+      repository.productRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const sellerId = 'seller-id';
+
+      const result = await repository.countSellerProducts(sellerId);
+
+      expect(result).toBe(6);
+
+      expect(
+        repository.productRepository.createQueryBuilder,
+      ).toHaveBeenCalledWith('product');
+
+      expect(queryBuilder.innerJoin).toHaveBeenCalledWith(
+        'product.seller',
+        'seller',
+      );
+
+      expect(queryBuilder.where).toHaveBeenCalledWith('seller.id = :sellerId', {
+        sellerId,
+      });
+
+      expect(getCount).toHaveBeenCalled();
+    });
+
+    it('should return zero when the seller has no products', async () => {
+      const getCount = jest.fn().mockResolvedValue(0);
+
+      const queryBuilder = {
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getCount,
+      };
+
+      repository.productRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const result = await repository.countSellerProducts('seller-id');
+
+      expect(result).toBe(0);
+    });
+  });
 });
