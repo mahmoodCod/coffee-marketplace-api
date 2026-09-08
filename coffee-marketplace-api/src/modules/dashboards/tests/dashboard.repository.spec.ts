@@ -670,4 +670,163 @@ describe('DashboardRepository', () => {
       expect(result).toBe('0');
     });
   });
+
+  describe('getAdminSales', () => {
+    it('should return daily sales grouped by date', async () => {
+      const getRawMany = jest.fn().mockResolvedValue([
+        {
+          period: '2026-08-01T00:00:00.000Z',
+          ordersCount: '3',
+          revenue: '450000.00',
+        },
+        {
+          period: '2026-08-02T00:00:00.000Z',
+          ordersCount: '2',
+          revenue: '250000.00',
+        },
+      ]);
+
+      const queryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getRawMany,
+      };
+
+      repository.orderRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const result = await repository.getAdminSales();
+
+      expect(result).toEqual([
+        {
+          period: '2026-08-01T00:00:00.000Z',
+          ordersCount: '3',
+          revenue: '450000.00',
+        },
+        {
+          period: '2026-08-02T00:00:00.000Z',
+          ordersCount: '2',
+          revenue: '250000.00',
+        },
+      ]);
+
+      expect(
+        repository.orderRepository.createQueryBuilder,
+      ).toHaveBeenCalledWith('order');
+
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'order.status = :status',
+        {
+          status: OrderStatus.PAID,
+        },
+      );
+
+      expect(queryBuilder.groupBy).toHaveBeenCalled();
+
+      expect(queryBuilder.orderBy).toHaveBeenCalled();
+
+      expect(getRawMany).toHaveBeenCalled();
+    });
+
+    it('should apply date filters when provided', async () => {
+      const getRawMany = jest.fn().mockResolvedValue([]);
+
+      const queryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getRawMany,
+      };
+
+      repository.orderRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      await repository.getAdminSales('2026-08-01', '2026-08-31', 'day');
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'order.createdAt >= :from',
+        {
+          from: '2026-08-01',
+        },
+      );
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'order.createdAt <= :to',
+        {
+          to: '2026-08-31',
+        },
+      );
+    });
+
+    it('should support monthly grouping', async () => {
+      const getRawMany = jest.fn().mockResolvedValue([
+        {
+          period: '2026-08-01T00:00:00.000Z',
+          ordersCount: '10',
+          revenue: '1500000.00',
+        },
+      ]);
+
+      const queryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getRawMany,
+      };
+
+      repository.orderRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const result = await repository.getAdminSales(
+        undefined,
+        undefined,
+        'month',
+      );
+
+      expect(result).toEqual([
+        {
+          period: '2026-08-01T00:00:00.000Z',
+          ordersCount: '10',
+          revenue: '1500000.00',
+        },
+      ]);
+
+      expect(queryBuilder.groupBy).toHaveBeenCalled();
+    });
+
+    it('should return an empty array when no paid sales exist', async () => {
+      const getRawMany = jest.fn().mockResolvedValue([]);
+
+      const queryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        groupBy: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getRawMany,
+      };
+
+      repository.orderRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const result = await repository.getAdminSales();
+
+      expect(result).toEqual([]);
+    });
+  });
 });
