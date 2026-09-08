@@ -413,16 +413,10 @@ describe('DashboardRepository', () => {
 
   describe('countSellerProducts', () => {
     it('should count products belonging to the specified seller', async () => {
-      const getCount = jest.fn().mockResolvedValue(6);
-
-      const queryBuilder = {
-        innerJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        getCount,
-      };
+      const count = jest.fn().mockResolvedValue(6);
 
       repository.productRepository = {
-        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        count,
       } as any;
 
       const sellerId = 'seller-id';
@@ -431,38 +425,33 @@ describe('DashboardRepository', () => {
 
       expect(result).toBe(6);
 
-      expect(
-        repository.productRepository.createQueryBuilder,
-      ).toHaveBeenCalledWith('product');
-
-      expect(queryBuilder.innerJoin).toHaveBeenCalledWith(
-        'product.seller',
-        'seller',
-      );
-
-      expect(queryBuilder.where).toHaveBeenCalledWith('seller.id = :sellerId', {
-        sellerId,
+      expect(count).toHaveBeenCalledWith({
+        where: {
+          seller: {
+            id: sellerId,
+          },
+        },
       });
-
-      expect(getCount).toHaveBeenCalled();
     });
 
     it('should return zero when the seller has no products', async () => {
-      const getCount = jest.fn().mockResolvedValue(0);
-
-      const queryBuilder = {
-        innerJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        getCount,
-      };
+      const count = jest.fn().mockResolvedValue(0);
 
       repository.productRepository = {
-        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        count,
       } as any;
 
       const result = await repository.countSellerProducts('seller-id');
 
       expect(result).toBe(0);
+
+      expect(count).toHaveBeenCalledWith({
+        where: {
+          seller: {
+            id: 'seller-id',
+          },
+        },
+      });
     });
   });
 
@@ -549,50 +538,39 @@ describe('DashboardRepository', () => {
 
   describe('countSuccessfulPayments', () => {
     it('should count successful payments only', async () => {
-      const getCount = jest.fn().mockResolvedValue(8);
-
-      const queryBuilder = {
-        where: jest.fn().mockReturnThis(),
-        getCount,
-      };
+      const count = jest.fn().mockResolvedValue(8);
 
       repository.paymentRepository = {
-        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        count,
       } as any;
 
       const result = await repository.countSuccessfulPayments();
 
       expect(result).toBe(8);
 
-      expect(
-        repository.paymentRepository.createQueryBuilder,
-      ).toHaveBeenCalledWith('payment');
-
-      expect(queryBuilder.where).toHaveBeenCalledWith(
-        'payment.status = :status',
-        {
+      expect(count).toHaveBeenCalledWith({
+        where: {
           status: PaymentStatus.SUCCESS,
         },
-      );
-
-      expect(getCount).toHaveBeenCalled();
+      });
     });
 
     it('should return zero when no successful payments exist', async () => {
-      const getCount = jest.fn().mockResolvedValue(0);
-
-      const queryBuilder = {
-        where: jest.fn().mockReturnThis(),
-        getCount,
-      };
+      const count = jest.fn().mockResolvedValue(0);
 
       repository.paymentRepository = {
-        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        count,
       } as any;
 
       const result = await repository.countSuccessfulPayments();
 
       expect(result).toBe(0);
+
+      expect(count).toHaveBeenCalledWith({
+        where: {
+          status: PaymentStatus.SUCCESS,
+        },
+      });
     });
   });
 
