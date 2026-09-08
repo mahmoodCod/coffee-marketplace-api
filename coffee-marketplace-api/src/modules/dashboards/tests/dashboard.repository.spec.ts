@@ -359,4 +359,54 @@ describe('DashboardRepository', () => {
       expect(result).toBe(0);
     });
   });
+
+  describe('countSellers', () => {
+    it('should count users with the seller role', async () => {
+      const getCount = jest.fn().mockResolvedValue(4);
+
+      const queryBuilder = {
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getCount,
+      };
+
+      repository.userRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const result = await repository.countSellers();
+
+      expect(result).toBe(4);
+
+      expect(repository.userRepository.createQueryBuilder).toHaveBeenCalledWith(
+        'user',
+      );
+
+      expect(queryBuilder.innerJoin).toHaveBeenCalledWith('user.role', 'role');
+
+      expect(queryBuilder.where).toHaveBeenCalledWith('role.name = :roleName', {
+        roleName: 'seller',
+      });
+
+      expect(getCount).toHaveBeenCalled();
+    });
+
+    it('should return zero when no sellers exist', async () => {
+      const getCount = jest.fn().mockResolvedValue(0);
+
+      const queryBuilder = {
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getCount,
+      };
+
+      repository.userRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const result = await repository.countSellers();
+
+      expect(result).toBe(0);
+    });
+  });
 });
