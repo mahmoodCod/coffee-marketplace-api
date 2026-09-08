@@ -336,13 +336,19 @@ export class DashboardRepository {
         revenue: string;
       }>();
 
-    /**
-     * PostgreSQL returns aggregate counts as strings.
-     * The service converts the raw database result into
-     * the DTO's expected response structure.
-     */
     return results.map((result) => ({
-      period: result.period.toISOString(),
+      /**
+       * PostgreSQL may return DATE_TRUNC results as either a Date object
+       * or a string depending on the database driver and query result mode.
+       *
+       * Converting both cases to ISO format keeps the repository response
+       * consistent for the service, controller, and API consumers.
+       */
+      period:
+        result.period instanceof Date
+          ? result.period.toISOString()
+          : new Date(result.period).toISOString(),
+
       ordersCount: Number(result.ordersCount),
       revenue: result.revenue,
     }));
