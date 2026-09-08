@@ -545,4 +545,53 @@ describe('DashboardRepository', () => {
       expect(result).toBe(0);
     });
   });
+
+  describe('countSuccessfulPayments', () => {
+    it('should count successful payments only', async () => {
+      const getCount = jest.fn().mockResolvedValue(8);
+
+      const queryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        getCount,
+      };
+
+      repository.paymentRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const result = await repository.countSuccessfulPayments();
+
+      expect(result).toBe(8);
+
+      expect(
+        repository.paymentRepository.createQueryBuilder,
+      ).toHaveBeenCalledWith('payment');
+
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'payment.status = :status',
+        {
+          status: PaymentStatus.SUCCESS,
+        },
+      );
+
+      expect(getCount).toHaveBeenCalled();
+    });
+
+    it('should return zero when no successful payments exist', async () => {
+      const getCount = jest.fn().mockResolvedValue(0);
+
+      const queryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        getCount,
+      };
+
+      repository.paymentRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const result = await repository.countSuccessfulPayments();
+
+      expect(result).toBe(0);
+    });
+  });
 });
