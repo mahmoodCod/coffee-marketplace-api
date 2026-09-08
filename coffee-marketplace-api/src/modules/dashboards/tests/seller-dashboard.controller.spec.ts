@@ -4,6 +4,7 @@ import { SellerDashboardController } from '../controllers/seller-dashboard.contr
 import { DashboardService } from '../services/dashboard.service';
 
 import { SellerDashboardResponseDto } from '../dto/seller-dashboard-response.dto';
+import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
 
 describe('SellerDashboardController', () => {
   let controller: SellerDashboardController;
@@ -44,13 +45,11 @@ describe('SellerDashboardController', () => {
 
       dashboardService.getSellerDashboard.mockResolvedValue(dashboard);
 
-      const request = {
-        user: {
-          id: 'seller-id',
-        },
-      } as any;
+      const user = {
+        sub: 'seller-id',
+      } as JwtPayload;
 
-      const result = await controller.getDashboard(request);
+      const result = await controller.getDashboard(user);
 
       expect(result).toEqual(dashboard);
 
@@ -70,13 +69,11 @@ describe('SellerDashboardController', () => {
         ownLowStockProducts: 0,
       });
 
-      const request = {
-        user: {
-          id: 'authenticated-seller-id',
-        },
-      } as any;
+      const user = {
+        sub: 'authenticated-seller-id',
+      } as JwtPayload;
 
-      await controller.getDashboard(request);
+      await controller.getDashboard(user);
 
       expect(dashboardService.getSellerDashboard).toHaveBeenCalledWith(
         'authenticated-seller-id',

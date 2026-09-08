@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -8,7 +8,8 @@ import { Order } from '../../orders/entities/order.entity';
 import { Payment } from '../../payments/entities/payment.entity';
 import { PaymentStatus } from '../../payments/enums/payment-status.enum';
 import { OrderStatus } from '../../orders/enums/order-status.enum';
-import { ProductStatus } from 'src/modules/products/enums';
+import { ProductStatus } from '../../products/enums';
+import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 
 /**
  * Provides read-only aggregate queries for the dashboard.
@@ -63,7 +64,7 @@ export class DashboardRepository {
       .createQueryBuilder('user')
       .innerJoin('user.role', 'role')
       .where('role.name = :roleName', {
-        roleName: 'seller',
+        roleName: SYSTEM_ROLES.SELLER,
       })
       .getCount();
   }
@@ -107,15 +108,16 @@ export class DashboardRepository {
    * it represents the final amount charged to the customer
    * after discounts.
    *
+   * paidAt is used instead of a single status value so shipped
+   * and delivered orders remain included in revenue totals.
+   *
    * The database returns decimal values as strings.
    */
   async getTotalRevenue(): Promise<string> {
     const result = await this.orderRepository
       .createQueryBuilder('order')
       .select('COALESCE(SUM(order.finalPrice), 0)', 'totalRevenue')
-      .where('order.status = :status', {
-        status: OrderStatus.PAID,
-      })
+      .where('order.paidAt IS NOT NULL')
       .getRawOne<{ totalRevenue: string }>();
 
     return result?.totalRevenue ?? '0';
@@ -164,7 +166,8 @@ export class DashboardRepository {
       .createQueryBuilder('order')
       .innerJoin('order.items', 'orderItem')
       .innerJoin('orderItem.product', 'product')
-      .where('product.seller_id = :sellerId', { sellerId })
+      .innerJoin('product.seller', 'seller')
+      .where('seller.id = :sellerId', { sellerId })
       .select('COUNT(DISTINCT order.id)', 'count')
       .getRawOne<{ count: string }>();
 
@@ -191,14 +194,13 @@ export class DashboardRepository {
       .createQueryBuilder('order')
       .innerJoin('order.items', 'orderItem')
       .innerJoin('orderItem.product', 'product')
+      .innerJoin('product.seller', 'seller')
       .select(
         'COALESCE(SUM(orderItem.unitPrice * orderItem.quantity), 0)',
         'revenue',
       )
-      .where('product.seller_id = :sellerId', { sellerId })
-      .andWhere('order.status = :status', {
-        status: OrderStatus.PAID,
-      })
+      .where('seller.id = :sellerId', { sellerId })
+      .andWhere('order.paidAt IS NOT NULL')
       .getRawOne<{ revenue: string }>();
 
     return result?.revenue ?? '0';
@@ -216,7 +218,8 @@ export class DashboardRepository {
       .createQueryBuilder('order')
       .innerJoin('order.items', 'orderItem')
       .innerJoin('orderItem.product', 'product')
-      .where('product.seller_id = :sellerId', { sellerId })
+      .innerJoin('product.seller', 'seller')
+      .where('seller.id = :sellerId', { sellerId })
       .andWhere('order.status = :status', {
         status: OrderStatus.PENDING_PAYMENT,
       })
@@ -225,6 +228,7 @@ export class DashboardRepository {
 
     return Number(result?.count ?? 0);
   }
+
   /**
    * Counts active products whose available inventory is at or below
    * the configured low-stock threshold.
@@ -293,8 +297,17 @@ export class DashboardRepository {
     }[]
   > {
     /**
+     * groupBy is whitelisted before being interpolated into SQL
+     * so unexpected client values cannot change the query structure.
+     */
+    if (groupBy !== 'day' && groupBy !== 'month') {
+      throw new BadRequestException('groupBy must be day or month');
+    }
+
+    /**
      * PostgreSQL DATE_TRUNC groups timestamps by the requested
-     * time unit.
+     * time unit using the paid_at column so sales analytics follow
+     * payment completion rather than order creation.
      *
      * Example:
      * - day   → 2026-08-01
@@ -302,29 +315,27 @@ export class DashboardRepository {
      *
      * Both values are returned as the beginning of their period.
      */
-    const periodExpression = `DATE_TRUNC('${groupBy}', "order"."createdAt")`;
+    const periodExpression = `DATE_TRUNC('${groupBy}', order.paid_at)`;
 
     const query = this.orderRepository
       .createQueryBuilder('order')
       .select(periodExpression, 'period')
       .addSelect('COUNT(order.id)', 'ordersCount')
       .addSelect('COALESCE(SUM(order.finalPrice), 0)', 'revenue')
-      .where('order.status = :status', {
-        status: OrderStatus.PAID,
-      });
+      .where('order.paidAt IS NOT NULL');
 
     /**
      * The date filters are optional.
      *
-     * When provided, they limit the aggregation to orders
-     * created within the requested time range.
+     * When provided, they limit the aggregation to payments
+     * completed within the requested time range.
      */
     if (from) {
-      query.andWhere('order.createdAt >= :from', { from });
+      query.andWhere('order.paidAt >= :from', { from });
     }
 
     if (to) {
-      query.andWhere('order.createdAt <= :to', { to });
+      query.andWhere('order.paidAt <= :to', { to });
     }
 
     const results = await query

@@ -71,11 +71,11 @@ describe('AdminDashboardController', () => {
 
       dashboardService.getAdminSales.mockResolvedValue(sales);
 
-      const result = await controller.getSales(
-        '2026-08-01',
-        '2026-08-31',
-        'month',
-      );
+      const result = await controller.getSales({
+        from: '2026-08-01',
+        to: '2026-08-31',
+        groupBy: 'month',
+      });
 
       expect(result).toEqual(sales);
 
@@ -94,7 +94,7 @@ describe('AdminDashboardController', () => {
 
       dashboardService.getAdminSales.mockResolvedValue(sales);
 
-      const result = await controller.getSales();
+      const result = await controller.getSales({});
 
       expect(result).toEqual(sales);
 

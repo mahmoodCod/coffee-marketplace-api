@@ -1,3 +1,5 @@
+import { ApiProperty } from '@nestjs/swagger';
+
 /**
  * Represents the statistics displayed
  * on a seller's dashboard.
@@ -11,12 +13,14 @@ export class SellerDashboardResponseDto {
   /**
    * Number of products owned by the seller.
    */
+  @ApiProperty({ example: 12 })
   ownProducts: number;
 
   /**
    * Number of orders containing at least one
    * product owned by the seller.
    */
+  @ApiProperty({ example: 40 })
   ownOrders: number;
 
   /**
@@ -26,12 +30,14 @@ export class SellerDashboardResponseDto {
    * This value must be calculated from the seller's
    * OrderItems using unitPrice * quantity.
    */
+  @ApiProperty({ example: '850000.00' })
   ownPaidRevenue: string;
 
   /**
    * Number of seller orders that are still
    * waiting for payment.
    */
+  @ApiProperty({ example: 3 })
   ownPendingOrders: number;
 
   /**
@@ -39,5 +45,6 @@ export class SellerDashboardResponseDto {
    * whose available inventory is below
    * the configured low-stock threshold.
    */
+  @ApiProperty({ example: 2 })
   ownLowStockProducts: number;
 }

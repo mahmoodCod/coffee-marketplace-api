@@ -330,7 +330,8 @@ Notes:
 - Admin dashboard returns platform-wide metrics.
 - Seller dashboard returns metrics only for the authenticated seller's own products and orders.
 - GET /admin/dashboard/sales may accept optional query params such as from, to, and groupBy=day|month.
-- Revenue is calculated from paid orders using final_price.
+- Revenue is calculated from paid orders using final_price for orders with paidAt set.
+- Sales analytics are grouped by paidAt.
 
 --------------------------------
 

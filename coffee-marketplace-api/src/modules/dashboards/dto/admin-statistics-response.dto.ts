@@ -1,3 +1,5 @@
+import { ApiProperty } from '@nestjs/swagger';
+
 /**
  * Represents the overall statistics displayed
  * on the admin dashboard.
@@ -14,6 +16,7 @@ export class AdminStatisticsResponseDto {
    *
    * Includes all users regardless of their role.
    */
+  @ApiProperty({ example: 1200 })
   totalUsers: number;
 
   /**
@@ -21,6 +24,7 @@ export class AdminStatisticsResponseDto {
    *
    * This represents users who have the seller role.
    */
+  @ApiProperty({ example: 45 })
   totalSellers: number;
 
   /**
@@ -29,11 +33,13 @@ export class AdminStatisticsResponseDto {
    * The exact inclusion of soft-deleted products
    * will be determined by the dashboard query.
    */
+  @ApiProperty({ example: 320 })
   totalProducts: number;
 
   /**
    * Total number of orders in the system.
    */
+  @ApiProperty({ example: 890 })
   totalOrders: number;
 
   /**
@@ -41,6 +47,7 @@ export class AdminStatisticsResponseDto {
    *
    * Pending or failed payments are not included.
    */
+  @ApiProperty({ example: 760 })
   totalSuccessfulPayments: number;
 
   /**
@@ -49,11 +56,13 @@ export class AdminStatisticsResponseDto {
    * Revenue is calculated from Order.finalPrice,
    * not from pending or failed payments.
    */
+  @ApiProperty({ example: '12500000.00' })
   totalRevenue: string;
 
   /**
    * Number of orders that are still waiting for payment.
    */
+  @ApiProperty({ example: 18 })
   pendingPaymentOrders: number;
 
   /**
@@ -63,5 +72,6 @@ export class AdminStatisticsResponseDto {
    * Available inventory is calculated as:
    * stock - reservedStock.
    */
+  @ApiProperty({ example: 12 })
   lowStockProducts: number;
 }

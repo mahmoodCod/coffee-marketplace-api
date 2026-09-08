@@ -70,19 +70,24 @@ describe('DashboardRepository', () => {
         'product',
       );
 
+      expect(queryBuilder.innerJoin).toHaveBeenNthCalledWith(
+        3,
+        'product.seller',
+        'seller',
+      );
+
       expect(queryBuilder.select).toHaveBeenCalledWith(
         'COALESCE(SUM(orderItem.unitPrice * orderItem.quantity), 0)',
         'revenue',
       );
 
       expect(queryBuilder.where).toHaveBeenCalledWith(
-        'product.seller_id = :sellerId',
+        'seller.id = :sellerId',
         { sellerId: 'seller-id' },
       );
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'order.status = :status',
-        { status: OrderStatus.PAID },
+        'order.paidAt IS NOT NULL',
       );
     });
 
@@ -144,7 +149,7 @@ describe('DashboardRepository', () => {
       );
 
       expect(queryBuilder.where).toHaveBeenCalledWith(
-        'product.seller_id = :sellerId',
+        'seller.id = :sellerId',
         { sellerId: 'seller-id' },
       );
     });
@@ -186,7 +191,7 @@ describe('DashboardRepository', () => {
       expect(result).toBe(4);
 
       expect(queryBuilder.where).toHaveBeenCalledWith(
-        'product.seller_id = :sellerId',
+        'seller.id = :sellerId',
         { sellerId: 'seller-id' },
       );
 
@@ -640,12 +645,7 @@ describe('DashboardRepository', () => {
         'totalRevenue',
       );
 
-      expect(queryBuilder.where).toHaveBeenCalledWith(
-        'order.status = :status',
-        {
-          status: OrderStatus.PAID,
-        },
-      );
+      expect(queryBuilder.where).toHaveBeenCalledWith('order.paidAt IS NOT NULL');
 
       expect(getRawOne).toHaveBeenCalled();
     });
@@ -719,12 +719,7 @@ describe('DashboardRepository', () => {
         repository.orderRepository.createQueryBuilder,
       ).toHaveBeenCalledWith('order');
 
-      expect(queryBuilder.where).toHaveBeenCalledWith(
-        'order.status = :status',
-        {
-          status: OrderStatus.PAID,
-        },
-      );
+      expect(queryBuilder.where).toHaveBeenCalledWith('order.paidAt IS NOT NULL');
 
       expect(queryBuilder.groupBy).toHaveBeenCalled();
 
@@ -753,14 +748,14 @@ describe('DashboardRepository', () => {
       await repository.getAdminSales('2026-08-01', '2026-08-31', 'day');
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'order.createdAt >= :from',
+        'order.paidAt >= :from',
         {
           from: '2026-08-01',
         },
       );
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'order.createdAt <= :to',
+        'order.paidAt <= :to',
         {
           to: '2026-08-31',
         },

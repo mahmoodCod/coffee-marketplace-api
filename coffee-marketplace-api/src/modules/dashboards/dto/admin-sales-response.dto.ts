@@ -1,3 +1,5 @@
+import { ApiProperty } from '@nestjs/swagger';
+
 /**
  * Represents one aggregated sales data point
  * in the admin dashboard.
@@ -13,11 +15,13 @@ export class AdminSalesDataPointDto {
    * - 2026-08-01 for daily grouping
    * - 2026-08-01 for monthly grouping
    */
+  @ApiProperty({ example: '2026-08-01T00:00:00.000Z' })
   period: string;
 
   /**
    * Number of paid orders in this period.
    */
+  @ApiProperty({ example: 24 })
   ordersCount: number;
 
   /**
@@ -27,6 +31,7 @@ export class AdminSalesDataPointDto {
    * The value is represented as a string
    * because monetary values are stored as decimal values.
    */
+  @ApiProperty({ example: '4500000.00' })
   revenue: string;
 }
 
@@ -41,10 +46,17 @@ export class AdminSalesResponseDto {
    * - day: Group sales by day.
    * - month: Group sales by month.
    */
+  @ApiProperty({
+    enum: ['day', 'month'],
+    example: 'day',
+  })
   groupBy: 'day' | 'month';
 
   /**
    * Aggregated sales data ordered by period.
    */
+  @ApiProperty({
+    type: () => [AdminSalesDataPointDto],
+  })
   data: AdminSalesDataPointDto[];
 }
