@@ -48,16 +48,19 @@ export class DashboardRepository {
   }
 
   /**
-   * Returns the total number of sellers.
+   * Returns the total number of users assigned to the seller role.
    *
-   * Seller identification depends on the project's role
-   * relationship and will be finalized with the actual
-   * User and Role entity structure.
+   * Each user belongs to exactly one role through the User.role
+   * ManyToOne relationship. Therefore, the query joins the singular
+   * role relation instead of a collection such as user.roles.
+   *
+   * The role name is filtered in the database so only seller accounts
+   * are included in the result.
    */
   async countSellers(): Promise<number> {
     return this.userRepository
       .createQueryBuilder('user')
-      .innerJoin('user.roles', 'role')
+      .innerJoin('user.role', 'role')
       .where('role.name = :roleName', {
         roleName: 'seller',
       })
