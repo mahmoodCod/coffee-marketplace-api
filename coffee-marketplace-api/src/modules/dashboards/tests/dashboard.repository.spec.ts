@@ -272,4 +272,82 @@ describe('DashboardRepository', () => {
       expect(result).toBe(0);
     });
   });
+
+  describe('countSellerLowStockProducts', () => {
+    it('should count only low-stock products owned by the specified seller', async () => {
+      const queryBuilder = {
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({
+          count: '3',
+        }),
+      };
+
+      productRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+      const result = await repository.countSellerLowStockProducts('seller-id');
+
+      expect(result).toBe(3);
+
+      expect(productRepository.createQueryBuilder).toHaveBeenCalledWith(
+        'product',
+      );
+
+      expect(queryBuilder.innerJoin).toHaveBeenCalledWith(
+        'product.inventory',
+        'inventory',
+      );
+
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'product.seller_id = :sellerId',
+        { sellerId: 'seller-id' },
+      );
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'inventory.stock - inventory.reservedStock <= :threshold',
+        { threshold: 5 },
+      );
+
+      expect(queryBuilder.select).toHaveBeenCalledWith(
+        'COUNT(product.id)',
+        'count',
+      );
+    });
+
+    it('should return zero when the seller has no low-stock products', async () => {
+      const queryBuilder = {
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue({
+          count: '0',
+        }),
+      };
+
+      productRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+      const result = await repository.countSellerLowStockProducts('seller-id');
+
+      expect(result).toBe(0);
+    });
+
+    it('should return zero when the database returns no aggregate result', async () => {
+      const queryBuilder = {
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        getRawOne: jest.fn().mockResolvedValue(undefined),
+      };
+
+      productRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+
+      const result = await repository.countSellerLowStockProducts('seller-id');
+
+      expect(result).toBe(0);
+    });
+  });
 });
