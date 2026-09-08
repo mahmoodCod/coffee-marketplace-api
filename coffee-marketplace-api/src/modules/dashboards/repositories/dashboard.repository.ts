@@ -8,6 +8,7 @@ import { Order } from '../../orders/entities/order.entity';
 import { Payment } from '../../payments/entities/payment.entity';
 import { PaymentStatus } from '../../payments/enums/payment-status.enum';
 import { OrderStatus } from '../../orders/enums/order-status.enum';
+import { ProductStatus } from 'src/modules/products/enums';
 
 /**
  * Provides read-only aggregate queries for the dashboard.
@@ -225,55 +226,47 @@ export class DashboardRepository {
     return Number(result?.count ?? 0);
   }
   /**
-   * Returns the number of active products whose available inventory
-   * is below the configured low-stock threshold.
+   * Counts active products whose available inventory is at or below
+   * the configured low-stock threshold.
    *
-   * Available inventory is calculated as:
-   *
-   * stock - reservedStock
-   *
-   * A product is considered low-stock when its available inventory
-   * is less than or equal to the threshold.
-   *
-   * Only active products are included because soft-deleted products
-   * should not appear in the operational dashboard.
+   * Available inventory is calculated by subtracting reserved stock
+   * from total stock. Draft and archived products are excluded because
+   * they are not currently available in the marketplace.
    */
   async countLowStockProducts(): Promise<number> {
-    const lowStockThreshold = 5;
-
-    const result = await this.productRepository
+    return this.productRepository
       .createQueryBuilder('product')
       .innerJoin('product.inventory', 'inventory')
-      .where('inventory.stock - inventory.reservedStock <= :threshold', {
-        threshold: lowStockThreshold,
+      .where('product.status = :status', {
+        status: ProductStatus.ACTIVE,
       })
-      .select('COUNT(product.id)', 'count')
-      .getRawOne<{ count: string }>();
-
-    return Number(result?.count ?? 0);
+      .andWhere('inventory.stock - inventory.reservedStock <= :threshold', {
+        threshold: 5,
+      })
+      .getCount();
   }
 
   /**
-   * Returns the number of active products owned by a seller
-   * whose available inventory is below the low-stock threshold.
+   * Counts active low-stock products belonging only to the specified seller.
    *
-   * The seller filter is applied before counting so products
-   * belonging to other sellers are excluded from the result.
+   * The seller filter prevents products owned by other sellers from
+   * appearing in the authenticated seller's dashboard.
+   *
+   * Available inventory is calculated as total stock minus reserved stock.
    */
   async countSellerLowStockProducts(sellerId: string): Promise<number> {
-    const lowStockThreshold = 5;
-
-    const result = await this.productRepository
+    return this.productRepository
       .createQueryBuilder('product')
       .innerJoin('product.inventory', 'inventory')
-      .where('product.seller_id = :sellerId', { sellerId })
-      .andWhere('inventory.stock - inventory.reservedStock <= :threshold', {
-        threshold: lowStockThreshold,
+      .innerJoin('product.seller', 'seller')
+      .where('seller.id = :sellerId', { sellerId })
+      .andWhere('product.status = :status', {
+        status: ProductStatus.ACTIVE,
       })
-      .select('COUNT(product.id)', 'count')
-      .getRawOne<{ count: string }>();
-
-    return Number(result?.count ?? 0);
+      .andWhere('inventory.stock - inventory.reservedStock <= :threshold', {
+        threshold: 5,
+      })
+      .getCount();
   }
 
   /**
