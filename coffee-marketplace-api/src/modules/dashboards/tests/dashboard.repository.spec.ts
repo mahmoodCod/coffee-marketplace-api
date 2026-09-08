@@ -491,4 +491,31 @@ describe('DashboardRepository', () => {
       expect(result).toBe(0);
     });
   });
+
+  describe('countProducts', () => {
+    it('should return the total number of products', async () => {
+      const getCount = jest.fn().mockResolvedValue(15);
+
+      repository.productRepository = {
+        count: getCount,
+      } as any;
+
+      const result = await repository.countProducts();
+
+      expect(result).toBe(15);
+      expect(getCount).toHaveBeenCalledWith();
+    });
+
+    it('should return zero when no products exist', async () => {
+      const getCount = jest.fn().mockResolvedValue(0);
+
+      repository.productRepository = {
+        count: getCount,
+      } as any;
+
+      const result = await repository.countProducts();
+
+      expect(result).toBe(0);
+    });
+  });
 });
