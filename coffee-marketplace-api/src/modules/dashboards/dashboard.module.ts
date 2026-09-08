@@ -8,6 +8,8 @@ import { User } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
 import { Order } from '../orders/entities/order.entity';
 import { Payment } from '../payments/entities/payment.entity';
+import { AdminDashboardController } from './controllers/admin-dashboard.controller';
+import { SellerDashboardController } from './controllers/seller-dashboard.controller';
 
 /**
  * Registers the dashboard module and its dependencies.
@@ -20,6 +22,7 @@ import { Payment } from '../payments/entities/payment.entity';
  */
 @Module({
   imports: [TypeOrmModule.forFeature([User, Product, Order, Payment])],
+  controllers: [AdminDashboardController, SellerDashboardController],
   providers: [DashboardRepository, DashboardService],
   exports: [DashboardService],
 })
