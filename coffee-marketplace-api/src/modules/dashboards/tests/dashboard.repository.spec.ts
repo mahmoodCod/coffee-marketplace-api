@@ -576,53 +576,41 @@ describe('DashboardRepository', () => {
 
   describe('countPendingPaymentOrders', () => {
     it('should count orders awaiting payment', async () => {
-      const getCount = jest.fn().mockResolvedValue(5);
-
-      const queryBuilder = {
-        where: jest.fn().mockReturnThis(),
-        getCount,
-      };
+      const count = jest.fn().mockResolvedValue(5);
 
       repository.orderRepository = {
-        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        count,
       } as any;
 
       const result = await repository.countPendingPaymentOrders();
 
       expect(result).toBe(5);
 
-      expect(
-        repository.orderRepository.createQueryBuilder,
-      ).toHaveBeenCalledWith('order');
-
-      expect(queryBuilder.where).toHaveBeenCalledWith(
-        'order.status = :status',
-        {
+      expect(count).toHaveBeenCalledWith({
+        where: {
           status: OrderStatus.PENDING_PAYMENT,
         },
-      );
-
-      expect(getCount).toHaveBeenCalled();
+      });
     });
 
     it('should return zero when no pending payment orders exist', async () => {
-      const getCount = jest.fn().mockResolvedValue(0);
-
-      const queryBuilder = {
-        where: jest.fn().mockReturnThis(),
-        getCount,
-      };
+      const count = jest.fn().mockResolvedValue(0);
 
       repository.orderRepository = {
-        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        count,
       } as any;
 
       const result = await repository.countPendingPaymentOrders();
 
       expect(result).toBe(0);
+
+      expect(count).toHaveBeenCalledWith({
+        where: {
+          status: OrderStatus.PENDING_PAYMENT,
+        },
+      });
     });
   });
-
   describe('getTotalRevenue', () => {
     it('should return total revenue from paid orders', async () => {
       const getRawOne = jest.fn().mockResolvedValue({
