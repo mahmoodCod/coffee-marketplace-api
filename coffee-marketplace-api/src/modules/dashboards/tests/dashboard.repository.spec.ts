@@ -644,4 +644,64 @@ describe('DashboardRepository', () => {
       expect(result).toBe(0);
     });
   });
+
+  describe('getTotalRevenue', () => {
+    it('should return total revenue from paid orders', async () => {
+      const getRawOne = jest.fn().mockResolvedValue({
+        totalRevenue: '1250000.00',
+      });
+
+      const queryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne,
+      };
+
+      repository.orderRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const result = await repository.getTotalRevenue();
+
+      expect(result).toBe('1250000.00');
+
+      expect(
+        repository.orderRepository.createQueryBuilder,
+      ).toHaveBeenCalledWith('order');
+
+      expect(queryBuilder.select).toHaveBeenCalledWith(
+        'COALESCE(SUM(order.finalPrice), 0)',
+        'totalRevenue',
+      );
+
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'order.status = :status',
+        {
+          status: OrderStatus.PAID,
+        },
+      );
+
+      expect(getRawOne).toHaveBeenCalled();
+    });
+
+    it('should return zero when no paid orders exist', async () => {
+      const getRawOne = jest.fn().mockResolvedValue({
+        totalRevenue: '0',
+      });
+
+      const queryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getRawOne,
+      };
+
+      repository.orderRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const result = await repository.getTotalRevenue();
+
+      expect(result).toBe('0');
+    });
+  });
 });
