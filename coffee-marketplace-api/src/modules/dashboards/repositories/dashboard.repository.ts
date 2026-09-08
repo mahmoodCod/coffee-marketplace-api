@@ -23,8 +23,12 @@ import { OrderStatus } from '../../orders/enums/order-status.enum';
  */
 @Injectable()
 export class DashboardRepository {
-  getAdminSales(from: string | undefined, to: string | undefined, groupBy: string) {
-      throw new Error('Method not implemented.');
+  getAdminSales(
+    from: string | undefined,
+    to: string | undefined,
+    groupBy: string,
+  ) {
+    throw new Error('Method not implemented.');
   }
   constructor(
     @InjectRepository(User)
@@ -271,5 +275,84 @@ export class DashboardRepository {
       .getRawOne<{ count: string }>();
 
     return Number(result?.count ?? 0);
+  }
+
+  /**
+   * Returns aggregated sales data for the admin dashboard.
+   *
+   * Only paid orders are included because pending or failed
+   * orders must not be counted as completed sales.
+   *
+   * The query groups orders by day or month and calculates
+   * both the number of paid orders and their total revenue.
+   *
+   * The database performs the aggregation directly, so the
+   * application does not need to load every order into memory.
+   */
+  async getAdminSales(
+    from?: string,
+    to?: string,
+    groupBy: 'day' | 'month' = 'day',
+  ): Promise<
+    {
+      period: string;
+      ordersCount: number;
+      revenue: string;
+    }[]
+  > {
+    /**
+     * PostgreSQL DATE_TRUNC groups timestamps by the requested
+     * time unit.
+     *
+     * Example:
+     * - day   → 2026-08-01
+     * - month → 2026-08-01
+     *
+     * Both values are returned as the beginning of their period.
+     */
+    const periodExpression = `DATE_TRUNC('${groupBy}', "order"."createdAt")`;
+
+    const query = this.orderRepository
+      .createQueryBuilder('order')
+      .select(periodExpression, 'period')
+      .addSelect('COUNT(order.id)', 'ordersCount')
+      .addSelect('COALESCE(SUM(order.finalPrice), 0)', 'revenue')
+      .where('order.status = :status', {
+        status: OrderStatus.PAID,
+      });
+
+    /**
+     * The date filters are optional.
+     *
+     * When provided, they limit the aggregation to orders
+     * created within the requested time range.
+     */
+    if (from) {
+      query.andWhere('order.createdAt >= :from', { from });
+    }
+
+    if (to) {
+      query.andWhere('order.createdAt <= :to', { to });
+    }
+
+    const results = await query
+      .groupBy(periodExpression)
+      .orderBy(periodExpression, 'ASC')
+      .getRawMany<{
+        period: Date;
+        ordersCount: string;
+        revenue: string;
+      }>();
+
+    /**
+     * PostgreSQL returns aggregate counts as strings.
+     * The service converts the raw database result into
+     * the DTO's expected response structure.
+     */
+    return results.map((result) => ({
+      period: result.period.toISOString(),
+      ordersCount: Number(result.ordersCount),
+      revenue: result.revenue,
+    }));
   }
 }
