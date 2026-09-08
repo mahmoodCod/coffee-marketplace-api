@@ -61,13 +61,20 @@ export class DashboardService {
    *
    * The repository is responsible for grouping paid orders
    * by the requested period and calculating the aggregated values.
+   *
+   * Awaiting the repository result ensures that the response
+   * contains the resolved sales data instead of a pending Promise.
    */
   async getAdminSales(
     from?: string,
     to?: string,
     groupBy: 'day' | 'month' = 'day',
   ): Promise<AdminSalesResponseDto> {
-    const data = this.dashboardRepository.getAdminSales(from, to, groupBy);
+    const data = await this.dashboardRepository.getAdminSales(
+      from,
+      to,
+      groupBy,
+    );
 
     return {
       groupBy,
