@@ -23,6 +23,9 @@ import { OrderStatus } from '../../orders/enums/order-status.enum';
  */
 @Injectable()
 export class DashboardRepository {
+  getAdminSales(from: string | undefined, to: string | undefined, groupBy: string) {
+      throw new Error('Method not implemented.');
+  }
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
