@@ -1,6 +1,7 @@
 import { DashboardRepository } from '../repositories/dashboard.repository';
 import { OrderStatus } from '../../orders/enums/order-status.enum';
 import { ProductStatus } from 'src/modules/products/enums';
+import { PaymentStatus } from 'src/modules/payments/enums/payment-status.enum';
 
 describe('DashboardRepository', () => {
   let repository: DashboardRepository;
@@ -590,6 +591,55 @@ describe('DashboardRepository', () => {
       } as any;
 
       const result = await repository.countSuccessfulPayments();
+
+      expect(result).toBe(0);
+    });
+  });
+
+  describe('countPendingPaymentOrders', () => {
+    it('should count orders awaiting payment', async () => {
+      const getCount = jest.fn().mockResolvedValue(5);
+
+      const queryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        getCount,
+      };
+
+      repository.orderRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const result = await repository.countPendingPaymentOrders();
+
+      expect(result).toBe(5);
+
+      expect(
+        repository.orderRepository.createQueryBuilder,
+      ).toHaveBeenCalledWith('order');
+
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'order.status = :status',
+        {
+          status: OrderStatus.PENDING_PAYMENT,
+        },
+      );
+
+      expect(getCount).toHaveBeenCalled();
+    });
+
+    it('should return zero when no pending payment orders exist', async () => {
+      const getCount = jest.fn().mockResolvedValue(0);
+
+      const queryBuilder = {
+        where: jest.fn().mockReturnThis(),
+        getCount,
+      };
+
+      repository.orderRepository = {
+        createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      } as any;
+
+      const result = await repository.countPendingPaymentOrders();
 
       expect(result).toBe(0);
     });
