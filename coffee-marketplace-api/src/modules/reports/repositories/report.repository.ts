@@ -9,6 +9,8 @@ import { Payment } from '../../payments/entities/payment.entity';
 
 import { OrderStatus } from '../../orders/enums/order-status.enum';
 import { ProductStatus } from 'src/modules/products/enums';
+import { UserStatus } from 'src/modules/users/enums/user-status.enum';
+import { SystemRole } from 'src/common/constants/system-roles.constant';
 
 @Injectable()
 export class ReportRepository {
@@ -141,6 +143,74 @@ export class ReportRepository {
 
     return {
       products,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Returns a paginated list of users for the administrator report.
+   *
+   * The report exposes operational user information such as role and
+   * account status. Optional filters allow administrators to inspect
+   * only users matching a specific role or account status.
+   *
+   * This method only reads existing user data and never modifies it.
+   */
+  async getAdminUserReport(
+    status?: UserStatus,
+    role?: SystemRole,
+    page = 1,
+    limit = 20,
+  ) {
+    const query = this.userRepository
+      .createQueryBuilder('user')
+      .innerJoinAndSelect('user.role', 'role')
+      .select([
+        'user.id',
+        'user.name',
+        'user.phone',
+        'user.status',
+        'user.createdAt',
+        'role.name',
+      ]);
+
+    /**
+     * Apply the account-status filter only when requested.
+     */
+    if (status) {
+      query.andWhere('user.status = :status', {
+        status,
+      });
+    }
+
+    /**
+     * Apply the role filter only when requested.
+     *
+     * User has a ManyToOne relationship with Role, so filtering is
+     * performed through the joined role entity.
+     */
+    if (role) {
+      query.andWhere('role.name = :role', {
+        role,
+      });
+    }
+
+    /**
+     * Show the newest user accounts first so the report starts with
+     * the most recent operational records.
+     */
+    query
+      .orderBy('user.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [users, total] = await query.getManyAndCount();
+
+    return {
+      users,
       total,
       page,
       limit,

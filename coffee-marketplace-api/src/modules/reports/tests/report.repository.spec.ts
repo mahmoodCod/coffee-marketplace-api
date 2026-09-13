@@ -1,5 +1,8 @@
 import { ReportRepository } from '../repositories/report.repository';
 import { OrderStatus } from '../../orders/enums/order-status.enum';
+import { ProductStatus } from 'src/modules/products/enums';
+import { SYSTEM_ROLES } from 'src/common/constants/system-roles.constant';
+import { UserStatus } from 'src/modules/users/enums/user-status.enum';
 
 describe('ReportRepository', () => {
   let repository: ReportRepository;
@@ -307,6 +310,174 @@ describe('ReportRepository', () => {
 
         expect(result).toEqual({
           products: [],
+          total: 0,
+          page: 1,
+          limit: 20,
+          totalPages: 0,
+        });
+      });
+    });
+
+    describe('getAdminUserReport', () => {
+      it('should return paginated admin user report', async () => {
+        const users = [
+          {
+            id: 'user-1',
+            name: 'John Doe',
+            phone: '+989121234567',
+            status: UserStatus.ACTIVE,
+            createdAt: new Date('2026-08-01T10:00:00.000Z'),
+            role: {
+              name: RoleName.CUSTOMER,
+            },
+          },
+        ];
+
+        const queryBuilder = {
+          innerJoinAndSelect: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn().mockResolvedValue([users, 25]),
+        };
+
+        repository.userRepository = {
+          createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        } as any;
+
+        const result = await repository.getAdminUserReport(
+          undefined,
+          undefined,
+          2,
+          10,
+        );
+
+        expect(result).toEqual({
+          users,
+          total: 25,
+          page: 2,
+          limit: 10,
+          totalPages: 3,
+        });
+
+        expect(queryBuilder.skip).toHaveBeenCalledWith(10);
+        expect(queryBuilder.take).toHaveBeenCalledWith(10);
+
+        expect(queryBuilder.orderBy).toHaveBeenCalledWith(
+          'user.createdAt',
+          'DESC',
+        );
+      });
+
+      it('should apply user status filter', async () => {
+        const queryBuilder = {
+          innerJoinAndSelect: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+        };
+
+        repository.userRepository = {
+          createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        } as any;
+
+        await repository.getAdminUserReport(
+          UserStatus.ACTIVE,
+          undefined,
+          1,
+          20,
+        );
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          'user.status = :status',
+          {
+            status: UserStatus.ACTIVE,
+          },
+        );
+      });
+
+      it('should apply user role filter', async () => {
+        const queryBuilder = {
+          innerJoinAndSelect: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+        };
+
+        repository.userRepository = {
+          createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        } as any;
+
+        await repository.getAdminUserReport(
+          undefined,
+          SYSTEM_ROLES.SELLER,
+          1,
+          20,
+        );
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          'role.name = :role',
+          {
+            role: SYSTEM_ROLES.SELLER,
+          },
+        );
+      });
+
+      it('should calculate total pages correctly', async () => {
+        const queryBuilder = {
+          innerJoinAndSelect: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn().mockResolvedValue([[], 21]),
+        };
+
+        repository.userRepository = {
+          createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        } as any;
+
+        const result = await repository.getAdminUserReport(
+          undefined,
+          undefined,
+          2,
+          10,
+        );
+
+        expect(result.total).toBe(21);
+        expect(result.page).toBe(2);
+        expect(result.limit).toBe(10);
+        expect(result.totalPages).toBe(3);
+      });
+
+      it('should return an empty report when no users match the filters', async () => {
+        const queryBuilder = {
+          innerJoinAndSelect: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+        };
+
+        repository.userRepository = {
+          createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        } as any;
+
+        const result = await repository.getAdminUserReport();
+
+        expect(result).toEqual({
+          users: [],
           total: 0,
           page: 1,
           limit: 20,
