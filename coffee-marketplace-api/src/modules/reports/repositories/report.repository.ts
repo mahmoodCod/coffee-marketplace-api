@@ -8,6 +8,7 @@ import { User } from '../../users/entities/user.entity';
 import { Payment } from '../../payments/entities/payment.entity';
 
 import { OrderStatus } from '../../orders/enums/order-status.enum';
+import { ProductStatus } from 'src/modules/products/enums';
 
 @Injectable()
 export class ReportRepository {
@@ -92,6 +93,54 @@ export class ReportRepository {
 
     return {
       orders,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Returns a paginated list of products for the administrator report.
+   *
+   * The query includes the product owner and inventory information so
+   * administrators can inspect product ownership and stock availability
+   * in a single report.
+   *
+   * Available stock is not stored as a separate database field. It is
+   * derived later from total stock minus reserved stock.
+   *
+   * This method only reads existing business data and never modifies it.
+   */
+  async getAdminProductReport(status?: ProductStatus, page = 1, limit = 20) {
+    const query = this.productRepository
+      .createQueryBuilder('product')
+      .innerJoinAndSelect('product.seller', 'seller')
+      .leftJoinAndSelect('product.inventory', 'inventory');
+
+    /**
+     * Filter products by lifecycle status only when the administrator
+     * explicitly requests a specific status.
+     */
+    if (status) {
+      query.andWhere('product.status = :status', {
+        status,
+      });
+    }
+
+    /**
+     * Newest products are shown first so administrators can immediately
+     * see the most recently created products.
+     */
+    query
+      .orderBy('product.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [products, total] = await query.getManyAndCount();
+
+    return {
+      products,
       total,
       page,
       limit,
