@@ -217,4 +217,47 @@ export class ReportRepository {
       totalPages: Math.ceil(total / limit),
     };
   }
+
+  async getSellerOrderReport(
+    sellerId: string,
+    from?: Date,
+    to?: Date,
+    status?: OrderStatus,
+    page = 1,
+    limit = 20,
+  ) {
+    const query = this.orderRepository
+      .createQueryBuilder('order')
+      .innerJoinAndSelect('order.user', 'customer')
+      .innerJoinAndSelect('order.items', 'orderItem')
+      .innerJoinAndSelect('orderItem.product', 'product')
+      .where('product.seller.id = :sellerId', { sellerId });
+
+    if (from) {
+      query.andWhere('order.createdAt >= :from', { from });
+    }
+
+    if (to) {
+      query.andWhere('order.createdAt <= :to', { to });
+    }
+
+    if (status) {
+      query.andWhere('order.status = :status', { status });
+    }
+
+    query
+      .orderBy('order.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [orders, total] = await query.getManyAndCount();
+
+    return {
+      orders,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
 }

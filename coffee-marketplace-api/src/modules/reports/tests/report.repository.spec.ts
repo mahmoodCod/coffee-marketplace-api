@@ -328,7 +328,7 @@ describe('ReportRepository', () => {
             status: UserStatus.ACTIVE,
             createdAt: new Date('2026-08-01T10:00:00.000Z'),
             role: {
-              name: RoleName.CUSTOMER,
+              name: SYSTEM_ROLES.CUSTOMER,
             },
           },
         ];
