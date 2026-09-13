@@ -485,5 +485,194 @@ describe('ReportRepository', () => {
         });
       });
     });
+
+    describe('getSellerOrderReport', () => {
+      it('should return paginated seller order report', async () => {
+        const orders = [
+          {
+            id: 'order-1',
+            items: [
+              {
+                id: 'item-1',
+                quantity: 2,
+                unitPrice: '500000',
+                product: {
+                  id: 'product-1',
+                  seller: {
+                    id: 'seller-1',
+                  },
+                },
+              },
+            ],
+          },
+        ];
+
+        const queryBuilder: any = {
+          innerJoinAndSelect: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn().mockResolvedValue([orders, 1]),
+        };
+
+        const repository = Object.create(ReportRepository.prototype);
+
+        repository.orderRepository = {
+          createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        };
+
+        const result = await repository.getSellerOrderReport('seller-1');
+
+        expect(
+          repository.orderRepository.createQueryBuilder,
+        ).toHaveBeenCalledWith('order');
+
+        expect(queryBuilder.where).toHaveBeenCalledWith(
+          'product.seller.id = :sellerId',
+          {
+            sellerId: 'seller-1',
+          },
+        );
+
+        expect(queryBuilder.skip).toHaveBeenCalledWith(0);
+        expect(queryBuilder.take).toHaveBeenCalledWith(20);
+
+        expect(result).toEqual({
+          orders,
+          total: 1,
+          page: 1,
+          limit: 20,
+          totalPages: 1,
+        });
+      });
+
+      it('should apply date range filters', async () => {
+        const from = new Date('2026-01-01');
+        const to = new Date('2026-01-31');
+
+        const queryBuilder: any = {
+          innerJoinAndSelect: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+        };
+
+        const repository = Object.create(ReportRepository.prototype);
+
+        repository.orderRepository = {
+          createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        };
+
+        await repository.getSellerOrderReport('seller-1', from, to);
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          'order.createdAt >= :from',
+          { from },
+        );
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          'order.createdAt <= :to',
+          { to },
+        );
+      });
+
+      it('should apply order status filter', async () => {
+        const queryBuilder: any = {
+          innerJoinAndSelect: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+        };
+
+        const repository = Object.create(ReportRepository.prototype);
+
+        repository.orderRepository = {
+          createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        };
+
+        await repository.getSellerOrderReport(
+          'seller-1',
+          undefined,
+          undefined,
+          OrderStatus.PAID,
+        );
+
+        expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+          'order.status = :status',
+          {
+            status: OrderStatus.PAID,
+          },
+        );
+      });
+
+      it('should calculate total pages', async () => {
+        const queryBuilder: any = {
+          innerJoinAndSelect: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn().mockResolvedValue([[], 41]),
+        };
+
+        const repository = Object.create(ReportRepository.prototype);
+
+        repository.orderRepository = {
+          createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        };
+
+        const result = await repository.getSellerOrderReport(
+          'seller-1',
+          undefined,
+          undefined,
+          undefined,
+          2,
+          20,
+        );
+
+        expect(queryBuilder.skip).toHaveBeenCalledWith(20);
+        expect(queryBuilder.take).toHaveBeenCalledWith(20);
+
+        expect(result.totalPages).toBe(3);
+        expect(result.page).toBe(2);
+      });
+
+      it('should return an empty report when no seller orders exist', async () => {
+        const queryBuilder: any = {
+          innerJoinAndSelect: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+        };
+
+        const repository = Object.create(ReportRepository.prototype);
+
+        repository.orderRepository = {
+          createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+        };
+
+        const result = await repository.getSellerOrderReport('seller-1');
+
+        expect(result).toEqual({
+          orders: [],
+          total: 0,
+          page: 1,
+          limit: 20,
+          totalPages: 0,
+        });
+      });
+    });
   });
 });
