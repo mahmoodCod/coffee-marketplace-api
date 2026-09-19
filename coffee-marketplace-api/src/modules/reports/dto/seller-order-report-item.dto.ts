@@ -14,7 +14,7 @@ export class SellerOrderReportItemDto {
   /**
    * Display name of the customer who placed the order.
    */
-  customerName: string;
+  customerName: string | null;
 
   /**
    * Current lifecycle status of the order.
