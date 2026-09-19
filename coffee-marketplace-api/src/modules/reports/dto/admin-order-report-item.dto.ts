@@ -15,7 +15,7 @@ export class AdminOrderReportItemDto {
   /**
    * Display name of the customer.
    */
-  customerName: string;
+  customerName: string | null;
 
   /**
    * Current lifecycle status of the order.
