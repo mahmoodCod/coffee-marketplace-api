@@ -674,5 +674,245 @@ describe('ReportRepository', () => {
         });
       });
     });
+
+    describe('getSellerProductSalesReport', () => {
+      it('should return paginated seller product sales report', async () => {
+        const products = [
+          {
+            productId: 'product-1',
+            productName: 'Ethiopian Coffee',
+            productStatus: ProductStatus.ACTIVE,
+            unitPrice: '800000',
+            totalQuantitySold: '5',
+            totalRevenue: '3500000',
+            createdAt: '2026-01-01',
+          },
+        ];
+
+        const salesQueryBuilder: any = {
+          innerJoin: jest.fn().mockReturnThis(),
+          leftJoin: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          groupBy: jest.fn().mockReturnThis(),
+          addGroupBy: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getRawMany: jest.fn().mockResolvedValue(products),
+        };
+
+        const countQueryBuilder: any = {
+          innerJoin: jest.fn().mockReturnThis(),
+          leftJoin: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          getRawOne: jest.fn().mockResolvedValue({
+            count: '1',
+          }),
+        };
+
+        const repository = Object.create(ReportRepository.prototype);
+
+        repository.productRepository = {
+          createQueryBuilder: jest
+            .fn()
+            .mockReturnValueOnce(salesQueryBuilder)
+            .mockReturnValueOnce(countQueryBuilder),
+        };
+
+        const result = await repository.getSellerProductSalesReport('seller-1');
+
+        expect(
+          repository.productRepository.createQueryBuilder,
+        ).toHaveBeenCalledTimes(2);
+
+        expect(salesQueryBuilder.where).toHaveBeenCalledWith(
+          'seller.id = :sellerId',
+          {
+            sellerId: 'seller-1',
+          },
+        );
+
+        expect(salesQueryBuilder.andWhere).toHaveBeenCalledWith(
+          'order.status = :paidStatus',
+          {
+            paidStatus: OrderStatus.PAID,
+          },
+        );
+
+        expect(salesQueryBuilder.skip).toHaveBeenCalledWith(0);
+        expect(salesQueryBuilder.take).toHaveBeenCalledWith(20);
+
+        expect(result).toEqual({
+          products,
+          total: 1,
+          page: 1,
+          limit: 20,
+          totalPages: 1,
+        });
+      });
+
+      it('should apply date range filters', async () => {
+        const from = new Date('2026-01-01');
+        const to = new Date('2026-01-31');
+
+        const salesQueryBuilder: any = {
+          innerJoin: jest.fn().mockReturnThis(),
+          leftJoin: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          groupBy: jest.fn().mockReturnThis(),
+          addGroupBy: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getRawMany: jest.fn().mockResolvedValue([]),
+        };
+
+        const countQueryBuilder: any = {
+          innerJoin: jest.fn().mockReturnThis(),
+          leftJoin: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          getRawOne: jest.fn().mockResolvedValue({
+            count: '0',
+          }),
+        };
+
+        const repository = Object.create(ReportRepository.prototype);
+
+        repository.productRepository = {
+          createQueryBuilder: jest
+            .fn()
+            .mockReturnValueOnce(salesQueryBuilder)
+            .mockReturnValueOnce(countQueryBuilder),
+        };
+
+        await repository.getSellerProductSalesReport('seller-1', from, to);
+
+        expect(salesQueryBuilder.andWhere).toHaveBeenCalledWith(
+          'order.created_at >= :from',
+          { from },
+        );
+
+        expect(salesQueryBuilder.andWhere).toHaveBeenCalledWith(
+          'order.created_at <= :to',
+          { to },
+        );
+
+        expect(countQueryBuilder.andWhere).toHaveBeenCalledWith(
+          'order.created_at >= :from',
+          { from },
+        );
+
+        expect(countQueryBuilder.andWhere).toHaveBeenCalledWith(
+          'order.created_at <= :to',
+          { to },
+        );
+      });
+
+      it('should calculate total pages correctly', async () => {
+        const salesQueryBuilder: any = {
+          innerJoin: jest.fn().mockReturnThis(),
+          leftJoin: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          groupBy: jest.fn().mockReturnThis(),
+          addGroupBy: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getRawMany: jest.fn().mockResolvedValue([]),
+        };
+
+        const countQueryBuilder: any = {
+          innerJoin: jest.fn().mockReturnThis(),
+          leftJoin: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          getRawOne: jest.fn().mockResolvedValue({
+            count: '41',
+          }),
+        };
+
+        const repository = Object.create(ReportRepository.prototype);
+
+        repository.productRepository = {
+          createQueryBuilder: jest
+            .fn()
+            .mockReturnValueOnce(salesQueryBuilder)
+            .mockReturnValueOnce(countQueryBuilder),
+        };
+
+        const result = await repository.getSellerProductSalesReport(
+          'seller-1',
+          undefined,
+          undefined,
+          2,
+          20,
+        );
+
+        expect(salesQueryBuilder.skip).toHaveBeenCalledWith(20);
+        expect(salesQueryBuilder.take).toHaveBeenCalledWith(20);
+
+        expect(result.total).toBe(41);
+        expect(result.page).toBe(2);
+        expect(result.limit).toBe(20);
+        expect(result.totalPages).toBe(3);
+      });
+
+      it('should return an empty report when seller has no paid sales', async () => {
+        const salesQueryBuilder: any = {
+          innerJoin: jest.fn().mockReturnThis(),
+          leftJoin: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          groupBy: jest.fn().mockReturnThis(),
+          addGroupBy: jest.fn().mockReturnThis(),
+          orderBy: jest.fn().mockReturnThis(),
+          skip: jest.fn().mockReturnThis(),
+          take: jest.fn().mockReturnThis(),
+          getRawMany: jest.fn().mockResolvedValue([]),
+        };
+
+        const countQueryBuilder: any = {
+          innerJoin: jest.fn().mockReturnThis(),
+          leftJoin: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          select: jest.fn().mockReturnThis(),
+          getRawOne: jest.fn().mockResolvedValue({
+            count: '0',
+          }),
+        };
+
+        const repository = Object.create(ReportRepository.prototype);
+
+        repository.productRepository = {
+          createQueryBuilder: jest
+            .fn()
+            .mockReturnValueOnce(salesQueryBuilder)
+            .mockReturnValueOnce(countQueryBuilder),
+        };
+
+        const result = await repository.getSellerProductSalesReport('seller-1');
+
+        expect(result).toEqual({
+          products: [],
+          total: 0,
+          page: 1,
+          limit: 20,
+          totalPages: 0,
+        });
+      });
+    });
   });
 });
