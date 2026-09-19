@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
+
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Order } from '../../orders/entities/order.entity';
 import { Product } from '../../products/entities/product.entity';
 import { User } from '../../users/entities/user.entity';
-import { Payment } from '../../payments/entities/payment.entity';
 
 import { OrderStatus } from '../../orders/enums/order-status.enum';
-import { ProductStatus } from 'src/modules/products/enums';
-import { UserStatus } from 'src/modules/users/enums/user-status.enum';
-import { SystemRole } from 'src/common/constants/system-roles.constant';
+import { ProductStatus } from '../../products/enums/product-status.enum';
+import { UserStatus } from '../../users/enums/user-status.enum';
+import { SystemRole } from '../../../common/constants/system-roles.constant';
 
 @Injectable()
 export class ReportRepository {
@@ -23,9 +23,6 @@ export class ReportRepository {
 
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-
-    @InjectRepository(Payment)
-    private readonly paymentRepository: Repository<Payment>,
   ) {}
 
   /**
@@ -218,6 +215,14 @@ export class ReportRepository {
     };
   }
 
+  /**
+   * Returns a paginated list of orders that contain products owned by
+   * the authenticated seller.
+   *
+   * The seller relation is joined explicitly so TypeORM can filter by
+   * seller ownership. A separate DISTINCT count is used because joining
+   * order items would otherwise inflate pagination totals.
+   */
   async getSellerOrderReport(
     sellerId: string,
     from?: Date,
@@ -226,31 +231,91 @@ export class ReportRepository {
     page = 1,
     limit = 20,
   ) {
-    const query = this.orderRepository
+    const applySellerOrderFilters = (
+      query: ReturnType<Repository<Order>['createQueryBuilder']>,
+    ) => {
+      query
+        .innerJoin('order.items', 'orderItem')
+        .innerJoin('orderItem.product', 'product')
+        .innerJoin('product.seller', 'seller')
+        .where('seller.id = :sellerId', { sellerId });
+
+      if (from) {
+        query.andWhere('order.createdAt >= :from', { from });
+      }
+
+      if (to) {
+        query.andWhere('order.createdAt <= :to', { to });
+      }
+
+      if (status) {
+        query.andWhere('order.status = :status', { status });
+      }
+
+      return query;
+    };
+
+    /**
+     * Count distinct orders so multi-item orders are not counted twice.
+     */
+    const totalResult = await applySellerOrderFilters(
+      this.orderRepository.createQueryBuilder('order'),
+    )
+      .select('COUNT(DISTINCT order.id)', 'count')
+      .getRawOne<{ count: string }>();
+
+    const total = Number(totalResult?.count ?? 0);
+
+    if (total === 0) {
+      return {
+        orders: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+      };
+    }
+
+    /**
+     * Resolve the current page of distinct order identifiers first.
+     * Grouping by id keeps PostgreSQL happy when ordering by createdAt.
+     */
+    const idRows = await applySellerOrderFilters(
+      this.orderRepository.createQueryBuilder('order'),
+    )
+      .select('order.id', 'id')
+      .addSelect('MAX(order.createdAt)', 'createdAt')
+      .groupBy('order.id')
+      .orderBy('MAX(order.createdAt)', 'DESC')
+      .offset((page - 1) * limit)
+      .limit(limit)
+      .getRawMany<{ id: string }>();
+
+    const ids = idRows.map((row) => row.id);
+
+    if (ids.length === 0) {
+      return {
+        orders: [],
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    }
+
+    /**
+     * Load the full order graph for the current page, including seller
+     * ownership on each product so the service can filter mixed carts.
+     */
+    const orders = await this.orderRepository
       .createQueryBuilder('order')
       .innerJoinAndSelect('order.user', 'customer')
       .innerJoinAndSelect('order.items', 'orderItem')
       .innerJoinAndSelect('orderItem.product', 'product')
-      .where('product.seller.id = :sellerId', { sellerId });
-
-    if (from) {
-      query.andWhere('order.createdAt >= :from', { from });
-    }
-
-    if (to) {
-      query.andWhere('order.createdAt <= :to', { to });
-    }
-
-    if (status) {
-      query.andWhere('order.status = :status', { status });
-    }
-
-    query
+      .innerJoinAndSelect('product.seller', 'seller')
+      .where('order.id IN (:...ids)', { ids })
       .orderBy('order.createdAt', 'DESC')
-      .skip((page - 1) * limit)
-      .take(limit);
-
-    const [orders, total] = await query.getManyAndCount();
+      .getMany();
 
     return {
       orders,
@@ -261,6 +326,14 @@ export class ReportRepository {
     };
   }
 
+  /**
+   * Returns a paginated sales report for products owned by the seller.
+   *
+   * Sales quantities and revenue only include successfully paid orders
+   * (`paidAt IS NOT NULL`), matching dashboard revenue rules. Date filters
+   * are applied on the paid-order join so products without matching sales
+   * still appear with zero totals.
+   */
   async getSellerProductSalesReport(
     sellerId: string,
     from?: Date,
@@ -268,71 +341,78 @@ export class ReportRepository {
     page = 1,
     limit = 20,
   ) {
-    const query = this.productRepository
-      .createQueryBuilder('product')
-      .innerJoin('product.seller', 'seller')
-      .leftJoin('product.inventory', 'inventory')
-      .leftJoin('order_items', 'orderItem', 'orderItem.product_id = product.id')
-      .leftJoin('orders', 'order', 'order.id = orderItem.order_id')
-      .select([
-        'product.id AS "productId"',
-        'product.name AS "productName"',
-        'product.status AS "productStatus"',
-        'product.price AS "unitPrice"',
-        'product.created_at AS "createdAt"',
-        'COALESCE(SUM(orderItem.quantity), 0) AS "totalQuantitySold"',
-        `COALESCE(
-          SUM(orderItem.quantity * orderItem.unit_price),
-          0
-        ) AS "totalRevenue"`,
-      ])
-      .where('seller.id = :sellerId', { sellerId })
-      .andWhere('order.status = :paidStatus', {
-        paidStatus: OrderStatus.PAID,
-      });
+    /**
+     * Restrict revenue joins to paid orders. Optional date bounds are
+     * included in the join condition so unpaid or out-of-range rows do
+     * not eliminate the product itself from the report.
+     */
+    let paidOrderJoin = 'order.paidAt IS NOT NULL';
 
     if (from) {
-      query.andWhere('order.created_at >= :from', { from });
+      paidOrderJoin += ' AND order.paidAt >= :from';
     }
 
     if (to) {
-      query.andWhere('order.created_at <= :to', { to });
+      paidOrderJoin += ' AND order.paidAt <= :to';
+    }
+
+    const query = this.productRepository
+      .createQueryBuilder('product')
+      .innerJoin('product.seller', 'seller')
+      .leftJoin('product.orderItems', 'orderItem')
+      .leftJoin('orderItem.order', 'order', paidOrderJoin)
+      .select([
+        'product.id AS "productId"',
+        'product.title AS "productName"',
+        'product.status AS "productStatus"',
+        'product.price AS "unitPrice"',
+        'product.createdAt AS "createdAt"',
+        `COALESCE(
+          SUM(CASE WHEN order.id IS NOT NULL THEN orderItem.quantity ELSE 0 END),
+          0
+        ) AS "totalQuantitySold"`,
+        `COALESCE(
+          SUM(
+            CASE
+              WHEN order.id IS NOT NULL
+              THEN orderItem.quantity * orderItem.unitPrice
+              ELSE 0
+            END
+          ),
+          0
+        ) AS "totalRevenue"`,
+      ])
+      .where('seller.id = :sellerId', { sellerId });
+
+    if (from) {
+      query.setParameter('from', from);
+    }
+
+    if (to) {
+      query.setParameter('to', to);
     }
 
     query
       .groupBy('product.id')
-      .addGroupBy('product.name')
+      .addGroupBy('product.title')
       .addGroupBy('product.status')
       .addGroupBy('product.price')
-      .addGroupBy('product.created_at')
-      .orderBy('product.created_at', 'DESC')
+      .addGroupBy('product.createdAt')
+      .orderBy('product.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
 
     const products = await query.getRawMany();
 
-    const countQuery = this.productRepository
+    /**
+     * Count every product owned by the seller, independent of whether
+     * paid sales exist in the selected date range.
+     */
+    const total = await this.productRepository
       .createQueryBuilder('product')
       .innerJoin('product.seller', 'seller')
-      .leftJoin('order_items', 'orderItem', 'orderItem.product_id = product.id')
-      .leftJoin('orders', 'order', 'order.id = orderItem.order_id')
       .where('seller.id = :sellerId', { sellerId })
-      .andWhere('order.status = :paidStatus', {
-        paidStatus: OrderStatus.PAID,
-      });
-
-    if (from) {
-      countQuery.andWhere('order.created_at >= :from', { from });
-    }
-
-    if (to) {
-      countQuery.andWhere('order.created_at <= :to', { to });
-    }
-
-    const total = await countQuery
-      .select('COUNT(DISTINCT product.id)', 'count')
-      .getRawOne()
-      .then((result) => Number(result.count));
+      .getCount();
 
     return {
       products,

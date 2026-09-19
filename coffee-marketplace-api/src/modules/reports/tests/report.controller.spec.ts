@@ -6,7 +6,7 @@ import { ReportService } from '../services/report.service';
 import { OrderStatus } from '../../orders/enums/order-status.enum';
 import { ProductStatus } from '../../products/enums/product-status.enum';
 import { UserStatus } from '../../users/enums/user-status.enum';
-import { SYSTEM_ROLES } from 'src/common/constants/system-roles.constant';
+import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 
 describe('ReportController', () => {
   let controller: ReportController;
@@ -53,18 +53,15 @@ describe('ReportController', () => {
       reportService.getAdminOrderReport.mockResolvedValue(serviceResponse);
 
       /**
-       * Act by providing HTTP-style query values.
-       *
-       * Query parameters arrive as strings, so the controller is responsible
-       * for converting date and pagination values before calling the service.
+       * Act by providing validated query DTO values.
        */
-      const result = await controller.getAdminOrderReport(
-        '2026-01-01T00:00:00.000Z',
-        '2026-01-31T23:59:59.999Z',
-        OrderStatus.PAID,
-        '2' as unknown as number,
-        '10' as unknown as number,
-      );
+      const result = await controller.getAdminOrderReport({
+        from: '2026-01-01T00:00:00.000Z',
+        to: '2026-01-31T23:59:59.999Z',
+        status: OrderStatus.PAID,
+        page: 2,
+        limit: 10,
+      });
 
       /**
        * Assert that the controller converted the query values correctly.
@@ -97,16 +94,16 @@ describe('ReportController', () => {
       reportService.getAdminProductReport.mockResolvedValue(serviceResponse);
 
       /**
-       * Act using HTTP-style query values.
+       * Act using validated query DTO values.
        */
-      const result = await controller.getAdminProductReport(
-        ProductStatus.ACTIVE,
-        '3' as unknown as number,
-        '25' as unknown as number,
-      );
+      const result = await controller.getAdminProductReport({
+        status: ProductStatus.ACTIVE,
+        page: 3,
+        limit: 25,
+      });
 
       /**
-       * Assert that pagination values are normalized to numbers.
+       * Assert that pagination values reach the service.
        */
       expect(reportService.getAdminProductReport).toHaveBeenCalledWith(
         ProductStatus.ACTIVE,
@@ -119,7 +116,7 @@ describe('ReportController', () => {
   });
 
   describe('getAdminUserReport', () => {
-    it('should pass user filters and normalized pagination values to the service', async () => {
+    it('should pass user filters and pagination values to the service', async () => {
       /**
        * Arrange the service response for the filtered user report.
        */
@@ -136,16 +133,15 @@ describe('ReportController', () => {
       /**
        * Act using account-status, role, and pagination filters.
        */
-      const result = await controller.getAdminUserReport(
-        UserStatus.ACTIVE,
-        SYSTEM_ROLES.CUSTOMER,
-        '2' as unknown as number,
-        '15' as unknown as number,
-      );
+      const result = await controller.getAdminUserReport({
+        status: UserStatus.ACTIVE,
+        role: SYSTEM_ROLES.CUSTOMER,
+        page: 2,
+        limit: 15,
+      });
 
       /**
-       * Assert that all filters reach the service unchanged while
-       * pagination values are converted to numbers.
+       * Assert that all filters reach the service unchanged.
        */
       expect(reportService.getAdminUserReport).toHaveBeenCalledWith(
         UserStatus.ACTIVE,

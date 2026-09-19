@@ -125,7 +125,7 @@ describe('ReportService', () => {
         products: [
           {
             id: 'product-1',
-            name: 'Ethiopian Coffee',
+            title: 'Ethiopian Coffee',
             status: ProductStatus.ACTIVE,
             price: 250000,
             createdAt,
@@ -184,7 +184,7 @@ describe('ReportService', () => {
         products: [
           {
             id: 'product-1',
-            name: 'Coffee Grinder',
+            title: 'Coffee Grinder',
             status: ProductStatus.DRAFT,
             price: 500000,
             createdAt: new Date('2026-01-11T10:00:00.000Z'),
@@ -292,7 +292,7 @@ describe('ReportService', () => {
                 unitPrice: '100',
                 product: {
                   id: 'product-1',
-                  name: 'Coffee A',
+                  title: 'Coffee A',
                   seller: {
                     id: 'seller-1',
                   },
@@ -303,7 +303,7 @@ describe('ReportService', () => {
                 unitPrice: '500',
                 product: {
                   id: 'product-2',
-                  name: 'Coffee B',
+                  title: 'Coffee B',
                   seller: {
                     id: 'seller-2',
                   },
@@ -314,7 +314,7 @@ describe('ReportService', () => {
                 unitPrice: '200',
                 product: {
                   id: 'product-3',
-                  name: 'Coffee C',
+                  title: 'Coffee C',
                   seller: {
                     id: 'seller-1',
                   },
@@ -389,7 +389,7 @@ describe('ReportService', () => {
                 unitPrice: '500',
                 product: {
                   id: 'product-2',
-                  name: 'Other Seller Product',
+                  title: 'Other Seller Product',
                   seller: {
                     id: 'seller-2',
                   },

@@ -1,17 +1,41 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { ReportService } from '../services/report.service';
 
 import { AdminOrderReportResponseDto } from '../dto/admin-order-report-response.dto';
 import { AdminProductReportResponseDto } from '../dto/admin-product-report-response.dto';
 import { AdminUserReportResponseDto } from '../dto/admin-user-report-response.dto';
+import {
+  AdminProductReportQueryDto,
+  AdminUserReportQueryDto,
+  OrderReportQueryDto,
+} from '../dto/report-query.dto';
 
-import { OrderStatus } from '../../orders/enums/order-status.enum';
-import { ProductStatus } from '../../products/enums/product-status.enum';
-import { UserStatus } from '../../users/enums/user-status.enum';
-import type { SystemRole } from 'src/common/constants/system-roles.constant';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 
+/**
+ * ------------------------------------------------------------------------
+ * Admin Report Controller
+ * ------------------------------------------------------------------------
+ *
+ * Handles read-only operational reports for administrators.
+ * ------------------------------------------------------------------------
+ */
+@ApiTags('Admin Reports')
+@ApiBearerAuth()
 @Controller('admin/reports')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(SYSTEM_ROLES.ADMIN)
 export class ReportController {
   constructor(private readonly reportService: ReportService) {}
 
@@ -23,19 +47,17 @@ export class ReportController {
    * into the types expected by the report service.
    */
   @Get('orders')
+  @ApiOperation({ summary: 'Get admin order report' })
+  @ApiOkResponse({ type: AdminOrderReportResponseDto })
   async getAdminOrderReport(
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-    @Query('status') status?: OrderStatus,
-    @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @Query() query: OrderReportQueryDto,
   ): Promise<AdminOrderReportResponseDto> {
     return this.reportService.getAdminOrderReport(
-      from ? new Date(from) : undefined,
-      to ? new Date(to) : undefined,
-      status,
-      Number(page),
-      Number(limit),
+      query.from ? new Date(query.from) : undefined,
+      query.to ? new Date(query.to) : undefined,
+      query.status,
+      query.page ?? 1,
+      query.limit ?? 20,
     );
   }
 
@@ -45,15 +67,15 @@ export class ReportController {
    * Administrators can filter products by their current lifecycle status.
    */
   @Get('products')
+  @ApiOperation({ summary: 'Get admin product report' })
+  @ApiOkResponse({ type: AdminProductReportResponseDto })
   async getAdminProductReport(
-    @Query('status') status?: ProductStatus,
-    @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @Query() query: AdminProductReportQueryDto,
   ): Promise<AdminProductReportResponseDto> {
     return this.reportService.getAdminProductReport(
-      status,
-      Number(page),
-      Number(limit),
+      query.status,
+      query.page ?? 1,
+      query.limit ?? 20,
     );
   }
 
@@ -63,17 +85,16 @@ export class ReportController {
    * Administrators can filter users by account status and assigned role.
    */
   @Get('users')
+  @ApiOperation({ summary: 'Get admin user report' })
+  @ApiOkResponse({ type: AdminUserReportResponseDto })
   async getAdminUserReport(
-    @Query('status') status?: UserStatus,
-    @Query('role') role?: SystemRole,
-    @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @Query() query: AdminUserReportQueryDto,
   ): Promise<AdminUserReportResponseDto> {
     return this.reportService.getAdminUserReport(
-      status,
-      role,
-      Number(page),
-      Number(limit),
+      query.status,
+      query.role,
+      query.page ?? 1,
+      query.limit ?? 20,
     );
   }
 }

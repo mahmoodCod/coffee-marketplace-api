@@ -38,8 +38,10 @@ export class AdminOrderReportItemDto {
    *
    * Keeping payment status in the report allows administrators
    * to distinguish between the order lifecycle and its payment state.
+   *
+   * Null when the order does not yet have a payment record.
    */
-  paymentStatus: PaymentStatus;
+  paymentStatus: PaymentStatus | null;
 
   /**
    * Date and time when the order was created.

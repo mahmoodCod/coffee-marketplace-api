@@ -18,6 +18,22 @@ export class ReportService {
   constructor(private readonly reportRepository: ReportRepository) {}
 
   /**
+   * Normalizes pagination so report callers always receive safe values.
+   */
+  private normalizePagination(
+    page = 1,
+    limit = 20,
+  ): { page: number; limit: number } {
+    const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 1;
+    const safeLimit =
+      Number.isFinite(limit) && limit > 0
+        ? Math.min(100, Math.floor(limit))
+        : 20;
+
+    return { page: safePage, limit: safeLimit };
+  }
+
+  /**
    * Returns a paginated list of orders for the administrator report.
    *
    * The report exposes customer, order, and payment information and
@@ -33,23 +49,25 @@ export class ReportService {
     page = 1,
     limit = 20,
   ): Promise<AdminOrderReportResponseDto> {
+    const pagination = this.normalizePagination(page, limit);
+
     const result = await this.reportRepository.getAdminOrderReport(
       from,
       to,
       status,
-      page,
-      limit,
+      pagination.page,
+      pagination.limit,
     );
 
     return {
       data: result.orders.map((order) => ({
         orderId: order.id,
         customerId: order.user.id,
-        customerName: order.user.name,
+        customerName: order.user.name ?? null,
         status: order.status,
         totalPrice: order.totalPrice,
         finalPrice: order.finalPrice,
-        paymentStatus: order.payment?.status,
+        paymentStatus: order.payment?.status ?? null,
         createdAt: order.createdAt.toISOString(),
       })),
       total: result.total,
@@ -72,18 +90,20 @@ export class ReportService {
     page = 1,
     limit = 20,
   ): Promise<AdminProductReportResponseDto> {
+    const pagination = this.normalizePagination(page, limit);
+
     const result = await this.reportRepository.getAdminProductReport(
       status,
-      page,
-      limit,
+      pagination.page,
+      pagination.limit,
     );
 
     return {
       data: result.products.map((product) => ({
         productId: product.id,
-        name: product.name,
+        name: product.title,
         sellerId: product.seller.id,
-        sellerName: product.seller.name,
+        sellerName: product.seller.name ?? null,
         status: product.status,
         price: product.price,
         stock: product.inventory?.stock ?? 0,
@@ -115,17 +135,19 @@ export class ReportService {
     page = 1,
     limit = 20,
   ): Promise<AdminUserReportResponseDto> {
+    const pagination = this.normalizePagination(page, limit);
+
     const result = await this.reportRepository.getAdminUserReport(
       status,
       role,
-      page,
-      limit,
+      pagination.page,
+      pagination.limit,
     );
 
     return {
       data: result.users.map((user) => ({
         userId: user.id,
-        name: user.name,
+        name: user.name ?? null,
         phone: user.phone,
         role: user.role.name,
         status: user.status,
@@ -155,13 +177,15 @@ export class ReportService {
     page = 1,
     limit = 20,
   ): Promise<SellerOrderReportResponseDto> {
+    const pagination = this.normalizePagination(page, limit);
+
     const result = await this.reportRepository.getSellerOrderReport(
       sellerId,
       from,
       to,
       status,
-      page,
-      limit,
+      pagination.page,
+      pagination.limit,
     );
 
     return {
@@ -190,11 +214,11 @@ export class ReportService {
         return {
           orderId: order.id,
           customerId: order.user.id,
-          customerName: order.user.name,
+          customerName: order.user.name ?? null,
           status: order.status,
           items: sellerItems.map((item) => ({
             productId: item.product.id,
-            productName: item.product.name,
+            productName: item.product.title,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
           })),
@@ -222,12 +246,14 @@ export class ReportService {
     page = 1,
     limit = 20,
   ): Promise<SellerProductSalesReportResponseDto> {
+    const pagination = this.normalizePagination(page, limit);
+
     const result = await this.reportRepository.getSellerProductSalesReport(
       sellerId,
       from,
       to,
-      page,
-      limit,
+      pagination.page,
+      pagination.limit,
     );
 
     return {

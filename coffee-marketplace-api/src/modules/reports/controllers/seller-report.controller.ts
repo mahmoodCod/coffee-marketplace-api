@@ -1,16 +1,42 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { ReportService } from '../services/report.service';
 
 import { SellerOrderReportResponseDto } from '../dto/seller-order-report-response.dto';
 import { SellerProductSalesReportResponseDto } from '../dto/seller-product-sales-report-response.dto';
+import {
+  OrderReportQueryDto,
+  ReportPaginationQueryDto,
+} from '../dto/report-query.dto';
 
-import { OrderStatus } from '../../orders/enums/order-status.enum';
-import { User } from '../../users/entities/user.entity';
-
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { SYSTEM_ROLES } from '../../../common/constants/system-roles.constant';
 
+import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
+
+/**
+ * ------------------------------------------------------------------------
+ * Seller Report Controller
+ * ------------------------------------------------------------------------
+ *
+ * Handles read-only operational reports scoped to the authenticated seller.
+ * ------------------------------------------------------------------------
+ */
+@ApiTags('Seller Reports')
+@ApiBearerAuth()
 @Controller('seller/reports')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(SYSTEM_ROLES.SELLER)
 export class SellerReportController {
   constructor(private readonly reportService: ReportService) {}
 
@@ -23,21 +49,19 @@ export class SellerReportController {
    * requesting another seller's operational report.
    */
   @Get('orders')
+  @ApiOperation({ summary: 'Get seller order report' })
+  @ApiOkResponse({ type: SellerOrderReportResponseDto })
   async getSellerOrderReport(
-    @CurrentUser() user: User,
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-    @Query('status') status?: OrderStatus,
-    @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @CurrentUser() user: JwtPayload,
+    @Query() query: OrderReportQueryDto,
   ): Promise<SellerOrderReportResponseDto> {
     return this.reportService.getSellerOrderReport(
-      user.id,
-      from ? new Date(from) : undefined,
-      to ? new Date(to) : undefined,
-      status,
-      Number(page),
-      Number(limit),
+      user.sub,
+      query.from ? new Date(query.from) : undefined,
+      query.to ? new Date(query.to) : undefined,
+      query.status,
+      query.page ?? 1,
+      query.limit ?? 20,
     );
   }
 
@@ -49,19 +73,18 @@ export class SellerReportController {
    * client cannot manipulate the seller scope through query parameters.
    */
   @Get('products')
+  @ApiOperation({ summary: 'Get seller product sales report' })
+  @ApiOkResponse({ type: SellerProductSalesReportResponseDto })
   async getSellerProductSalesReport(
-    @CurrentUser() user: User,
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-    @Query('page') page = 1,
-    @Query('limit') limit = 20,
+    @CurrentUser() user: JwtPayload,
+    @Query() query: ReportPaginationQueryDto,
   ): Promise<SellerProductSalesReportResponseDto> {
     return this.reportService.getSellerProductSalesReport(
-      user.id,
-      from ? new Date(from) : undefined,
-      to ? new Date(to) : undefined,
-      Number(page),
-      Number(limit),
+      user.sub,
+      query.from ? new Date(query.from) : undefined,
+      query.to ? new Date(query.to) : undefined,
+      query.page ?? 1,
+      query.limit ?? 20,
     );
   }
 }
