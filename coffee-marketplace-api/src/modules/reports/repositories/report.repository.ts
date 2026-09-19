@@ -260,4 +260,86 @@ export class ReportRepository {
       totalPages: Math.ceil(total / limit),
     };
   }
+
+  async getSellerProductSalesReport(
+    sellerId: string,
+    from?: Date,
+    to?: Date,
+    page = 1,
+    limit = 20,
+  ) {
+    const query = this.productRepository
+      .createQueryBuilder('product')
+      .innerJoin('product.seller', 'seller')
+      .leftJoin('product.inventory', 'inventory')
+      .leftJoin('order_items', 'orderItem', 'orderItem.product_id = product.id')
+      .leftJoin('orders', 'order', 'order.id = orderItem.order_id')
+      .select([
+        'product.id AS "productId"',
+        'product.name AS "productName"',
+        'product.status AS "productStatus"',
+        'product.price AS "unitPrice"',
+        'product.created_at AS "createdAt"',
+        'COALESCE(SUM(orderItem.quantity), 0) AS "totalQuantitySold"',
+        `COALESCE(
+          SUM(orderItem.quantity * orderItem.unit_price),
+          0
+        ) AS "totalRevenue"`,
+      ])
+      .where('seller.id = :sellerId', { sellerId })
+      .andWhere('order.status = :paidStatus', {
+        paidStatus: OrderStatus.PAID,
+      });
+
+    if (from) {
+      query.andWhere('order.created_at >= :from', { from });
+    }
+
+    if (to) {
+      query.andWhere('order.created_at <= :to', { to });
+    }
+
+    query
+      .groupBy('product.id')
+      .addGroupBy('product.name')
+      .addGroupBy('product.status')
+      .addGroupBy('product.price')
+      .addGroupBy('product.created_at')
+      .orderBy('product.created_at', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const products = await query.getRawMany();
+
+    const countQuery = this.productRepository
+      .createQueryBuilder('product')
+      .innerJoin('product.seller', 'seller')
+      .leftJoin('order_items', 'orderItem', 'orderItem.product_id = product.id')
+      .leftJoin('orders', 'order', 'order.id = orderItem.order_id')
+      .where('seller.id = :sellerId', { sellerId })
+      .andWhere('order.status = :paidStatus', {
+        paidStatus: OrderStatus.PAID,
+      });
+
+    if (from) {
+      countQuery.andWhere('order.created_at >= :from', { from });
+    }
+
+    if (to) {
+      countQuery.andWhere('order.created_at <= :to', { to });
+    }
+
+    const total = await countQuery
+      .select('COUNT(DISTINCT product.id)', 'count')
+      .getRawOne()
+      .then((result) => Number(result.count));
+
+    return {
+      products,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
 }
