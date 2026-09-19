@@ -19,7 +19,7 @@ export class AdminProductReportItemDto {
   /**
    * Display name of the seller who owns the product.
    */
-  sellerName: string;
+  sellerName: string | null;
 
   /**
    * Current lifecycle status of the product.
