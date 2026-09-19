@@ -1,5 +1,4 @@
 import { UserStatus } from '../../users/enums/user-status.enum';
-import { SystemRole } from '../../../common/constants/system-roles.constant';
 
 export class AdminUserReportItemDto {
   /**
@@ -20,7 +19,7 @@ export class AdminUserReportItemDto {
   /**
    * Current role assigned to the user.
    */
-  role: SystemRole;
+  role: string;
 
   /**
    * Current account status.

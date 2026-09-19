@@ -29,7 +29,7 @@ export class AdminProductReportItemDto {
   /**
    * Current selling price of the product.
    */
-  price: string;
+  price: number;
 
   /**
    * Total physical stock currently recorded for the product.
