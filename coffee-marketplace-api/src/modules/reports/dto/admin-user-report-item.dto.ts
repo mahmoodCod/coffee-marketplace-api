@@ -10,7 +10,7 @@ export class AdminUserReportItemDto {
   /**
    * Display name of the user.
    */
-  name: string;
+  name: string | null;
 
   /**
    * User's phone number used for account identification.
