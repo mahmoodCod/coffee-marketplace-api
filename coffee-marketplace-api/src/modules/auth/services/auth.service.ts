@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 
+import { UsersService } from '../../users/services/user.service';
 import { UsersRepository } from '../../users/repositories/users.repository';
 import { RolesRepository } from '../../roles/repositories/roles.repository';
 import { UserStatus } from '../../users/enums/user-status.enum';

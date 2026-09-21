@@ -3,7 +3,7 @@
 A modular NestJS backend for an online coffee marketplace.  
 Customers browse and buy coffee products, sellers manage catalog and inventory, and administrators oversee the platform.
 
-Built as a **modular monolith** with clear domain boundaries, TypeORM + PostgreSQL, JWT/OTP authentication, and OpenAPI documentation.
+Built as a **modular monolith** with clear domain boundaries, TypeORM + PostgreSQL, JWT/OTP authentication, role-based authorization, and OpenAPI documentation.
 
 ---
 
@@ -14,7 +14,8 @@ Built as a **modular monolith** with clear domain boundaries, TypeORM + PostgreS
 | **API Server** | [http://localhost:3000](http://localhost:3000) |
 | **Swagger UI** | [http://localhost:3000/api/docs](http://localhost:3000/api/docs) |
 
-> Start the app with `npm run start:dev` inside `coffee-marketplace-api/`, then open Swagger to explore and try endpoints interactively.
+> Start the app with `npm run start:dev` inside `coffee-marketplace-api/`, then open Swagger to explore and try endpoints interactively.  
+> Use **Authorize** in Swagger with a Bearer access token for protected routes.
 
 ---
 
@@ -26,6 +27,7 @@ Built as a **modular monolith** with clear domain boundaries, TypeORM + PostgreS
 | Framework | NestJS |
 | Database | PostgreSQL, TypeORM |
 | Auth | OTP login/register, JWT access & refresh tokens, Passport |
+| Authorization | `@Roles()`, `RolesGuard`, `@Public()`, `SYSTEM_ROLES` |
 | Validation | `class-validator`, `class-transformer`, Joi config schema |
 | Docs | Swagger / OpenAPI (`@nestjs/swagger`) |
 | Infrastructure | Mock payment gateway, SMS / mail / storage adapters |
@@ -61,6 +63,64 @@ Built as a **modular monolith** with clear domain boundaries, TypeORM + PostgreS
 ### Analytics
 - **Dashboards** — admin statistics & sales aggregates; seller dashboard overview
 - **Reports** — admin order/product/user operational reports; seller order & product sales reports
+### Roles
+- CRUD for system roles (`admin`, `seller`, `customer`)
+- UUID path validation
+- Unit tests for service and controller
+
+### Auth
+- OTP-based registration and login
+- OTP verification with token issuance
+- JWT access + refresh token lifecycle
+- Logout / refresh token revocation
+- Passport JWT strategy for protected routes
+
+### Authorization
+- Centralized `SYSTEM_ROLES` constants
+- `@Roles()` decorator + `RolesGuard`
+- `@Public()` support inside `JwtAuthGuard`
+- Unit tests for guards and decorator metadata
+
+### Users
+- Authenticated profile get / update
+- Address CRUD under the current user
+- Ownership checks (`NotFound` / `Forbidden`)
+- Soft delete where applicable
+- Unit tests for service and controller
+
+### Categories
+- Unique `name` / `slug`, hierarchy (`parentId`), sort order, active flag, soft delete
+- Public list / detail
+- Admin-only create / update / delete (`JwtAuthGuard` + `RolesGuard`)
+- Unit tests for service and controller
+
+### Sellers
+- JWT + seller-role protected profile endpoints
+- Get / update seller profile
+- Unit tests for service and controller
+
+### Products
+- Public product catalog (`GET /products`, `GET /products/:id`)
+- Seller product CRUD under `/seller/products`
+- Admin product management under `/admin/products`
+- Product lifecycle statuses (`draft`, `active`, `out_of_stock`, `archived`)
+- Category linkage and ownership rules
+- Unit tests for service and controllers
+
+### Inventory
+- Public inventory lookup by product
+- Seller inventory updates under `/seller/inventory`
+- Admin inventory updates under `/admin/inventory`
+- Unit tests for controllers
+
+### Cart
+- Authenticated shopping cart under `/cart`
+- Get-or-create single **ACTIVE** cart per user
+- Add / update / remove items with inventory and product-status checks
+- Clear cart
+- Partial unique DB index enforcing one active cart per user
+- Response DTOs + Swagger request examples
+- Unit tests for service and controller
 
 ---
 
@@ -93,6 +153,18 @@ coffee-marketplace-api/
     │       ├── articles/
     │       ├── dashboards/
     │       └── reports/
+    │   ├── common/                    # Guards, decorators, filters, interceptors, constants
+    │   ├── config/                    # Configuration + Joi validation
+    │   ├── database/                  # TypeORM, migrations, seeds
+    │   └── modules/
+    │       ├── auth/
+    │       ├── roles/
+    │       ├── users/
+    │       ├── categories/
+    │       ├── sellers/
+    │       ├── products/
+    │       ├── inventoryes/
+    │       └── cart/
     ├── example.env
     ├── docker-compose.yml
     └── package.json
@@ -307,6 +379,51 @@ Full request/response contracts live in Swagger. Below is a concise map of the m
 | `GET` | `/admin/reports/orders` | Order report |
 | `GET` | `/admin/reports/products` | Product report |
 | `GET` | `/admin/reports/users` | User report |
+### Categories
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/categories` | Public | List categories |
+| `GET` | `/categories/:id` | Public | Category details |
+| `POST` | `/categories` | Admin JWT | Create category |
+| `PATCH` | `/categories/:id` | Admin JWT | Update category |
+| `DELETE` | `/categories/:id` | Admin JWT | Soft-delete category |
+
+### Sellers (Seller JWT)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/seller/profile` | Get seller profile |
+| `PATCH` | `/seller/profile` | Update seller profile |
+
+### Products
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/products` | Public | List products |
+| `GET` | `/products/:id` | Public | Product details |
+| `POST` | `/seller/products` | Seller JWT | Create product |
+| `GET` | `/seller/products` | Seller JWT | List own products |
+| `PATCH` | `/seller/products/:id` | Seller JWT | Update own product |
+| `DELETE` | `/seller/products/:id` | Seller JWT | Delete own product |
+| `GET` | `/admin/products` | Admin JWT | Admin product list |
+| `PATCH` | `/admin/products/:id` | Admin JWT | Admin product update |
+| `DELETE` | `/admin/products/:id` | Admin JWT | Admin product delete |
+
+### Inventory
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/products/:productId/inventory` | Public | Get product inventory |
+| `PATCH` | `/seller/inventory/:productId` | Seller JWT | Update own product stock |
+| `PATCH` | `/admin/inventory/:productId` | Admin JWT | Admin inventory update |
+
+### Cart (JWT required)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/cart` | Get or create active cart |
+| `POST` | `/cart/items` | Add product to cart |
+| `PATCH` | `/cart/items/:id` | Update cart item quantity |
+| `DELETE` | `/cart/items/:id` | Remove cart item |
+| `DELETE` | `/cart/clear` | Clear all cart items |
+
+> Full request/response schemas and Try-it-out examples live in Swagger: [http://localhost:3000/api/docs](http://localhost:3000/api/docs)
 
 ---
 
@@ -347,6 +464,8 @@ Design and domain documentation lives under `/docs`:
 - **RBAC**: `JwtAuthGuard` + `RolesGuard` with `SYSTEM_ROLES` (`admin` / `seller` / `customer`).
 - **Addresses**: managed inside the Users module (no separate Address Nest module).
 - **Analytics split**: Dashboards = aggregates/KPIs; Reports = filtered operational listings.
+- **Authorization model**: role-based access with `JwtAuthGuard` + `RolesGuard` and shared `SYSTEM_ROLES`.
+- **Actor-scoped APIs**: customer / seller / admin routes are separated by path prefix where needed.
 - **API contracts**: Swagger is the source of interactive API documentation.
 
 ---
@@ -357,6 +476,11 @@ Design and domain documentation lives under `/docs`:
 2. **Real payment gateway** — replace mock payment adapter for production
 3. **Real SMS / email providers** — wire infrastructure adapters to production services
 4. **Admin user management API** — suspend/activate users (documented; not yet implemented as dedicated admin-users routes)
+
+1. **Order** — create order from active cart, order history, cancel flow  
+2. **Payment** — payment records, gateway callback, status updates  
+3. **Reviews / Discounts / Coupons** — post-purchase and marketing features  
+4. **Seller / Admin dashboards & reports**
 
 ---
 
