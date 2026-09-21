@@ -1,0 +1,153 @@
+############################################
+# Coffee Marketplace API — Docker Compose
+############################################
+# Local / demo stack:
+#   docker compose --env-file .env.docker up --build
+#
+# Production-like stack (API + Postgres + Redis + Nginx):
+#   docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+############################################
+
+name: coffee-marketplace
+
+services:
+  # ------------------------------------------------------------------------
+  # PostgreSQL
+  # ------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: coffee-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-coffee_marketplace}
+      POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PUBLISH_PORT:-5432}:5432"
+    networks:
+      - coffee-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DATABASE_USERNAME:-postgres} -d ${DATABASE_NAME:-coffee_marketplace}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ------------------------------------------------------------------------
+  # Redis
+  # ------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: coffee-redis
+    restart: unless-stopped
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory",
+        "256mb",
+        "--maxmemory-policy",
+        "allkeys-lru",
+      ]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PUBLISH_PORT:-6379}:6379"
+    networks:
+      - coffee-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ------------------------------------------------------------------------
+  # NestJS API
+  # ------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_VERSION: ${NODE_VERSION:-20.19.0}
+    image: coffee-marketplace-api:latest
+    container_name: coffee-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ${ENV_FILE:-.env.docker}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-coffee_marketplace}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET is required}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET is required}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      OTP_LENGTH: ${OTP_LENGTH:-6}
+      OTP_EXPIRES_IN: ${OTP_EXPIRES_IN:-120}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_SENDER: ${SMS_SENDER:-}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      RUN_SEEDS: ${RUN_SEEDS:-true}
+    ports:
+      - "${API_PUBLISH_PORT:-3000}:3000"
+    networks:
+      - coffee-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fsS",
+          "http://127.0.0.1:3000/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 50s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  coffee-network:
+    name: coffee-network
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: coffee-postgres-data
+  redis_data:
+    name: coffee-redis-data

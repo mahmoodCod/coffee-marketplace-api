@@ -75,26 +75,16 @@ coffee-marketplace-api/
     │   ├── config/                    # Configuration + Joi validation
     │   ├── database/                  # TypeORM config, migrations, seeds
     │   ├── infrastructure/            # Payment, SMS, mail, storage adapters
-    │   └── modules/
-    │       ├── auth/
-    │       ├── roles/
-    │       ├── users/                 # Profile + addresses
-    │       ├── sellers/
-    │       ├── categories/
-    │       ├── products/
-    │       ├── inventoryes/
-    │       ├── cart/
-    │       ├── orders/
-    │       ├── payments/
-    │       ├── reviews/
-    │       ├── notifications/
-    │       ├── discounts/
-    │       ├── coupons/
-    │       ├── articles/
-    │       ├── dashboards/
-    │       └── reports/
+    │   └── modules/                   # Domain modules (auth … reports)
+    ├── docker/
+    │   ├── entrypoint.sh              # Wait for DB → migrate → seed → start
+    │   └── nginx/nginx.conf           # Reverse proxy (prod overlay)
+    ├── Dockerfile                     # Multi-stage production image
+    ├── docker-compose.yml             # API + Postgres + Redis
+    ├── docker-compose.prod.yml        # Nginx production overlay
+    ├── .env.docker.example
+    ├── Makefile
     ├── example.env
-    ├── docker-compose.yml
     └── package.json
 ```
 
@@ -107,7 +97,8 @@ coffee-marketplace-api/
 - Node.js 20+ (recommended)
 - PostgreSQL 14+
 - npm
-- Redis (optional for local cache-related config; see `.env`)
+- Redis (for local config; Compose brings its own Redis container)
+- Docker Desktop / Docker Engine + Compose v2 (for containerized setup)
 
 ### 1. Install dependencies
 
@@ -170,6 +161,69 @@ After startup you should see:
 
 - Server: `http://localhost:3000`
 - Swagger: `http://localhost:3000/api/docs`
+- Health: `http://localhost:3000/health`
+
+---
+
+## Docker
+
+The API ships with a production-grade container setup:
+
+| File | Purpose |
+|------|---------|
+| `Dockerfile` | Multi-stage build (deps → build → lean runtime) |
+| `docker-compose.yml` | API + PostgreSQL + Redis |
+| `docker-compose.prod.yml` | Production overlay (Nginx reverse proxy, no DB/Redis host ports) |
+| `docker/entrypoint.sh` | Wait for DB → migrate → optional seed → start |
+| `docker/nginx/nginx.conf` | Reverse proxy + basic auth rate limiting |
+| `.env.docker.example` | Environment template for Compose |
+| `Makefile` | Short commands for common Docker workflows |
+
+### Quick start (local stack)
+
+```bash
+cd coffee-marketplace-api
+cp .env.docker.example .env.docker
+# edit secrets in .env.docker (JWT secrets must be >= 32 chars)
+
+docker compose --env-file .env.docker up --build -d
+# or: make docker-up
+```
+
+Then open:
+
+- API: http://localhost:3000
+- Swagger: http://localhost:3000/api/docs
+- Health: http://localhost:3000/health
+
+### Production-like stack (with Nginx)
+
+```bash
+docker compose --env-file .env.docker \
+  -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+# or: make docker-prod
+```
+
+- Public entry: http://localhost (Nginx → API)
+- API / Postgres / Redis stay on the internal Docker network
+
+### Boot behaviour
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `RUN_MIGRATIONS` | `true` | Apply TypeORM migrations on container start |
+| `RUN_SEEDS` | `true` (local compose) / `false` (prod overlay) | Seed system roles |
+
+### Useful commands
+
+```bash
+make docker-logs      # follow API logs
+make docker-ps        # container status
+make docker-down      # stop local stack
+make docker-prod-down # stop production overlay stack
+```
+
+> Never commit `.env.docker` with real production secrets. Use `.env.docker.example` as the template only.
 
 ---
 
@@ -347,6 +401,7 @@ Design and domain documentation lives under `/docs`:
 - **RBAC**: `JwtAuthGuard` + `RolesGuard` with `SYSTEM_ROLES` (`admin` / `seller` / `customer`).
 - **Addresses**: managed inside the Users module (no separate Address Nest module).
 - **Analytics split**: Dashboards = aggregates/KPIs; Reports = filtered operational listings.
+- **Containers**: multi-stage Docker image, non-root user, healthchecks, Compose stack with Postgres + Redis (+ Nginx in prod overlay).
 - **API contracts**: Swagger is the source of interactive API documentation.
 
 ---

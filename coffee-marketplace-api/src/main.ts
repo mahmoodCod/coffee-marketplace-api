@@ -52,11 +52,16 @@ async function bootstrap() {
 
   SwaggerModule.setup('api/docs', app, document);
 
-  await app.listen(3000);
+  /**
+   * Bind on 0.0.0.0 so the API is reachable from outside the container.
+   * PORT is injected by Docker Compose / the host environment.
+   */
+  const port = Number(process.env.PORT || 3000);
+  await app.listen(port, '0.0.0.0');
 
-  console.log(`🚀 Server running: http://localhost:3000`);
-
-  console.log(`📘 Swagger: http://localhost:3000/api/docs`);
+  console.log(`🚀 Server running: http://localhost:${port}`);
+  console.log(`📘 Swagger: http://localhost:${port}/api/docs`);
+  console.log(`❤️  Health: http://localhost:${port}/health`);
 }
 
 bootstrap();
