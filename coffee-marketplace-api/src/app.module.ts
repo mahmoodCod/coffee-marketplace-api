@@ -20,6 +20,7 @@ import { DiscountModule } from './modules/discounts/discount.module';
 import { CouponModule } from './modules/coupons/coupon.module';
 import { ArticlesModule } from './modules/articles/article.module';
 import { DashboardModule } from './modules/dashboards/dashboard.module';
+import { ReportModule } from './modules/reports/report.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { DashboardModule } from './modules/dashboards/dashboard.module';
     CouponModule,
     ArticlesModule,
     DashboardModule,
+    ReportModule,
   ],
   controllers: [AppController],
   providers: [AppService],

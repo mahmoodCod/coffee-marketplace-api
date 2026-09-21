@@ -359,4 +359,5 @@ export class Product {
     name: 'deleted_at',
   })
   deletedAt: Date | null;
+    name: any;
 }
