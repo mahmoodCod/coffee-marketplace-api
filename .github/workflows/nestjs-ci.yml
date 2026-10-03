@@ -16,15 +16,15 @@ env:
   CI: true
 
 jobs:
-      code-quality:
+    code-quality:
     name: 🔍 Code Quality
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
+    
     defaults:
       run:
         working-directory: ./coffee-marketplace-api
-
+        
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
