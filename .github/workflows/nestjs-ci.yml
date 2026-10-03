@@ -16,15 +16,18 @@ env:
   CI: true
 
 jobs:
-    code-quality:
+  # ============================================
+  # 1️⃣ بررسی اولیه: Lint + Type Check
+  # ============================================
+  code-quality:
     name: 🔍 Code Quality
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    
+
     defaults:
       run:
         working-directory: ./coffee-marketplace-api
-        
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -49,6 +52,7 @@ jobs:
 
       - name: TypeScript type check (blocking)
         run: npx tsc --noEmit -p tsconfig.build.json
+
   # ============================================
   # 2️⃣ تست‌های واحد (Unit Tests)
   # ============================================
@@ -88,7 +92,7 @@ jobs:
         uses: codecov/codecov-action@v4
         if: always()
         with:
-          files: ./coffee-marketplace-api/coverage/lcov.info    # ← uses step، مسیر کامل
+          files: ./coffee-marketplace-api/coverage/lcov.info
           flags: unittests
           name: codecov-unit
           fail_ci_if_error: false
@@ -99,7 +103,7 @@ jobs:
         if: always()
         with:
           name: coverage-report-${{ matrix.node-version }}
-          path: coffee-marketplace-api/coverage/                # ← uses step، مسیر کامل
+          path: coffee-marketplace-api/coverage/
           retention-days: 7
 
   # ============================================
@@ -216,7 +220,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dist-build
-          path: coffee-marketplace-api/dist/                    # ← uses step، مسیر کامل
+          path: coffee-marketplace-api/dist/
           retention-days: 7
 
   # ============================================
@@ -258,7 +262,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
-          scan-ref: 'coffee-marketplace-api'                    # ← اسکن پوشه پروژه
+          scan-ref: 'coffee-marketplace-api'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -291,7 +295,7 @@ jobs:
       - name: Build Docker image (no push)
         uses: docker/build-push-action@v5
         with:
-          context: ./coffee-marketplace-api                        # ← context در پوشه پروژه
+          context: ./coffee-marketplace-api
           push: false
           tags: my-nest-app:${{ github.sha }}
           cache-from: type=gha
