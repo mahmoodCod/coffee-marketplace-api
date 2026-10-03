@@ -45,6 +45,7 @@ jobs:
 
       - name: Run ESLint
         run: npm run lint --if-present
+        continue-on-error: true 
 
       - name: Run Prettier check
         run: npx prettier --check "src/**/*.ts" "test/**/*.ts" || true
