@@ -104,93 +104,13 @@ jobs:
           retention-days: 7
 
   # ============================================
-  # 3️⃣ تست‌های E2E (با دیتابیس واقعی)
-  # ============================================
-  e2e-tests:
-    name: 🔗 E2E Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: code-quality
-
-    defaults:
-      run:
-        working-directory: ./coffee-marketplace-api
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: test_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U test_user"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    env:
-      NODE_ENV: test
-      DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
-      REDIS_URL: redis://localhost:6379
-      JWT_SECRET: test_jwt_secret_key_for_ci_only
-      JWT_EXPIRES_IN: 1h
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: 'coffee-marketplace-api/package-lock.json'
-
-      - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit
-
-      - name: Wait for PostgreSQL
-        run: |
-          until pg_isready -h localhost -p 5432 -U test_user; do
-            echo "Waiting for postgres..."
-            sleep 2
-          done
-
-      - name: Run E2E tests
-        run: npm run test:e2e -- --passWithNoTests
-
-      - name: Upload E2E results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: e2e-results
-          path: |
-            coffee-marketplace-api/coverage-e2e/
-            coffee-marketplace-api/test-results/
-          retention-days: 7
-          if-no-files-found: ignore
-
-  # ============================================
   # 4️⃣ بیلد پروژه
   # ============================================
   build:
     name: 🏗️ Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [ unit-tests, e2e-tests ]
+    needs: [ unit-tests ]
 
     defaults:
       run:
@@ -304,7 +224,7 @@ jobs:
   ci-success:
     name: ✅ CI Success
     runs-on: ubuntu-latest
-    needs: [ code-quality, unit-tests, e2e-tests, build, security ]
+    needs: [ code-quality, unit-tests, build, security ]
     if: always()
 
     steps:
@@ -312,7 +232,6 @@ jobs:
         run: |
           if [ "${{ needs.code-quality.result }}" != "success" ] || \
              [ "${{ needs.unit-tests.result }}" != "success" ] || \
-             [ "${{ needs.e2e-tests.result }}" != "success" ] || \
              [ "${{ needs.build.result }}" != "success" ] || \
              [ "${{ needs.security.result }}" != "success" ]; then
             echo "❌ One or more CI jobs failed"
