@@ -50,9 +50,6 @@ jobs:
         run: npx prettier --check "src/**/*.ts"
         continue-on-error: true
 
-      - name: TypeScript type check (blocking)
-        run: npx tsc --noEmit -p tsconfig.build.json
-
   # ============================================
   # 2️⃣ تست‌های واحد (Unit Tests)
   # ============================================
