@@ -52,7 +52,7 @@ jobs:
         continue-on-error: true
 
       - name: TypeScript type check (non-blocking)
-        run: npx tsc --noEmit
+        run: npx tsc --noEmit -p tsconfig.build.json
         continue-on-error: true
   # ============================================
   # 2️⃣ تست‌های واحد (Unit Tests)
