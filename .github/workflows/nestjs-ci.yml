@@ -14,13 +14,9 @@ concurrency:
 env:
   NODE_VERSION: '22'
   CI: true
-  PROJECT_DIR: './coffee-marketplace-api'   # ← مسیر پروژه NestJS
 
 jobs:
-    # ============================================
-  # 1️⃣ بررسی اولیه: Lint + Type Check (غیرمسدود)
-  # ============================================
-  code-quality:
+      code-quality:
     name: 🔍 Code Quality
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -48,12 +44,11 @@ jobs:
         continue-on-error: true
 
       - name: Run Prettier check (non-blocking)
-        run: npx prettier --check "src/**/*.ts" || true
+        run: npx prettier --check "src/**/*.ts"
         continue-on-error: true
 
-      - name: TypeScript type check (non-blocking)
+      - name: TypeScript type check (blocking)
         run: npx tsc --noEmit -p tsconfig.build.json
-        continue-on-error: true
   # ============================================
   # 2️⃣ تست‌های واحد (Unit Tests)
   # ============================================
