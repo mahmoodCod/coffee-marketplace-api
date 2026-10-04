@@ -9,17 +9,16 @@
 #   3) prod   — lean runtime image (non-root, dumb-init, healthcheck)
 ############################################
 
-ARG NODE_VERSION=20.19.0
+ARG NODE_VERSION=22-alpine
 
 # ---------------------------------------------------------------------------
 # Base
 # ---------------------------------------------------------------------------
-FROM node:${NODE_VERSION}-alpine AS base
+FROM node:${NODE_VERSION} AS base
 
 WORKDIR /app
 
-ENV NODE_ENV=production \
-    NPM_CONFIG_UPDATE_NOTIFIER=false \
+ENV NPM_CONFIG_UPDATE_NOTIFIER=false \
     NPM_CONFIG_FUND=false
 
 RUN apk add --no-cache libc6-compat
@@ -34,7 +33,8 @@ RUN apk add --no-cache python3 make g++
 
 COPY package.json package-lock.json ./
 
-RUN npm ci
+# Ensure devDependencies are installed (needed for nest CLI)
+RUN npm ci --include=dev
 
 # ---------------------------------------------------------------------------
 # Build
