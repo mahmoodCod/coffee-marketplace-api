@@ -1,16 +1,17 @@
-﻿# Default: auto-detect, use LF
+﻿@'
+# Default: normalize line endings to LF
 * text=auto eol=lf
 
-# Shell scripts must always use LF
+# Shell scripts must always use LF (critical for Docker)
 *.sh text eol=lf
 *.bash text eol=lf
 
-# Windows-only files
+# Windows-only scripts
 *.bat text eol=crlf
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
 
-# Binary files (never touch)
+# Binary files
 *.png binary
 *.jpg binary
 *.jpeg binary
@@ -19,3 +20,7 @@
 *.woff binary
 *.woff2 binary
 *.ttf binary
+'@ | Out-File -FilePath .gitattributes -Encoding ascii -NoNewline
+
+Write-Host "✅ .gitattributes created in repo root"
+Get-Content .gitattributes
