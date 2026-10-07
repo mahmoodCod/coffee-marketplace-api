@@ -7,15 +7,28 @@ Built as a **modular monolith** with clear domain boundaries, TypeORM + PostgreS
 
 ---
 
-## Live Local Endpoints
+## 🌐 Live Deployment
+
+| Environment | URL |
+|-------------|-----|
+| **Production API** | [https://coffee-marketplace-api.onrender.com](https://coffee-marketplace-api.onrender.com) |
+| **Swagger UI** | [https://coffee-marketplace-api.onrender.com/api/docs](https://coffee-marketplace-api.onrender.com/api/docs) |
+| **Health Check** | [https://coffee-marketplace-api.onrender.com/health](https://coffee-marketplace-api.onrender.com/health) |
+
+> 🚀 Deployed on **Render** via **GitHub Actions CI/CD**. Docker image is built and pushed automatically on merge to `main`.
+>
+> ⚠️ **Note:** Free tier on Render sleeps after 15 minutes of inactivity. First request may take 30-60 seconds.
+
+---
+
+## 💻 Local Development
 
 | Resource | URL |
 |----------|-----|
 | **API Server** | [http://localhost:3000](http://localhost:3000) |
 | **Swagger UI** | [http://localhost:3000/api/docs](http://localhost:3000/api/docs) |
 
-> Start the app with `npm run start:dev` inside `coffee-marketplace-api/`, then open Swagger to explore and try endpoints interactively.
-
+> Start with `npm run start:dev`, then open Swagger to explore endpoints interactively.
 ---
 
 ## Tech Stack
@@ -162,6 +175,29 @@ After startup you should see:
 - Server: `http://localhost:3000`
 - Swagger: `http://localhost:3000/api/docs`
 - Health: `http://localhost:3000/health`
+
+---
+
+---
+
+## 🔄 CI/CD Pipeline
+
+Every push and pull request triggers a full CI pipeline via **GitHub Actions**:
+
+| Stage | What it does |
+|-------|--------------|
+| 🔍 **Code Quality** | ESLint + Prettier + TypeScript checks |
+| 🧪 **Unit Tests** | Jest with coverage report |
+| 🏗️ **Build** | NestJS compilation |
+| 🔒 **Security** | `npm audit` + Trivy filesystem scan |
+| 🐳 **Docker** | Multi-stage image build (cached) |
+
+On merge to `main`, the workflow automatically:
+1. Builds the production Docker image
+2. Pushes it to **GitHub Container Registry** (GHCR)
+3. Triggers a **Render** redeploy
+
+The pipeline enforces quality gates before any change reaches production.
 
 ---
 
