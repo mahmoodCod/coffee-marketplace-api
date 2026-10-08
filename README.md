@@ -1,5 +1,13 @@
 # Coffee Marketplace API
 
+[![CI](https://github.com/mahmoodCod/coffee-marketplace-api/actions/workflows/nestjs-ci.yml/badge.svg)](https://github.com/mahmoodCod/coffee-marketplace-api/actions/workflows/nestjs-ci.yml)
+[![CD](https://github.com/mahmoodCod/coffee-marketplace-api/actions/workflows/nestjs-cd.yml/badge.svg)](https://github.com/mahmoodCod/coffee-marketplace-api/actions/workflows/nestjs-cd.yml)
+[![codecov](https://codecov.io/gh/mahmoodCod/coffee-marketplace-api/branch/main/graph/badge.svg)](https://codecov.io/gh/mahmoodCod/coffee-marketplace-api)
+[![Tests](https://img.shields.io/badge/tests-439%20passed-success?style=flat-square)](#)
+[![Live Demo](https://img.shields.io/badge/demo-live-success?style=flat-square)](https://coffee-marketplace-api.onrender.com/api/docs)
+[![Node](https://img.shields.io/badge/node-22.x-339933?style=flat-square&logo=node.js)](https://nodejs.org)
+[![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?style=flat-square&logo=nestjs)](https://nestjs.com)
+
 A modular NestJS backend for an online coffee marketplace.  
 Customers browse and buy coffee products, sellers manage catalog and inventory, and administrators oversee the platform.
 
