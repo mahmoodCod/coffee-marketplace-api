@@ -33,4 +33,8 @@ export default () => ({
     apiKey: process.env.SMS_API_KEY,
     sender: process.env.SMS_SENDER,
   },
+
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY,
+  },
 });
