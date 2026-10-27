@@ -1,10 +1,15 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI } from '@google/genai';
 
 @Injectable()
 export class SupportChatService {
   private readonly genAI: GoogleGenAI;
+  private readonly logger = new Logger(SupportChatService.name);
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('gemini.apiKey');
@@ -46,11 +51,21 @@ export class SupportChatService {
 
       return { reply };
     } catch (error: unknown) {
+      const apiKey = this.configService.get<string>('gemini.apiKey');
+
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      const safeErrorMessage = apiKey
+        ? errorMessage.split(apiKey).join('[REDACTED]')
+        : errorMessage;
+
+      this.logger.error(`Gemini API request failed: ${safeErrorMessage}`);
+
       if (error instanceof ServiceUnavailableException) {
         throw error;
       }
 
-      // Keep provider details and API credentials out of client responses.
       throw new ServiceUnavailableException(
         'The support chatbot is temporarily unavailable. Please try again later.',
       );

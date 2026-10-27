@@ -21,6 +21,7 @@ import { CouponModule } from './modules/coupons/coupon.module';
 import { ArticlesModule } from './modules/articles/article.module';
 import { DashboardModule } from './modules/dashboards/dashboard.module';
 import { ReportModule } from './modules/reports/report.module';
+import { SupportChatModule } from './modules/support-chat/support-chat.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { ReportModule } from './modules/reports/report.module';
     ArticlesModule,
     DashboardModule,
     ReportModule,
+    SupportChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],
