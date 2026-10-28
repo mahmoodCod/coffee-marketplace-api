@@ -25,5 +25,5 @@ export const validationSchema = Joi.object({
   SMS_API_KEY: Joi.string().allow('').optional(),
   SMS_SENDER: Joi.string().allow('').optional(),
 
-  GEMINI_API_KEY: Joi.string().trim().required(),
+  DEEPSEEK_API_KEY: Joi.string().trim().required(),
 });

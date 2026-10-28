@@ -35,6 +35,6 @@ export default () => ({
   },
 
   gemini: {
-    apiKey: process.env.GEMINI_API_KEY,
+    apiKey: process.env.DEEPSEEK_API_KEY,
   },
 });
