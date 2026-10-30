@@ -22,29 +22,53 @@ export class SupportChatService {
     this.logger.log('Support chat request received');
 
     try {
-      const products = await this.productService.searchForSupportChat(message);
+      const normalizedMessage = message.trim().toLowerCase();
 
-      const productContext = products.length
-        ? JSON.stringify(
-            products.map((product) => ({
-              id: product.id,
-              title: product.title,
-              description: product.description,
-              price: product.price,
-              originalPrice: product.originalPrice,
-              productType: product.productType,
-              weight: product.weight,
-              caffeineLevel: product.caffeineLevel,
-              flavorNotes: product.flavorNotes,
-              originCountry: product.originCountry,
-              ingredients: product.ingredients,
-              benefits: product.benefits,
-              howToUse: product.howToUse,
-            })),
-            null,
-            2,
-          )
-        : 'No matching active products were found in the database.';
+      const isCatalogQuestion =
+        /محصول|محصولات|فروشگاه|کالا|قیمت|چه قهوه|قهوه.*دارید|دارید.*قهوه|موجود/.test(
+          normalizedMessage,
+        );
+
+      let products = [];
+
+      if (isCatalogQuestion) {
+        products = await this.productService.findAll();
+
+        if (products.length === 0) {
+          return {
+            reply:
+              'در حال حاضر هنوز محصولی در فروشگاه ثبت نشده است. ' +
+              'به‌محض اضافه شدن محصولات، می‌توانید آن‌ها را در اینجا مشاهده کنید. ' +
+              'اگر درباره انواع قهوه، تفاوت دانه‌ها یا روش‌های دم‌آوری سؤالی دارید، خوشحال می‌شوم راهنمایی‌تان کنم.',
+          };
+        }
+      } else {
+        products = await this.productService.searchForSupportChat(message);
+      }
+
+      const productContext =
+        products.length > 0
+          ? JSON.stringify(
+              products.slice(0, 10).map((product) => ({
+                title: product.title,
+                description: product.description,
+                price: Number(product.price),
+                originalPrice: product.originalPrice
+                  ? Number(product.originalPrice)
+                  : null,
+                productType: product.productType,
+                weight: product.weight,
+                caffeineLevel: product.caffeineLevel,
+                flavorNotes: product.flavorNotes,
+                originCountry: product.originCountry,
+                ingredients: product.ingredients,
+                benefits: product.benefits,
+                howToUse: product.howToUse,
+              })),
+              null,
+              2,
+            )
+          : 'No matching products were found in the catalog.';
 
       const response = await this.ai.chat.completions.create({
         model: 'qwen2.5-1.5b-instruct',
@@ -52,24 +76,29 @@ export class SupportChatService {
           {
             role: 'system',
             content: [
-              'You are the customer support assistant for a coffee marketplace.',
-              'Answer in the same language as the user whenever possible.',
-              'Use the provided product data when answering product-related questions.',
-              'Never invent products, prices, ingredients, or product specifications.',
-              'If no matching products are provided, clearly say that you could not find matching products in the available catalog.',
+              'You are a helpful and professional customer support assistant for a coffee marketplace.',
+              'Always answer in the same language as the customer.',
+              'Be friendly, clear, accurate, and helpful.',
+              'Give complete but concise answers.',
+              'Use the provided product data for product-related questions.',
+              'Never invent products, prices, ingredients, or specifications.',
+              'If no matching products are provided, clearly explain that no matching product was found.',
+              'You can answer general educational questions about coffee using your general knowledge.',
               'Do not claim access to live inventory, orders, payments, or private customer information.',
-              'Do not invent store policies or order status.',
-              'If a question requires information you do not have, clearly explain that limitation.',
+              'Never invent store policies or order status.',
+              'If you do not know something, say so honestly.',
             ].join(' '),
           },
           {
             role: 'user',
             content: `
-Customer message:
+Customer question:
 ${message}
 
-Available product data:
+Available product information:
 ${productContext}
+
+Please answer the customer naturally and accurately.
             `.trim(),
           },
         ],
