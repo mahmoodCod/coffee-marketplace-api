@@ -4,6 +4,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import OpenAI from 'openai';
+import { Product } from 'src/modules/products/entities/product.entity';
 import { ProductService } from 'src/modules/products/services/product.service';
 
 @Injectable()
@@ -25,11 +26,11 @@ export class SupportChatService {
       const normalizedMessage = message.trim().toLowerCase();
 
       const isCatalogQuestion =
-        /محصول|محصولات|فروشگاه|کالا|قیمت|چه قهوه|قهوه.*دارید|دارید.*قهوه|موجود/.test(
+        /^(آیا )?(محصولات|کالاهای) (این )?(فروشگاه )?(را )?(دارید|موجود است|موجود هستند)\??$|^(چه )?(محصولات|کالاهایی) (در این فروشگاه )?(دارید|موجود است)\??$|^(لیست|فهرست) محصولات( فروشگاه)?\??$|^آیا محصولی (در این فروشگاه|داخل این فروشگاه) هست\??$/.test(
           normalizedMessage,
         );
 
-      let products = [];
+      let products: Product[] = [];
 
       if (isCatalogQuestion) {
         products = await this.productService.findAll();
