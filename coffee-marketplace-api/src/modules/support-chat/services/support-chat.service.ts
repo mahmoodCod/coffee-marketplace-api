@@ -8,19 +8,13 @@ import OpenAI from 'openai';
 
 @Injectable()
 export class SupportChatService {
-  private readonly deepSeek: OpenAI;
+  private readonly ai: OpenAI;
   private readonly logger = new Logger(SupportChatService.name);
 
   constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('DEEPSEEK_API_KEY');
-
-    if (!apiKey) {
-      throw new Error('DEEPSEEK_API_KEY is not configured.');
-    }
-
-    this.deepSeek = new OpenAI({
-      apiKey,
-      baseURL: 'https://api.deepseek.com',
+    this.ai = new OpenAI({
+      apiKey: 'lm-studio',
+      baseURL: 'http://127.0.0.1:5001/v1',
     });
   }
 
@@ -28,8 +22,8 @@ export class SupportChatService {
     this.logger.log('Support chat request received');
 
     try {
-      const response = await this.deepSeek.chat.completions.create({
-        model: 'deepseek-chat',
+      const response = await this.ai.chat.completions.create({
+        model: 'qwen2.5-1.5b-instruct',
         messages: [
           {
             role: 'system',
@@ -66,7 +60,7 @@ export class SupportChatService {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 
-      this.logger.error(`DeepSeek API request failed: ${errorMessage}`);
+      this.logger.error(`Local AI request failed: ${errorMessage}`);
 
       throw new ServiceUnavailableException(
         'The support chatbot is temporarily unavailable. Please try again later.',
