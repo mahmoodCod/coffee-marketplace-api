@@ -3,7 +3,6 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 
 @Injectable()
@@ -11,7 +10,7 @@ export class SupportChatService {
   private readonly ai: OpenAI;
   private readonly logger = new Logger(SupportChatService.name);
 
-  constructor(private readonly configService: ConfigService) {
+  constructor() {
     this.ai = new OpenAI({
       apiKey: 'lm-studio',
       baseURL: 'http://127.0.0.1:5001/v1',

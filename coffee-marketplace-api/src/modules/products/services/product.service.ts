@@ -358,6 +358,55 @@ export class ProductService {
   }
 
   /**
+   * Searches active products for the support chatbot.
+   *
+   * Only public product information is selected.
+   * Soft-deleted products are automatically excluded.
+   */
+  async searchForSupportChat(query: string): Promise<Product[]> {
+    const normalizedQuery = query.trim();
+
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    return this.productsRepository
+      .createQueryBuilder('product')
+      .select([
+        'product.id',
+        'product.title',
+        'product.description',
+        'product.price',
+        'product.originalPrice',
+        'product.productType',
+        'product.weight',
+        'product.caffeineLevel',
+        'product.flavorNotes',
+        'product.originCountry',
+        'product.ingredients',
+        'product.benefits',
+        'product.howToUse',
+      ])
+      .where('product.status = :status', {
+        status: ProductStatus.ACTIVE,
+      })
+      .andWhere(
+        `(
+        product.title ILIKE :query
+        OR product.description ILIKE :query
+        OR product.originCountry ILIKE :query
+      )`,
+        {
+          query: `%${normalizedQuery}%`,
+        },
+      )
+      .orderBy('product.recommended', 'DESC')
+      .addOrderBy('product.createdAt', 'DESC')
+      .take(5)
+      .getMany();
+  }
+
+  /**
    * ------------------------------------------------------------------------
    * Find Seller Products
    * ------------------------------------------------------------------------

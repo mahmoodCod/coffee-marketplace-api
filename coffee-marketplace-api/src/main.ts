@@ -56,7 +56,7 @@ async function bootstrap() {
    * Bind on 0.0.0.0 so the API is reachable from outside the container.
    * PORT is injected by Docker Compose / the host environment.
    */
-  const port = Number(process.env.PORT || 3000);
+  const port = Number(process.env.PORT || 3001);
   await app.listen(port, '0.0.0.0');
 
   console.log(`🚀 Server running: http://localhost:${port}`);
