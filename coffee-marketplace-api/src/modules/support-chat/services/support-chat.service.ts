@@ -33,7 +33,7 @@ export class SupportChatService {
       let products: Product[] = [];
 
       if (isCatalogQuestion) {
-        products = await this.productService.findAll();
+        products = await this.productService.findAllForSupportChat();
 
         if (products.length === 0) {
           return {
@@ -50,22 +50,39 @@ export class SupportChatService {
       const productContext =
         products.length > 0
           ? JSON.stringify(
-              products.slice(0, 10).map((product) => ({
-                title: product.title,
-                description: product.description,
-                price: Number(product.price),
-                originalPrice: product.originalPrice
-                  ? Number(product.originalPrice)
-                  : null,
-                productType: product.productType,
-                weight: product.weight,
-                caffeineLevel: product.caffeineLevel,
-                flavorNotes: product.flavorNotes,
-                originCountry: product.originCountry,
-                ingredients: product.ingredients,
-                benefits: product.benefits,
-                howToUse: product.howToUse,
-              })),
+              products.slice(0, 10).map((product) => {
+                const inventory = product.inventory;
+
+                const availableStock = inventory
+                  ? inventory.stock - inventory.reservedStock
+                  : null;
+
+                return {
+                  title: product.title,
+                  description: product.description,
+                  price: Number(product.price),
+                  originalPrice: product.originalPrice
+                    ? Number(product.originalPrice)
+                    : null,
+                  productType: product.productType,
+                  weight: product.weight,
+                  caffeineLevel: product.caffeineLevel,
+                  flavorNotes: product.flavorNotes,
+                  originCountry: product.originCountry,
+                  ingredients: product.ingredients,
+                  benefits: product.benefits,
+                  howToUse: product.howToUse,
+                  stock: inventory?.stock ?? null,
+                  reservedStock: inventory?.reservedStock ?? null,
+                  availableStock,
+                  availability:
+                    availableStock === null
+                      ? 'وضعیت موجودی نامشخص است'
+                      : availableStock > 0
+                        ? 'موجود'
+                        : 'ناموجود',
+                };
+              }),
               null,
               2,
             )
@@ -77,17 +94,12 @@ export class SupportChatService {
           {
             role: 'system',
             content: [
-              'You are a helpful and professional customer support assistant for a coffee marketplace.',
-              'Always answer in the same language as the customer.',
-              'Be friendly, clear, accurate, and helpful.',
-              'Give complete but concise answers.',
-              'Use the provided product data for product-related questions.',
-              'Never invent products, prices, ingredients, or specifications.',
-              'If no matching products are provided, clearly explain that no matching product was found.',
-              'You can answer general educational questions about coffee using your general knowledge.',
-              'Do not claim access to live inventory, orders, payments, or private customer information.',
-              'Never invent store policies or order status.',
-              'If you do not know something, say so honestly.',
+              'When the customer asks about the store catalog, list all provided active products, including out-of-stock products.',
+              'For each product, clearly state its availability and available stock when that information is provided.',
+              'Available stock is the stock quantity minus the reserved stock quantity.',
+              'Never describe a product as available when its available stock is zero.',
+              'If inventory information is missing, say that the availability is unknown.',
+              'Never invent or estimate stock quantities.',
             ].join(' '),
           },
           {
