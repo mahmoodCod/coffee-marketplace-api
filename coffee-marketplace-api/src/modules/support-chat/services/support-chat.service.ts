@@ -72,7 +72,7 @@ export class SupportChatService {
           : 'No matching products were found in the catalog.';
 
       const response = await this.ai.chat.completions.create({
-        model: 'qwen2.5-1.5b-instruct',
+        model: 'qwen3-4b-instruct-2507',
         messages: [
           {
             role: 'system',

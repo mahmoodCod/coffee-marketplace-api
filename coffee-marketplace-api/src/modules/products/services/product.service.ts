@@ -406,6 +406,38 @@ export class ProductService {
       .getMany();
   }
 
+  async findAllForSupportChat(): Promise<Product[]> {
+    return this.productsRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.inventory', 'inventory')
+      .select([
+        'product.id',
+        'product.title',
+        'product.description',
+        'product.price',
+        'product.originalPrice',
+        'product.productType',
+        'product.weight',
+        'product.caffeineLevel',
+        'product.flavorNotes',
+        'product.originCountry',
+        'product.ingredients',
+        'product.benefits',
+        'product.howToUse',
+        'product.recommended',
+        'product.createdAt',
+        'inventory.id',
+        'inventory.stock',
+        'inventory.reservedStock',
+      ])
+      .where('product.status = :status', {
+        status: ProductStatus.ACTIVE,
+      })
+      .orderBy('product.recommended', 'DESC')
+      .addOrderBy('product.createdAt', 'DESC')
+      .getMany();
+  }
+
   /**
    * ------------------------------------------------------------------------
    * Find Seller Products
