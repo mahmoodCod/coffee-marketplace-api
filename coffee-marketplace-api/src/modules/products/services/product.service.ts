@@ -359,6 +359,112 @@ export class ProductService {
 
   /**
    * ------------------------------------------------------------------------
+   * Normalize Support Chat Search Query
+   * ------------------------------------------------------------------------
+   *
+   * Extracts meaningful search terms from the customer's message.
+   *
+   * Responsibilities
+   * ------------------------------------------------------------------------
+   *
+   * - Remove surrounding whitespace.
+   * - Normalize Persian and Arabic character variations.
+   * - Remove punctuation marks.
+   * - Remove common Persian question words.
+   * - Preserve meaningful product-related keywords.
+   *
+   * Examples
+   * ------------------------------------------------------------------------
+   *
+   * Input:
+   * آیا قهوه عربیکا دارید؟
+   *
+   * Output:
+   * قهوه عربیکا
+   *
+   * Input:
+   * لطفاً قهوه عربیکا موجود دارید؟
+   *
+   * Output:
+   * قهوه عربیکا
+   *
+   * @param query Original customer message.
+   * @returns Normalized product search query.
+   * ------------------------------------------------------------------------
+   */
+  private normalizeSupportChatSearchQuery(query: string): string {
+    /**
+     * Normalize whitespace and Persian/Arabic character variations.
+     */
+    const normalizedQuery = query
+      .trim()
+      .toLowerCase()
+      .replace(/[يى]/g, 'ی')
+      .replace(/ك/g, 'ک')
+      .replace(/[ًٌٍَُِّْـ]/g, '')
+      .replace(/[؟?!،,؛;.:()]/g, ' ');
+
+    /**
+     * Common Persian words that do not usually identify a product.
+     */
+    const stopWords = new Set([
+      'آیا',
+      'ایا',
+      'لطفا',
+      'لطفاً',
+      'خواهشا',
+      'خواهشاً',
+      'من',
+      'ما',
+      'شما',
+      'چه',
+      'چی',
+      'کدام',
+      'کدوم',
+      'در',
+      'از',
+      'به',
+      'برای',
+      'را',
+      'رو',
+      'این',
+      'آن',
+      'اون',
+      'یک',
+      'یه',
+      'دارید',
+      'دارین',
+      'دارند',
+      'دارد',
+      'هست',
+      'هستند',
+      'است',
+      'موجود',
+      'می',
+      'کنید',
+      'میکنید',
+      'میشه',
+      'می‌شود',
+      'موجوده',
+      'محصول',
+      'محصولات',
+      'کالا',
+      'کالاها',
+      'فروشگاه',
+    ]);
+
+    /**
+     * Remove empty tokens and common question-related words.
+     */
+    return normalizedQuery
+      .split(/\s+/)
+      .filter((word) => word.length > 0 && !stopWords.has(word))
+      .join(' ')
+      .trim();
+  }
+
+  /**
+   * ------------------------------------------------------------------------
    * Search Products For Support Chat
    * ------------------------------------------------------------------------
    *
@@ -397,12 +503,12 @@ export class ProductService {
    */
   async searchForSupportChat(query: string): Promise<Product[]> {
     /**
-     * Normalize the search query by removing surrounding whitespace.
+     * Extract meaningful product keywords from the customer message.
      */
-    const normalizedQuery = query.trim();
+    const normalizedQuery = this.normalizeSupportChatSearchQuery(query);
 
     /**
-     * Return an empty result when the search query is empty.
+     * Return an empty result when no searchable keywords remain.
      */
     if (!normalizedQuery) {
       return [];
