@@ -358,54 +358,143 @@ export class ProductService {
   }
 
   /**
-   * Searches active products for the support chatbot.
+   * ------------------------------------------------------------------------
+   * Search Products For Support Chat
+   * ------------------------------------------------------------------------
    *
-   * Only public product information is selected.
-   * Soft-deleted products are automatically excluded.
+   * Searches active products based on the customer's message.
+   *
+   * Used by:
+   *
+   * SupportChatService
+   *
+   * Responsibilities
+   * ------------------------------------------------------------------------
+   *
+   * - Search products by title.
+   * - Search products by description.
+   * - Search products by origin country.
+   * - Retrieve product inventory information.
+   *
+   * Business Rules
+   * ------------------------------------------------------------------------
+   *
+   * - Only active products are included.
+   * - Out-of-stock products are not excluded.
+   * - Soft deleted products are automatically excluded.
+   * - Only public product and inventory information is selected.
+   * - Maximum 5 matching products are returned.
+   *
+   * Notes
+   * ------------------------------------------------------------------------
+   *
+   * Inventory information is required by the support chatbot
+   * to calculate available stock and product availability.
+   *
+   * @param query Customer's search message.
+   * @returns Matching products with their inventory information.
+   * ------------------------------------------------------------------------
    */
   async searchForSupportChat(query: string): Promise<Product[]> {
+    /**
+     * Normalize the search query by removing surrounding whitespace.
+     */
     const normalizedQuery = query.trim();
 
+    /**
+     * Return an empty result when the search query is empty.
+     */
     if (!normalizedQuery) {
       return [];
     }
 
-    return this.productsRepository
-      .createQueryBuilder('product')
-      .select([
-        'product.id',
-        'product.title',
-        'product.description',
-        'product.price',
-        'product.originalPrice',
-        'product.productType',
-        'product.weight',
-        'product.caffeineLevel',
-        'product.flavorNotes',
-        'product.originCountry',
-        'product.ingredients',
-        'product.benefits',
-        'product.howToUse',
-      ])
-      .where('product.status = :status', {
-        status: ProductStatus.ACTIVE,
-      })
-      .andWhere(
-        `(
-        product.title ILIKE :query
-        OR product.description ILIKE :query
-        OR product.originCountry ILIKE :query
-      )`,
-        {
-          query: `%${normalizedQuery}%`,
-        },
-      )
-      .orderBy('product.recommended', 'DESC')
-      .addOrderBy('product.createdAt', 'DESC')
-      .take(5)
-      .getMany();
-  }
+    /**
+     * --------------------------------------------------------------------
+     * Build Product Search Query
+     * --------------------------------------------------------------------
+     *
+     * Searches active products and loads their associated inventory.
+     *
+     * The inventory relation is loaded so the support chatbot
+     * can access stock and reserved stock information.
+     * --------------------------------------------------------------------
+     */
+    return (
+      this.productsRepository
+        .createQueryBuilder('product')
+        .leftJoinAndSelect('product.inventory', 'inventory')
+        .select([
+          /**
+           * Public product information.
+           */
+          'product.id',
+          'product.title',
+          'product.description',
+          'product.price',
+          'product.originalPrice',
+          'product.productType',
+          'product.weight',
+          'product.caffeineLevel',
+          'product.flavorNotes',
+          'product.originCountry',
+          'product.ingredients',
+          'product.benefits',
+          'product.howToUse',
+          'product.recommended',
+          'product.createdAt',
 
+          /**
+           * Inventory information required for availability calculation.
+           *
+           * Inventory ID is included so TypeORM can correctly hydrate
+           * the inventory relation.
+           */
+          'inventory.id',
+          'inventory.stock',
+          'inventory.reservedStock',
+        ])
+
+        /**
+         * Only active products are visible to the support chatbot.
+         */
+        .where('product.status = :status', {
+          status: ProductStatus.ACTIVE,
+        })
+
+        /**
+         * Search product title, description, and origin country.
+         */
+        .andWhere(
+          `(
+          product.title ILIKE :query
+          OR product.description ILIKE :query
+          OR product.originCountry ILIKE :query
+        )`,
+          {
+            query: `%${normalizedQuery}%`,
+          },
+        )
+
+        /**
+         * Prioritize recommended products.
+         *
+         * Newer products are displayed first when recommendation
+         * values are equal.
+         */
+        .orderBy('product.recommended', 'DESC')
+        .addOrderBy('product.createdAt', 'DESC')
+
+        /**
+         * Limit the search results to five products.
+         */
+        .take(5)
+
+        /**
+         * Execute the query and return matching products.
+         */
+        .getMany()
+    );
+  }
   async findAllForSupportChat(): Promise<Product[]> {
     return this.productsRepository
       .createQueryBuilder('product')
