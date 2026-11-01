@@ -249,7 +249,7 @@ export class SupportChatService {
       const productContext =
         products.length > 0
           ? JSON.stringify(
-              products.slice(0, 10).map((product) => {
+              products.map((product) => {
                 /**
                  * Retrieve the inventory relation associated with the product.
                  */
