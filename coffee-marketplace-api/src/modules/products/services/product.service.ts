@@ -448,6 +448,15 @@ export class ProductService {
       'محصولات',
       'کالا',
       'کالاها',
+      'می',
+      'خواهم',
+      'خوام',
+      'میخوام',
+      'میخواهم',
+      'بخرم',
+      'میخرم',
+      'می‌خواهم',
+      'می‌خوام',
     ]);
 
     /**
@@ -465,37 +474,23 @@ export class ProductService {
    * Search Products For Support Chat
    * ------------------------------------------------------------------------
    *
-   * Searches active products based on the customer's message.
-   *
-   * Used by:
-   *
-   * SupportChatService
+   * Searches active products using keywords extracted from customer messages.
    *
    * Responsibilities
    * ------------------------------------------------------------------------
+   * - Normalize the customer's search query.
+   * - Search product fields using individual keywords.
+   * - Load inventory information.
+   * - Include out-of-stock products in search results.
+   * - Prioritize recommended and recently created products.
    *
-   * - Search products by title.
-   * - Search products by description.
-   * - Search products by origin country.
-   * - Retrieve product inventory information.
-   *
-   * Business Rules
+   * Search Strategy
    * ------------------------------------------------------------------------
+   * Every keyword must match at least one searchable product field.
+   * Keywords can match different fields of the same product.
    *
-   * - Only active products are included.
-   * - Out-of-stock products are not excluded.
-   * - Soft deleted products are automatically excluded.
-   * - Only public product and inventory information is selected.
-   * - Maximum 5 matching products are returned.
-   *
-   * Notes
-   * ------------------------------------------------------------------------
-   *
-   * Inventory information is required by the support chatbot
-   * to calculate available stock and product availability.
-   *
-   * @param query Customer's search message.
-   * @returns Matching products with their inventory information.
+   * @param query Customer's original message.
+   * @returns Up to five matching products with inventory information.
    * ------------------------------------------------------------------------
    */
   async searchForSupportChat(query: string): Promise<Product[]> {
@@ -512,92 +507,75 @@ export class ProductService {
     }
 
     /**
-     * --------------------------------------------------------------------
-     * Build Product Search Query
-     * --------------------------------------------------------------------
-     *
-     * Searches active products and loads their associated inventory.
-     *
-     * The inventory relation is loaded so the support chatbot
-     * can access stock and reserved stock information.
-     * --------------------------------------------------------------------
+     * Split the normalized query into individual search keywords.
      */
-    return (
-      this.productsRepository
-        .createQueryBuilder('product')
-        .leftJoinAndSelect('product.inventory', 'inventory')
-        .select([
-          /**
-           * Public product information.
-           */
-          'product.id',
-          'product.title',
-          'product.description',
-          'product.price',
-          'product.originalPrice',
-          'product.productType',
-          'product.weight',
-          'product.caffeineLevel',
-          'product.flavorNotes',
-          'product.originCountry',
-          'product.ingredients',
-          'product.benefits',
-          'product.howToUse',
-          'product.recommended',
-          'product.createdAt',
+    const keywords = normalizedQuery.split(/\s+/);
 
-          /**
-           * Inventory information required for availability calculation.
-           *
-           * Inventory ID is included so TypeORM can correctly hydrate
-           * the inventory relation.
-           */
-          'inventory.id',
-          'inventory.stock',
-          'inventory.reservedStock',
-        ])
+    /**
+     * ----------------------------------------------------------------------
+     * Build Product Search Query
+     * ----------------------------------------------------------------------
+     *
+     * Load product inventory and search across supported product fields.
+     * ----------------------------------------------------------------------
+     */
+    const queryBuilder = this.productsRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.inventory', 'inventory')
+      .select([
+        'product.id',
+        'product.title',
+        'product.description',
+        'product.price',
+        'product.originalPrice',
+        'product.productType',
+        'product.weight',
+        'product.caffeineLevel',
+        'product.flavorNotes',
+        'product.originCountry',
+        'product.ingredients',
+        'product.benefits',
+        'product.howToUse',
+        'product.recommended',
+        'product.createdAt',
+        'inventory.id',
+        'inventory.stock',
+        'inventory.reservedStock',
+      ])
+      .where('product.status = :status', {
+        status: ProductStatus.ACTIVE,
+      });
 
-        /**
-         * Only active products are visible to the support chatbot.
-         */
-        .where('product.status = :status', {
-          status: ProductStatus.ACTIVE,
-        })
+    /**
+     * Every keyword must match at least one searchable field.
+     *
+     * Parameter names are generated separately to prevent collisions.
+     */
+    keywords.forEach((keyword, index) => {
+      const parameterName = `keyword${index}`;
 
-        /**
-         * Search product title, description, and origin country.
-         */
-        .andWhere(
-          `(
-          product.title ILIKE :query
-          OR product.description ILIKE :query
-          OR product.originCountry ILIKE :query
-        )`,
-          {
-            query: `%${normalizedQuery}%`,
-          },
-        )
+      queryBuilder.andWhere(
+        `(
+        product.title ILIKE :${parameterName}
+        OR product.description ILIKE :${parameterName}
+        OR product.originCountry ILIKE :${parameterName}
+      )`,
+        {
+          [parameterName]: `%${keyword}%`,
+        },
+      );
+    });
 
-        /**
-         * Prioritize recommended products.
-         *
-         * Newer products are displayed first when recommendation
-         * values are equal.
-         */
-        .orderBy('product.recommended', 'DESC')
-        .addOrderBy('product.createdAt', 'DESC')
-
-        /**
-         * Limit the search results to five products.
-         */
-        .take(5)
-
-        /**
-         * Execute the query and return matching products.
-         */
-        .getMany()
-    );
+    /**
+     * Prioritize recommended products and then newer products.
+     */
+    return queryBuilder
+      .orderBy('product.recommended', 'DESC')
+      .addOrderBy('product.createdAt', 'DESC')
+      .take(5)
+      .getMany();
   }
+
   async findAllForSupportChat(): Promise<Product[]> {
     return this.productsRepository
       .createQueryBuilder('product')
