@@ -362,58 +362,54 @@ export class ProductService {
    * Normalize Support Chat Search Query
    * ------------------------------------------------------------------------
    *
-   * Extracts meaningful search terms from the customer's message.
+   * Extracts meaningful product keywords from a customer message.
    *
    * Responsibilities
    * ------------------------------------------------------------------------
-   *
-   * - Remove surrounding whitespace.
    * - Normalize Persian and Arabic character variations.
-   * - Remove punctuation marks.
-   * - Remove common Persian question words.
-   * - Preserve meaningful product-related keywords.
+   * - Normalize whitespace and punctuation.
+   * - Remove common conversational and question-related words.
+   * - Preserve meaningful product names and characteristics.
    *
    * Examples
    * ------------------------------------------------------------------------
+   * - سلام، آیا قهوه عربیکا دارید؟ → قهوه عربیکا
+   * - من قهوه کلمبیا می‌خواهم → قهوه کلمبیا
+   * - لطفاً قهوه بدون کافئین را نشان بده → قهوه بدون کافئین
    *
-   * Input:
-   * آیا قهوه عربیکا دارید؟
-   *
-   * Output:
-   * قهوه عربیکا
-   *
-   * Input:
-   * لطفاً قهوه عربیکا موجود دارید؟
-   *
-   * Output:
-   * قهوه عربیکا
-   *
-   * @param query Original customer message.
-   * @returns Normalized product search query.
+   * @param query Customer's original message.
+   * @returns Normalized product search keywords.
    * ------------------------------------------------------------------------
    */
   private normalizeSupportChatSearchQuery(query: string): string {
     /**
-     * Normalize whitespace and Persian/Arabic character variations.
+     * Normalize Persian/Arabic characters, punctuation,
+     * diacritics, and whitespace.
      */
     const normalizedQuery = query
       .trim()
       .toLowerCase()
       .replace(/[يى]/g, 'ی')
       .replace(/ك/g, 'ک')
-      .replace(/[ًٌٍَُِّْـ]/g, '')
-      .replace(/[؟?!،,؛;.:()]/g, ' ');
+      .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+      .replace(/[\u200c\u200f]/g, ' ')
+      .replace(/[؟?!،,؛;.:()[\]{}"«»]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
     /**
-     * Common Persian words that do not usually identify a product.
+     * Common conversational words that do not identify products.
      */
     const stopWords = new Set([
-      'آیا',
-      'ایا',
+      'سلام',
+      'درود',
+      'ببخشید',
       'لطفا',
       'لطفاً',
       'خواهشا',
       'خواهشاً',
+      'آیا',
+      'ایا',
       'من',
       'ما',
       'شما',
@@ -439,22 +435,23 @@ export class ProductService {
       'هست',
       'هستند',
       'است',
-      'موجود',
-      'می',
-      'کنید',
-      'میکنید',
       'میشه',
+      'میشود',
       'می‌شود',
-      'موجوده',
+      'کنید',
+      'نمایش',
+      'نشان',
+      'بده',
+      'بدهید',
+      'فروشگاه',
       'محصول',
       'محصولات',
       'کالا',
       'کالاها',
-      'فروشگاه',
     ]);
 
     /**
-     * Remove empty tokens and common question-related words.
+     * Remove conversational words while preserving product keywords.
      */
     return normalizedQuery
       .split(/\s+/)
