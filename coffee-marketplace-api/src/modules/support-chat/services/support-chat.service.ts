@@ -80,6 +80,74 @@ export class SupportChatService {
 
   /**
    * ------------------------------------------------------------------------
+   * Is Catalog Question
+   * ------------------------------------------------------------------------
+   *
+   * Determines whether the customer is asking for the complete
+   * product catalog instead of searching for a specific product.
+   *
+   * Responsibilities
+   * ------------------------------------------------------------------------
+   *
+   * - Normalize the customer's message.
+   * - Ignore common greetings and conversational expressions.
+   * - Detect common Persian catalog-related questions.
+   *
+   * Examples
+   * ------------------------------------------------------------------------
+   *
+   * - چه محصولاتی دارید؟
+   * - سلام، محصولات فروشگاه را دارید؟
+   * - لیست محصولات فروشگاه را نشان بده.
+   * - چه کالاهایی در فروشگاه موجود هستند؟
+   *
+   * Notes
+   * ------------------------------------------------------------------------
+   *
+   * Specific product questions must not be treated as catalog questions.
+   *
+   * @param message Customer's original message.
+   * @returns True if the message requests the complete product catalog.
+   * ------------------------------------------------------------------------
+   */
+  private isCatalogQuestion(message: string): boolean {
+    /**
+     * Normalize punctuation and whitespace before checking the message.
+     */
+    const normalizedMessage = message
+      .trim()
+      .toLowerCase()
+      .replace(/[؟?!،,.؛:()[\]{}"«»]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    /**
+     * Remove common greetings and polite expressions.
+     */
+    const cleanedMessage = normalizedMessage.replace(
+      /^(سلام|درود|وقت بخیر|ببخشید|لطفا|لطفاً)\s+/,
+      '',
+    );
+
+    /**
+     * Patterns for general product catalog questions.
+     */
+    const catalogPatterns = [
+      /^(چه|کدام) (محصولات|کالاها)(ی)?(ی)?( در این فروشگاه| فروشگاه)? (دارید|موجود هستند|موجود است)$/,
+      /^(محصولات|کالاهای) (این )?فروشگاه (را )?(دارید|موجود هستند|موجود است)$/,
+      /^(لیست|فهرست) (تمام )?(محصولات|کالاهای)( فروشگاه)?( را نشان بده| را نمایش بده)?$/,
+      /^آیا (محصولی|کالایی) در (این )?فروشگاه (وجود دارد|هست)$/,
+      /^(تمام|همه) (محصولات|کالاها)(ی فروشگاه)?( را )?(نشان بده|نمایش بده|لیست کن)$/,
+    ];
+
+    /**
+     * Return true when at least one catalog pattern matches.
+     */
+    return catalogPatterns.some((pattern) => pattern.test(cleanedMessage));
+  }
+
+  /**
+   * ------------------------------------------------------------------------
    * Send Message
    * ------------------------------------------------------------------------
    *
@@ -115,40 +183,9 @@ export class SupportChatService {
 
     try {
       /**
-       * ------------------------------------------------------------------
-       * Normalize Customer Message
-       * ------------------------------------------------------------------
-       *
-       * Removes surrounding whitespace and converts the message to
-       * lowercase to make catalog question detection more consistent.
-       * ------------------------------------------------------------------
+       * Determine whether the customer is requesting the complete product catalog.
        */
-      const normalizedMessage = message.trim().toLowerCase();
-
-      /**
-       * ------------------------------------------------------------------
-       * Detect Product Catalog Questions
-       * ------------------------------------------------------------------
-       *
-       * Determines whether the customer is asking for the complete
-       * list of products available in the store.
-       *
-       * The regular expression supports common Persian expressions
-       * such as:
-       *
-       * - محصولات فروشگاه را دارید؟
-       * - چه محصولاتی دارید؟
-       * - لیست محصولات
-       * - آیا محصولی در این فروشگاه هست؟
-       *
-       * Catalog questions require retrieving all active products
-       * instead of searching for a specific product.
-       * ------------------------------------------------------------------
-       */
-      const isCatalogQuestion =
-        /^(آیا )?(محصولات|کالاهای) (این )?(فروشگاه )?(را )?(دارید|موجود است|موجود هستند)\??$|^(چه )?(محصولات|کالاهایی) (در این فروشگاه )?(دارید|موجود است)\??$|^(لیست|فهرست) محصولات( فروشگاه)?\??$|^آیا محصولی (در این فروشگاه|داخل این فروشگاه) هست\??$/.test(
-          normalizedMessage,
-        );
+      const isCatalogQuestion = this.isCatalogQuestion(message);
 
       /**
        * Stores products retrieved from the database.
