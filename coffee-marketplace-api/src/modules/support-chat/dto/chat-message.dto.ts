@@ -1,6 +1,12 @@
 import { Transform } from 'class-transformer';
-import { IsString, MaxLength, MinLength } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ChatMessageDto {
   @ApiProperty({
@@ -14,4 +20,12 @@ export class ChatMessageDto {
   @MinLength(1)
   @MaxLength(2000)
   message: string;
+
+  @ApiPropertyOptional({
+    description: 'The conversation session identifier.',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @IsOptional()
+  @IsUUID()
+  sessionId?: string;
 }
