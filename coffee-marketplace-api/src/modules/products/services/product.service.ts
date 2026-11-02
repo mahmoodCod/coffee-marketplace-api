@@ -362,30 +362,20 @@ export class ProductService {
    * Normalize Support Chat Search Query
    * ------------------------------------------------------------------------
    *
-   * Extracts meaningful product keywords from a customer message.
+   * Normalizes customer messages before product search.
    *
    * Responsibilities
    * ------------------------------------------------------------------------
    * - Normalize Persian and Arabic character variations.
-   * - Normalize whitespace and punctuation.
-   * - Remove common conversational and question-related words.
-   * - Preserve meaningful product names and characteristics.
-   *
-   * Examples
-   * ------------------------------------------------------------------------
-   * - سلام، آیا قهوه عربیکا دارید؟ → قهوه عربیکا
-   * - من قهوه کلمبیا می‌خواهم → قهوه کلمبیا
-   * - لطفاً قهوه بدون کافئین را نشان بده → قهوه بدون کافئین
+   * - Remove diacritics and punctuation.
+   * - Normalize whitespace and Persian half-spaces.
+   * - Remove common question and conversational words.
    *
    * @param query Customer's original message.
    * @returns Normalized product search keywords.
    * ------------------------------------------------------------------------
    */
   private normalizeSupportChatSearchQuery(query: string): string {
-    /**
-     * Normalize Persian/Arabic characters, punctuation,
-     * diacritics, and whitespace.
-     */
     const normalizedQuery = query
       .trim()
       .toLowerCase()
@@ -397,9 +387,6 @@ export class ProductService {
       .replace(/\s+/g, ' ')
       .trim();
 
-    /**
-     * Common conversational words that do not identify products.
-     */
     const stopWords = new Set([
       'سلام',
       'درود',
@@ -428,40 +415,13 @@ export class ProductService {
       'اون',
       'یک',
       'یه',
-      'دارید',
-      'دارین',
-      'دارند',
-      'دارد',
-      'هست',
-      'هستند',
-      'است',
-      'میشه',
-      'میشود',
-      'می‌شود',
-      'کنید',
-      'نمایش',
-      'نشان',
-      'بده',
-      'بدهید',
       'فروشگاه',
       'محصول',
       'محصولات',
       'کالا',
       'کالاها',
-      'می',
-      'خواهم',
-      'خوام',
-      'میخوام',
-      'میخواهم',
-      'بخرم',
-      'میخرم',
-      'می‌خواهم',
-      'می‌خوام',
     ]);
 
-    /**
-     * Remove conversational words while preserving product keywords.
-     */
     return normalizedQuery
       .split(/\s+/)
       .filter((word) => word.length > 0 && !stopWords.has(word))
@@ -474,51 +434,30 @@ export class ProductService {
    * Search Products For Support Chat
    * ------------------------------------------------------------------------
    *
-   * Searches active products using keywords extracted from customer messages.
+   * Searches active products using keyword matching and trigram similarity.
    *
    * Responsibilities
    * ------------------------------------------------------------------------
-   * - Normalize the customer's search query.
-   * - Search product fields using individual keywords.
+   * - Normalize customer search queries.
+   * - Match individual keywords across searchable product fields.
+   * - Detect approximate product title matches using pg_trgm.
    * - Load inventory information.
-   * - Include out-of-stock products in search results.
-   * - Prioritize recommended and recently created products.
-   *
-   * Search Strategy
-   * ------------------------------------------------------------------------
-   * Every keyword must match at least one searchable product field.
-   * Keywords can match different fields of the same product.
+   * - Include out-of-stock products.
+   * - Prioritize relevant products.
    *
    * @param query Customer's original message.
    * @returns Up to five matching products with inventory information.
    * ------------------------------------------------------------------------
    */
   async searchForSupportChat(query: string): Promise<Product[]> {
-    /**
-     * Extract meaningful product keywords from the customer message.
-     */
     const normalizedQuery = this.normalizeSupportChatSearchQuery(query);
 
-    /**
-     * Return an empty result when no searchable keywords remain.
-     */
     if (!normalizedQuery) {
       return [];
     }
 
-    /**
-     * Split the normalized query into individual search keywords.
-     */
     const keywords = normalizedQuery.split(/\s+/);
 
-    /**
-     * ----------------------------------------------------------------------
-     * Build Product Search Query
-     * ----------------------------------------------------------------------
-     *
-     * Load product inventory and search across supported product fields.
-     * ----------------------------------------------------------------------
-     */
     const queryBuilder = this.productsRepository
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.inventory', 'inventory')
@@ -547,33 +486,52 @@ export class ProductService {
       });
 
     /**
-     * Every keyword must match at least one searchable field.
-     *
-     * Parameter names are generated separately to prevent collisions.
+     * Match the complete query against the product title.
      */
-    keywords.forEach((keyword, index) => {
-      const parameterName = `keyword${index}`;
+    queryBuilder.andWhere(
+      `(
+      product.title ILIKE :searchTerm
+      OR similarity(product.title, :normalizedQuery) >= :similarityThreshold
+      OR ${keywords
+        .map((_, index) => {
+          const parameterName = `keyword${index}`;
 
-      queryBuilder.andWhere(
-        `(
-        product.title ILIKE :${parameterName}
-        OR product.description ILIKE :${parameterName}
-        OR product.originCountry ILIKE :${parameterName}
-      )`,
-        {
-          [parameterName]: `%${keyword}%`,
-        },
-      );
-    });
+          return `(
+            product.title ILIKE :${parameterName}
+            OR product.description ILIKE :${parameterName}
+            OR product.originCountry ILIKE :${parameterName}
+            OR product.flavorNotes ILIKE :${parameterName}
+            OR product.ingredients ILIKE :${parameterName}
+            OR product.benefits ILIKE :${parameterName}
+            OR product.howToUse ILIKE :${parameterName}
+          )`;
+        })
+        .join(' OR ')}
+    )`,
+      {
+        searchTerm: `%${normalizedQuery}%`,
+        normalizedQuery,
+        similarityThreshold: 0.3,
+        ...Object.fromEntries(
+          keywords.map((keyword, index) => [`keyword${index}`, `%${keyword}%`]),
+        ),
+      },
+    );
 
     /**
-     * Prioritize recommended products and then newer products.
+     * Rank results by title similarity and recommendation status.
      */
-    return queryBuilder
-      .orderBy('product.recommended', 'DESC')
+    queryBuilder
+      .addSelect(
+        'similarity(product.title, :normalizedQuery)',
+        'title_similarity',
+      )
+      .orderBy('title_similarity', 'DESC')
+      .addOrderBy('product.recommended', 'DESC')
       .addOrderBy('product.createdAt', 'DESC')
-      .take(5)
-      .getMany();
+      .take(5);
+
+    return queryBuilder.getMany();
   }
 
   async findAllForSupportChat(): Promise<Product[]> {
