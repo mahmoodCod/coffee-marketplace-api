@@ -478,8 +478,8 @@ export class ProductService {
         'product.recommended',
         'product.createdAt',
         'inventory.id',
-        'inventory.stock',
-        'inventory.reservedStock',
+        // 'inventory.stock',
+        // 'inventory.reservedStock',
       ])
       .where('product.status = :status', {
         status: ProductStatus.ACTIVE,
@@ -555,8 +555,8 @@ export class ProductService {
         'product.recommended',
         'product.createdAt',
         'inventory.id',
-        'inventory.stock',
-        'inventory.reservedStock',
+        // 'inventory.stock',
+        // 'inventory.reservedStock',
       ])
       .where('product.status = :status', {
         status: ProductStatus.ACTIVE,

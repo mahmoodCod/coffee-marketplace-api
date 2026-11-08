@@ -83,67 +83,40 @@ export class SupportChatService {
    * Is Catalog Question
    * ------------------------------------------------------------------------
    *
-   * Determines whether the customer is asking for the complete
-   * product catalog instead of searching for a specific product.
+   * Determines whether the customer is requesting the store's product catalog.
    *
    * Responsibilities
    * ------------------------------------------------------------------------
    *
    * - Normalize the customer's message.
-   * - Ignore common greetings and conversational expressions.
-   * - Detect common Persian catalog-related questions.
-   *
-   * Examples
-   * ------------------------------------------------------------------------
-   *
-   * - چه محصولاتی دارید؟
-   * - سلام، محصولات فروشگاه را دارید؟
-   * - لیست محصولات فروشگاه را نشان بده.
-   * - چه کالاهایی در فروشگاه موجود هستند؟
-   *
-   * Notes
-   * ------------------------------------------------------------------------
-   *
-   * Specific product questions must not be treated as catalog questions.
+   * - Detect general product catalog requests.
+   * - Distinguish catalog requests from specific product searches.
    *
    * @param message Customer's original message.
-   * @returns True if the message requests the complete product catalog.
+   * @returns True if the customer requests the product catalog.
    * ------------------------------------------------------------------------
    */
   private isCatalogQuestion(message: string): boolean {
-    /**
-     * Normalize punctuation and whitespace before checking the message.
-     */
     const normalizedMessage = message
       .trim()
       .toLowerCase()
+      .replace(/[يى]/g, 'ی')
+      .replace(/ك/g, 'ک')
+      .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+      .replace(/[\u200c\u200f]/g, ' ')
       .replace(/[؟?!،,.؛:()[\]{}"«»]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
 
-    /**
-     * Remove common greetings and polite expressions.
-     */
-    const cleanedMessage = normalizedMessage.replace(
-      /^(سلام|درود|وقت بخیر|ببخشید|لطفا|لطفاً)\s+/,
-      '',
-    );
-
-    /**
-     * Patterns for general product catalog questions.
-     */
     const catalogPatterns = [
-      /^(چه|کدام) (محصولات|کالاها)(ی)?(ی)?( در این فروشگاه| فروشگاه)? (دارید|موجود هستند|موجود است)$/,
-      /^(محصولات|کالاهای) (این )?فروشگاه (را )?(دارید|موجود هستند|موجود است)$/,
-      /^(لیست|فهرست) (تمام )?(محصولات|کالاهای)( فروشگاه)?( را نشان بده| را نمایش بده)?$/,
-      /^آیا (محصولی|کالایی) در (این )?فروشگاه (وجود دارد|هست)$/,
-      /^(تمام|همه) (محصولات|کالاها)(ی فروشگاه)?( را )?(نشان بده|نمایش بده|لیست کن)$/,
+      /^(چه|کدام)\s+(محصولات|محصولاتی|کالاها|کالاهایی)(?:\s+(?:در|توی|داخل)\s+(?:این\s+)?فروشگاه)?\s+(هست|هستند|دارید|موجود(?:\s+هست|هستند)?|وجود\s+دارد|وجود\s+دارند)$/,
+      /^(چه|کدام)\s+(محصولات|محصولاتی|کالاها|کالاهایی)\s+(?:در|توی|داخل)\s+(?:این\s+)?فروشگاه\s+(?:هست|هستند|دارید|موجود(?:\s+هست|هستند)?)$/,
+      /^(محصولات|کالاهای)\s+(?:این\s+)?فروشگاه\s+(?:چه\s+هستند|چی\s+هستند|را\s+نمایش\s+بده|را\s+نشان\s+بده)$/,
+      /^(لیست|فهرست)\s+(?:تمام\s+|همه\s+)?(محصولات|کالاها)(?:\s+فروشگاه)?(?:\s+را)?(?:\s+(نمایش\s+بده|نشان\s+بده|لیست\s+کن))?$/,
+      /^(تمام|همه)\s+(محصولات|کالاها)(?:\s+فروشگاه)?(?:\s+را)?\s+(نمایش\s+بده|نشان\s+بده|لیست\s+کن)$/,
     ];
 
-    /**
-     * Return true when at least one catalog pattern matches.
-     */
-    return catalogPatterns.some((pattern) => pattern.test(cleanedMessage));
+    return catalogPatterns.some((pattern) => pattern.test(normalizedMessage));
   }
 
   /**
