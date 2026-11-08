@@ -96,6 +96,7 @@ export class SupportChatService {
    * @returns True if the customer requests the product catalog.
    * ------------------------------------------------------------------------
    */
+
   private isCatalogQuestion(message: string): boolean {
     const normalizedMessage = message
       .trim()
@@ -108,15 +109,19 @@ export class SupportChatService {
       .replace(/\s+/g, ' ')
       .trim();
 
-    const catalogPatterns = [
-      /^(چه|کدام)\s+(محصولات|محصولاتی|کالاها|کالاهایی)(?:\s+(?:در|توی|داخل)\s+(?:این\s+)?فروشگاه)?\s+(هست|هستند|دارید|موجود(?:\s+هست|هستند)?|وجود\s+دارد|وجود\s+دارند)$/,
-      /^(چه|کدام)\s+(محصولات|محصولاتی|کالاها|کالاهایی)\s+(?:در|توی|داخل)\s+(?:این\s+)?فروشگاه\s+(?:هست|هستند|دارید|موجود(?:\s+هست|هستند)?)$/,
-      /^(محصولات|کالاهای)\s+(?:این\s+)?فروشگاه\s+(?:چه\s+هستند|چی\s+هستند|را\s+نمایش\s+بده|را\s+نشان\s+بده)$/,
-      /^(لیست|فهرست)\s+(?:تمام\s+|همه\s+)?(محصولات|کالاها)(?:\s+فروشگاه)?(?:\s+را)?(?:\s+(نمایش\s+بده|نشان\s+بده|لیست\s+کن))?$/,
-      /^(تمام|همه)\s+(محصولات|کالاها)(?:\s+فروشگاه)?(?:\s+را)?\s+(نمایش\s+بده|نشان\s+بده|لیست\s+کن)$/,
-    ];
+    const hasCatalogKeyword =
+      /\b(محصول|محصولات|کالا|کالاها|اجناس|فهرست|لیست)\b/.test(
+        normalizedMessage,
+      );
 
-    return catalogPatterns.some((pattern) => pattern.test(normalizedMessage));
+    const hasCatalogIntent =
+      /\b(چه|کدام|همه|تمام|لیست|فهرست)\b/.test(normalizedMessage) ||
+      /\b(چی|چیا)\b/.test(normalizedMessage) ||
+      /(نشون بده|نشان بده|نمایش بده|لیست کن|چی دارین|چی دارید)/.test(
+        normalizedMessage,
+      );
+
+    return hasCatalogKeyword && hasCatalogIntent;
   }
 
   /**
@@ -159,6 +164,8 @@ export class SupportChatService {
        * Determine whether the customer is requesting the complete product catalog.
        */
       const isCatalogQuestion = this.isCatalogQuestion(message);
+
+      this.logger.log(`Catalog question detected: ${isCatalogQuestion}`);
 
       /**
        * Stores products retrieved from the database.
@@ -205,6 +212,12 @@ export class SupportChatService {
          */
         products = await this.productService.searchForSupportChat(message);
       }
+
+      this.logger.log(`Retrieved products count: ${products.length}`);
+
+      this.logger.debug(
+        `Retrieved product titles: ${products.map((product) => product.title).join(', ')}`,
+      );
 
       /**
        * ------------------------------------------------------------------
