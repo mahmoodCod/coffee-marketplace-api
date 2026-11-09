@@ -97,8 +97,8 @@ export class SupportChatService {
    * ------------------------------------------------------------------------
    */
 
-  private isCatalogQuestion(message: string): boolean {
-    const normalizedMessage = message
+  private normalizeCustomerMessage(message: string): string {
+    return message
       .trim()
       .toLowerCase()
       .replace(/[يى]/g, 'ی')
@@ -108,20 +108,108 @@ export class SupportChatService {
       .replace(/[؟?!،,.؛:()[\]{}"«»]/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
+  }
 
-    const hasCatalogKeyword =
-      /\b(محصول|محصولات|کالا|کالاها|اجناس|فهرست|لیست)\b/.test(
+  /**
+   * JavaScript `\b` only matches ASCII word characters, so it never
+   * matches Persian words such as «محصولات» or «چیه».
+   */
+  private isCatalogQuestion(message: string): boolean {
+    const normalizedMessage = this.normalizeCustomerMessage(message);
+    const tokens = normalizedMessage.split(' ').filter((token) => token.length > 0);
+
+    const isCatalogWord = (token: string): boolean =>
+      token.startsWith('محصول') ||
+      token.startsWith('کالا') ||
+      token.startsWith('فروشگاه') ||
+      token === 'اجناس' ||
+      token === 'فهرست' ||
+      token === 'لیست';
+
+    const questionWords = new Set([
+      'کدام',
+      'کدوم',
+      'همه',
+      'تمام',
+      'تمامی',
+      'هست',
+      'هستن',
+      'هستش',
+      'دارید',
+      'دارین',
+      'داری',
+      'داره',
+      'موجود',
+      'موجوده',
+      'موجودی',
+      'نشون',
+      'نشان',
+      'نمایش',
+    ]);
+
+    const isQuestionWord = (token: string): boolean =>
+      token.startsWith('چی') ||
+      token.startsWith('چه') ||
+      questionWords.has(token);
+
+    const fillerWords = new Set([
+      'سلام',
+      'درود',
+      'ببخشید',
+      'لطفا',
+      'من',
+      'ما',
+      'شما',
+      'در',
+      'از',
+      'به',
+      'برای',
+      'را',
+      'رو',
+      'این',
+      'آن',
+      'اون',
+      'یک',
+      'یه',
+      'توی',
+      'تو',
+      'بده',
+      'کن',
+      'کنید',
+      'بگو',
+      'بگید',
+      'بگین',
+      'الان',
+    ]);
+
+    const hasCatalogWord = tokens.some(isCatalogWord);
+    const hasQuestionWord = tokens.some(isQuestionWord);
+    const hasListWord = tokens.some((token) =>
+      ['لیست', 'فهرست', 'همه', 'تمام', 'تمامی'].includes(token),
+    );
+    const asksToList = /(نشون بده|نشان بده|نمایش بده|لیست کن)/.test(
+      normalizedMessage,
+    );
+    const asksWhatYouHave =
+      /(چی دارین|چی دارید|چیا دارین|چیا دارید|چه دارید|چه دارین)/.test(
         normalizedMessage,
       );
 
-    const hasCatalogIntent =
-      /\b(چه|کدام|همه|تمام|لیست|فهرست)\b/.test(normalizedMessage) ||
-      /\b(چی|چیا)\b/.test(normalizedMessage) ||
-      /(نشون بده|نشان بده|نمایش بده|لیست کن|چی دارین|چی دارید)/.test(
-        normalizedMessage,
-      );
+    const specificTokens = tokens.filter(
+      (token) =>
+        !isCatalogWord(token) &&
+        !isQuestionWord(token) &&
+        !fillerWords.has(token),
+    );
 
-    return hasCatalogKeyword && hasCatalogIntent;
+    if (specificTokens.length > 0) {
+      return false;
+    }
+
+    return (
+      asksWhatYouHave ||
+      (hasCatalogWord && (hasQuestionWord || hasListWord || asksToList))
+    );
   }
 
   /**
@@ -329,7 +417,9 @@ export class SupportChatService {
                * Include all provided active products when answering
                * product catalog questions.
                */
-              'When the customer asks about the store catalog, list all provided active products, including out-of-stock products.',
+              'When the customer asks about the store catalog, list every provided product by its exact title, including products whose available stock is zero.',
+              'A provided product exists in the store. Available stock of zero means it is temporarily out of stock, not that the store has no products.',
+              'Never say that no product is registered, or that the catalog is empty, when product information is provided.',
 
               /**
                * Require the AI to clearly communicate product availability.
