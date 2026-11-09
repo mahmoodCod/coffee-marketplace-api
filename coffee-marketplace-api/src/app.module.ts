@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { configuration, validationSchema } from './config';
 import { DatabaseModule } from './database/database.module';
+import { RedisModule } from './redis';
 import { RolesModule } from './modules/roles/roles.module';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -33,6 +34,7 @@ import { SupportChatModule } from './modules/support-chat/support-chat.module';
       expandVariables: true,
     }),
     DatabaseModule,
+    RedisModule,
     ConfigModule,
     RolesModule,
     UsersModule,

@@ -1,9 +1,9 @@
-
 import { ServiceUnavailableException } from '@nestjs/common';
 import type OpenAI from 'openai';
 
 import { Product } from 'src/modules/products/entities/product.entity';
 import { ProductService } from 'src/modules/products/services/product.service';
+import { SupportChatHistoryService } from '../services/support-chat-history.service';
 import { SupportChatService } from '../services/support-chat.service';
 
 describe('SupportChatService', () => {
@@ -12,6 +12,11 @@ describe('SupportChatService', () => {
   const productServiceMock = {
     findAllForSupportChat: jest.fn(),
     searchForSupportChat: jest.fn(),
+  };
+
+  const supportChatHistoryServiceMock = {
+    getHistory: jest.fn(),
+    appendTurn: jest.fn(),
   };
 
   let aiCreateSpy: jest.SpyInstance;
@@ -30,8 +35,12 @@ describe('SupportChatService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
+    supportChatHistoryServiceMock.getHistory.mockResolvedValue([]);
+    supportChatHistoryServiceMock.appendTurn.mockResolvedValue(undefined);
+
     service = new SupportChatService(
       productServiceMock as unknown as ProductService,
+      supportChatHistoryServiceMock as unknown as SupportChatHistoryService,
     );
 
     // Access the private AI client only for unit testing.
@@ -52,7 +61,9 @@ describe('SupportChatService', () => {
       expect(productServiceMock.searchForSupportChat).not.toHaveBeenCalled();
 
       expect(result.reply).toContain('هنوز محصولی');
+      expect(result.sessionId).toEqual(expect.any(String));
       expect(aiCreateSpy).not.toHaveBeenCalled();
+      expect(supportChatHistoryServiceMock.appendTurn).toHaveBeenCalledTimes(1);
     });
 
     it('should recognize a casual request to list all products', async () => {
@@ -93,6 +104,68 @@ describe('SupportChatService', () => {
 
       expect(productServiceMock.findAllForSupportChat).not.toHaveBeenCalled();
       expect(result.reply).toBe('پاسخ آزمایشی چت‌بات');
+      expect(result.sessionId).toEqual(expect.any(String));
+    });
+
+    it('should create a session id when the client does not provide one', async () => {
+      productServiceMock.searchForSupportChat.mockResolvedValue([]);
+
+      const result = await service.sendMessage('سلام');
+
+      expect(result.sessionId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      );
+      expect(supportChatHistoryServiceMock.getHistory).toHaveBeenCalledWith(
+        result.sessionId,
+      );
+    });
+
+    it('should reuse the provided session id and include Redis history in the AI request', async () => {
+      const sessionId = '550e8400-e29b-41d4-a716-446655440000';
+
+      supportChatHistoryServiceMock.getHistory.mockResolvedValue([
+        {
+          role: 'user',
+          content: 'سلام',
+        },
+        {
+          role: 'assistant',
+          content: 'سلام، چطور می‌توانم کمک کنم؟',
+        },
+      ]);
+
+      productServiceMock.searchForSupportChat.mockResolvedValue([]);
+
+      const result = await service.sendMessage(
+        'همون قهوه‌ای که گفتی چقدر بود؟',
+        sessionId,
+      );
+
+      expect(result.sessionId).toBe(sessionId);
+      expect(supportChatHistoryServiceMock.getHistory).toHaveBeenCalledWith(
+        sessionId,
+      );
+
+      const aiRequest = aiCreateSpy.mock.calls[0][0];
+
+      expect(aiRequest.messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            role: 'user',
+            content: 'سلام',
+          }),
+          expect.objectContaining({
+            role: 'assistant',
+            content: 'سلام، چطور می‌توانم کمک کنم؟',
+          }),
+        ]),
+      );
+
+      expect(supportChatHistoryServiceMock.appendTurn).toHaveBeenCalledWith(
+        sessionId,
+        'همون قهوه‌ای که گفتی چقدر بود؟',
+        'پاسخ آزمایشی چت‌بات',
+      );
     });
 
     it('should include out-of-stock products in the AI context', async () => {
@@ -126,7 +199,10 @@ describe('SupportChatService', () => {
       const aiRequest = aiCreateSpy.mock.calls[0][0];
 
       const userMessage = aiRequest.messages.find(
-        (message) => message.role === 'user',
+        (message: { role: string; content?: string }) =>
+          message.role === 'user' &&
+          typeof message.content === 'string' &&
+          message.content.includes('Customer question:'),
       );
 
       expect(userMessage?.content).toContain('قهوه عربیکا');
@@ -162,7 +238,10 @@ describe('SupportChatService', () => {
 
       const aiRequest = aiCreateSpy.mock.calls[0][0];
       const userMessage = aiRequest.messages.find(
-        (message) => message.role === 'user',
+        (message: { role: string; content?: string }) =>
+          message.role === 'user' &&
+          typeof message.content === 'string' &&
+          message.content.includes('Customer question:'),
       );
 
       expect(userMessage?.content).toContain('قهوه روبوستا');
@@ -199,7 +278,10 @@ describe('SupportChatService', () => {
 
       const aiRequest = aiCreateSpy.mock.calls[0][0];
       const userMessage = aiRequest.messages.find(
-        (message) => message.role === 'user',
+        (message: { role: string; content?: string }) =>
+          message.role === 'user' &&
+          typeof message.content === 'string' &&
+          message.content.includes('Customer question:'),
       );
 
       expect(userMessage?.content).toContain('قهوه ترک');
@@ -218,7 +300,10 @@ describe('SupportChatService', () => {
 
       const aiRequest = aiCreateSpy.mock.calls[0][0];
       const userMessage = aiRequest.messages.find(
-        (message) => message.role === 'user',
+        (message: { role: string; content?: string }) =>
+          message.role === 'user' &&
+          typeof message.content === 'string' &&
+          message.content.includes('Customer question:'),
       );
 
       expect(userMessage?.content).toContain(
@@ -254,7 +339,7 @@ describe('SupportChatService', () => {
 
       const aiRequest = aiCreateSpy.mock.calls[0][0];
       const systemMessage = aiRequest.messages.find(
-        (message) => message.role === 'system',
+        (message: { role: string }) => message.role === 'system',
       );
 
       expect(systemMessage?.content).toContain(
@@ -276,6 +361,7 @@ describe('SupportChatService', () => {
       await expect(service.sendMessage('سلام')).rejects.toBeInstanceOf(
         ServiceUnavailableException,
       );
+      expect(supportChatHistoryServiceMock.appendTurn).not.toHaveBeenCalled();
     });
 
     it('should handle local AI connection errors', async () => {

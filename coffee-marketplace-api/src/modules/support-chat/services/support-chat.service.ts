@@ -3,11 +3,14 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 
 import OpenAI from 'openai';
 
 import { Product } from 'src/modules/products/entities/product.entity';
 import { ProductService } from 'src/modules/products/services/product.service';
+
+import { SupportChatHistoryService } from './support-chat-history.service';
 
 /**
  * ------------------------------------------------------------------------
@@ -23,6 +26,7 @@ import { ProductService } from 'src/modules/products/services/product.service';
  * - Detect product catalog questions.
  * - Retrieve relevant products from the database.
  * - Retrieve product inventory information.
+ * - Load and persist conversation history in Redis.
  * - Build product context for the AI model.
  * - Generate customer support responses.
  * - Handle AI service errors.
@@ -57,7 +61,10 @@ export class SupportChatService {
    */
   private readonly logger = new Logger(SupportChatService.name);
 
-  constructor(private readonly productService: ProductService) {
+  constructor(
+    private readonly productService: ProductService,
+    private readonly supportChatHistoryService: SupportChatHistoryService,
+  ) {
     /**
      * --------------------------------------------------------------------
      * Initialize Local AI Client
@@ -237,19 +244,39 @@ export class SupportChatService {
    * - Catalog questions retrieve all active products.
    * - Specific product questions use product search.
    * - Product availability is calculated using inventory data.
+   * - Conversation history is loaded from Redis when sessionId exists.
    * - Empty AI responses are treated as service errors.
    *
    * @param message Customer's message.
-   * @returns AI-generated customer support response.
+   * @param sessionId Optional conversation session identifier.
+   * @returns AI-generated customer support response and session identifier.
    * ------------------------------------------------------------------------
    */
-  async sendMessage(message: string): Promise<{ reply: string }> {
+  async sendMessage(
+    message: string,
+    sessionId?: string,
+  ): Promise<{ reply: string; sessionId: string }> {
     /**
      * Log incoming support chat requests.
      */
     this.logger.log('Support chat request received');
 
+    /**
+     * Reuse the provided session or create a new conversation session.
+     */
+    const conversationSessionId = sessionId ?? randomUUID();
+
     try {
+      /**
+       * Load previous turns for this conversation from Redis.
+       */
+      const conversationHistory =
+        await this.supportChatHistoryService.getHistory(conversationSessionId);
+
+      this.logger.log(
+        `Loaded conversation history messages: ${conversationHistory.length}`,
+      );
+
       /**
        * Determine whether the customer is requesting the complete product catalog.
        */
@@ -285,11 +312,20 @@ export class SupportChatService {
          * This prevents unnecessary AI requests when the catalog is empty.
          */
         if (products.length === 0) {
+          const reply =
+            'در حال حاضر هنوز محصولی در فروشگاه ثبت نشده است. ' +
+            'به‌محض اضافه شدن محصولات، می‌توانید آن‌ها را در اینجا مشاهده کنید. ' +
+            'اگر درباره انواع قهوه، تفاوت دانه‌ها یا روش‌های دم‌آوری سؤالی دارید، خوشحال می‌شوم راهنمایی‌تان کنم.';
+
+          await this.supportChatHistoryService.appendTurn(
+            conversationSessionId,
+            message,
+            reply,
+          );
+
           return {
-            reply:
-              'در حال حاضر هنوز محصولی در فروشگاه ثبت نشده است. ' +
-              'به‌محض اضافه شدن محصولات، می‌توانید آن‌ها را در اینجا مشاهده کنید. ' +
-              'اگر درباره انواع قهوه، تفاوت دانه‌ها یا روش‌های دم‌آوری سؤالی دارید، خوشحال می‌شوم راهنمایی‌تان کنم.',
+            reply,
+            sessionId: conversationSessionId,
           };
         }
       } else {
@@ -399,8 +435,8 @@ export class SupportChatService {
        * Generate AI Response
        * ------------------------------------------------------------------
        *
-       * Sends the customer question and retrieved product information
-       * to the local AI model.
+       * Sends the conversation history, customer question, and retrieved
+       * product information to the local AI model.
        *
        * The system instructions define how the AI must use product
        * and inventory information when generating responses.
@@ -447,8 +483,20 @@ export class SupportChatService {
                * Prevent the AI from generating fictional inventory quantities.
                */
               'Never invent or estimate stock quantities.',
+
+              /**
+               * Use previous conversation turns for continuity.
+               */
+              'Use the previous conversation turns to answer follow-up questions accurately.',
             ].join(' '),
           },
+          /**
+           * Previous customer and assistant turns from Redis.
+           */
+          ...conversationHistory.map((historyMessage) => ({
+            role: historyMessage.role,
+            content: historyMessage.content,
+          })),
           {
             /**
              * The user message contains the original question and
@@ -490,9 +538,21 @@ Please answer the customer naturally and accurately.
       }
 
       /**
-       * Return the generated response to the customer.
+       * Persist the completed turn so follow-up questions keep context.
        */
-      return { reply };
+      await this.supportChatHistoryService.appendTurn(
+        conversationSessionId,
+        message,
+        reply,
+      );
+
+      /**
+       * Return the generated response and conversation session identifier.
+       */
+      return {
+        reply,
+        sessionId: conversationSessionId,
+      };
     } catch (error: unknown) {
       /**
        * ------------------------------------------------------------------

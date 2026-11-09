@@ -14,7 +14,8 @@ export class SupportChatController {
   @ApiOperation({
     summary: 'Send a message to the AI support chatbot',
     description:
-      'Answers general questions about coffee products, shopping, and store policies.',
+      'Answers general questions about coffee products, shopping, and store policies. ' +
+      'Conversation history is kept in Redis when a sessionId is reused.',
   })
   @ApiResponse({
     status: 201,
@@ -29,6 +30,6 @@ export class SupportChatController {
     description: 'The AI service is temporarily unavailable.',
   })
   async sendMessage(@Body() dto: ChatMessageDto) {
-    return this.supportChatService.sendMessage(dto.message);
+    return this.supportChatService.sendMessage(dto.message, dto.sessionId);
   }
 }
