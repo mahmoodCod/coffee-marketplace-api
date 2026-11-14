@@ -11,6 +11,7 @@ import { Product } from 'src/modules/products/entities/product.entity';
 import { ProductService } from 'src/modules/products/services/product.service';
 
 import { SupportChatHistoryService } from './support-chat-history.service';
+import { JwtPayload } from 'src/modules/auth/interfaces/jwt-payload.interface';
 
 /**
  * ------------------------------------------------------------------------
@@ -253,8 +254,7 @@ export class SupportChatService {
    * ------------------------------------------------------------------------
    */
   async sendMessage(
-    message: string,
-    sessionId?: string,
+message: string, sessionId?: string, user?: JwtPayload | null,
   ): Promise<{ reply: string; sessionId: string }> {
     /**
      * Log incoming support chat requests.

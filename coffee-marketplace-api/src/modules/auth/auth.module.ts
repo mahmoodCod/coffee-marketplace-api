@@ -12,6 +12,7 @@ import { JwtTokenService } from './services/jwt-token.service';
 import { OtpService } from './services/otp.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { NotificationsModule } from '../notifications/notification.module';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 
 /**
  * ------------------------------------------------------------------------
@@ -59,8 +60,14 @@ import { NotificationsModule } from '../notifications/notification.module';
 
   controllers: [AuthController],
 
-  providers: [AuthService, JwtTokenService, OtpService, JwtStrategy],
+  providers: [
+    AuthService,
+    JwtTokenService,
+    OtpService,
+    JwtStrategy,
+    JwtAuthGuard,
+  ],
 
-  exports: [AuthService, JwtTokenService, PassportModule],
+  exports: [AuthService, JwtTokenService, PassportModule, JwtAuthGuard],
 })
 export class AuthModule {}
