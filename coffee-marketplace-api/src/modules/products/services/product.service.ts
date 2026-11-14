@@ -568,6 +568,74 @@ export class ProductService {
 
   /**
    * ------------------------------------------------------------------------
+   * Find Products By IDs For Support Chat
+   * ------------------------------------------------------------------------
+   *
+   * Retrieves active products by their identifiers for conversational
+   * product context resolution.
+   *
+   * Responsibilities:
+   *
+   * - Retrieve products using their UUIDs.
+   * - Include inventory information.
+   * - Exclude inactive and soft-deleted products.
+   * - Preserve the requested product order.
+   *
+   * @param productIds Product identifiers referenced in the conversation.
+   * @returns Active products with their inventory information.
+   * ------------------------------------------------------------------------
+   */
+  async findProductsByIdsForSupportChat(
+    productIds: string[],
+  ): Promise<Product[]> {
+    if (productIds.length === 0) {
+      return [];
+    }
+
+    const uniqueProductIds = [...new Set(productIds)];
+
+    const products = await this.productsRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.inventory', 'inventory')
+      .select([
+        'product.id',
+        'product.title',
+        'product.description',
+        'product.price',
+        'product.originalPrice',
+        'product.productType',
+        'product.weight',
+        'product.caffeineLevel',
+        'product.flavorNotes',
+        'product.originCountry',
+        'product.ingredients',
+        'product.benefits',
+        'product.howToUse',
+        'product.recommended',
+        'product.createdAt',
+        'inventory.id',
+        'inventory.stock',
+        'inventory.reservedStock',
+      ])
+      .where('product.id IN (:...productIds)', {
+        productIds: uniqueProductIds,
+      })
+      .andWhere('product.status = :status', {
+        status: ProductStatus.ACTIVE,
+      })
+      .getMany();
+
+    const productsById = new Map(
+      products.map((product) => [product.id, product]),
+    );
+
+    return uniqueProductIds
+      .map((productId) => productsById.get(productId))
+      .filter((product): product is Product => product !== undefined);
+  }
+
+  /**
+   * ------------------------------------------------------------------------
    * Find Seller Products
    * ------------------------------------------------------------------------
    *
