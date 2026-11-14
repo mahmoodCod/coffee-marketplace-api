@@ -132,6 +132,8 @@ export class SupportChatService {
       token.startsWith('محصول') ||
       token.startsWith('کالا') ||
       token.startsWith('فروشگاه') ||
+      token.startsWith('قهوه') ||
+      token.startsWith('تجهیز') ||
       token === 'اجناس' ||
       token === 'فهرست' ||
       token === 'لیست';
@@ -155,6 +157,11 @@ export class SupportChatService {
       'نشون',
       'نشان',
       'نمایش',
+      'وجود',
+      'است',
+      'هستند',
+      'میباشد',
+      'معرفی',
     ]);
 
     const isQuestionWord = (token: string): boolean =>
@@ -192,6 +199,17 @@ export class SupportChatService {
       'الان',
       'خودت',
       'بهم',
+      'وجود',
+      'است',
+      'برای',
+      'فروش',
+      'عرضه',
+      'می',
+      'خواهم',
+      'میخواهم',
+      'میخوام',
+      'رو',
+      'هایی',
     ]);
 
     const hasCatalogWord = tokens.some(isCatalogWord);

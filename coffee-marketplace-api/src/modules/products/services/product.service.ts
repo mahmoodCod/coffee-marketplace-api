@@ -535,7 +535,7 @@ export class ProductService {
   }
 
   async findAllForSupportChat(): Promise<Product[]> {
-    return this.productsRepository
+    const products = await this.productsRepository
       .createQueryBuilder('product')
       .leftJoinAndSelect('product.inventory', 'inventory')
       .select([
@@ -564,8 +564,19 @@ export class ProductService {
       .orderBy('product.recommended', 'DESC')
       .addOrderBy('product.createdAt', 'DESC')
       .getMany();
-  }
 
+    console.log('Support chat products count:', products.length);
+    console.log(
+      'Support chat products:',
+      products.map((product) => ({
+        id: product.id,
+        title: product.title,
+        inventory: product.inventory,
+      })),
+    );
+
+    return products;
+  }
   /**
    * ------------------------------------------------------------------------
    * Find Products By IDs For Support Chat
