@@ -3,17 +3,23 @@ import { randomUUID } from 'node:crypto';
 
 import { Conversation } from '../../../domain/entities/conversation.entity';
 import { ConversationOwner } from '../../../domain/models/conversation-owner.model';
-import * as conversationRepository_1 from '../../../domain/repositories/conversation.repository';
+import type { ConversationRepository } from '../../../domain/repositories/conversation.repository';
+
 import { SUPPORT_CHAT_TOKENS } from '../../../constants/support-chat.tokens';
 
 /**
+ * ------------------------------------------------------------------------
+ * Conversation Lifecycle Use Case
+ * ------------------------------------------------------------------------
+ *
  * Handles conversation creation, access, lifecycle, and ownership transfer.
+ * ------------------------------------------------------------------------
  */
 @Injectable()
 export class ConversationLifecycleUseCase {
   constructor(
     @Inject(SUPPORT_CHAT_TOKENS.CONVERSATION_REPOSITORY)
-    private readonly conversationRepository: conversationRepository_1.ConversationRepository,
+    private readonly conversationRepository: ConversationRepository,
   ) {}
 
   /**
@@ -137,22 +143,16 @@ export class ConversationLifecycleUseCase {
 
     this.validateOwner(requester);
 
-    const conversation =
-      await this.conversationRepository.findById(conversationId);
+    const conversation = await this.conversationRepository.findById(
+      conversationId.trim(),
+    );
 
     if (!conversation) {
       throw new Error('Conversation not found.');
     }
 
-    // Enforce ownership before allowing any operation.
-    if (
-      conversation.owner.id !== requester.id ||
-      conversation.owner.type !== requester.type
-    ) {
-      throw new Error('You are not allowed to access this conversation.');
-    }
-
-    conversation.assertActive();
+    // Validate ownership, status, and expiration through the aggregate.
+    conversation.assertAccessible(requester);
 
     return conversation;
   }
