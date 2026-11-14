@@ -16,6 +16,14 @@ export interface CreateConversationInput {
 }
 
 /**
+ * Defines the complete persisted state required to restore a conversation.
+ */
+export interface RestoreConversationInput extends CreateConversationInput {
+  status: ConversationStatus;
+  updatedAt: Date;
+}
+
+/**
  * Conversation Aggregate Root.
  *
  * Responsible for maintaining conversation ownership,
@@ -32,7 +40,7 @@ export class Conversation {
   private _updatedAt: Date;
   private _expiresAt: Date;
 
-  private constructor(input: CreateConversationInput) {
+  private constructor(input: RestoreConversationInput) {
     // Validate the conversation identifier.
     if (!input.id?.trim()) {
       throw new Error('Conversation ID is required.');
@@ -47,7 +55,26 @@ export class Conversation {
       throw new Error('Invalid conversation owner type.');
     }
 
-    // Validate expiration date.
+    // Validate lifecycle status.
+    if (!['active', 'closed'].includes(input.status)) {
+      throw new Error('Invalid conversation status.');
+    }
+
+    // Validate timestamps.
+    if (
+      !(input.createdAt instanceof Date) ||
+      Number.isNaN(input.createdAt.getTime())
+    ) {
+      throw new Error('A valid creation date is required.');
+    }
+
+    if (
+      !(input.updatedAt instanceof Date) ||
+      Number.isNaN(input.updatedAt.getTime())
+    ) {
+      throw new Error('A valid update date is required.');
+    }
+
     if (
       !(input.expiresAt instanceof Date) ||
       Number.isNaN(input.expiresAt.getTime())
@@ -55,32 +82,44 @@ export class Conversation {
       throw new Error('A valid expiration date is required.');
     }
 
-    // Use the current time when creation date is not provided.
-    const createdAt = input.createdAt ?? new Date();
-
-    if (!(createdAt instanceof Date) || Number.isNaN(createdAt.getTime())) {
-      throw new Error('A valid creation date is required.');
+    if (input.expiresAt.getTime() <= input.createdAt.getTime()) {
+      throw new Error('Expiration date must be after creation date.');
     }
 
-    // A conversation must expire after its creation.
-    if (input.expiresAt.getTime() <= createdAt.getTime()) {
-      throw new Error('Expiration date must be after creation date.');
+    if (input.updatedAt.getTime() < input.createdAt.getTime()) {
+      throw new Error('Update date cannot be before creation date.');
     }
 
     this.id = input.id;
     this._owner = Object.freeze({ ...input.owner });
-    this._status = 'active';
+    this._status = input.status;
 
     // Store defensive copies to prevent external date mutations.
-    this.createdAt = new Date(createdAt);
-    this._updatedAt = new Date(createdAt);
+    this.createdAt = new Date(input.createdAt);
+    this._updatedAt = new Date(input.updatedAt);
     this._expiresAt = new Date(input.expiresAt);
   }
 
   /**
-   * Creates a new conversation instance.
+   * Creates a new active conversation.
    */
   static create(input: CreateConversationInput): Conversation {
+    const createdAt = input.createdAt ?? new Date();
+
+    return new Conversation({
+      ...input,
+      status: 'active',
+      createdAt,
+      updatedAt: createdAt,
+    });
+  }
+
+  /**
+   * Restores a conversation from persisted data.
+   *
+   * This method preserves its lifecycle status and timestamps.
+   */
+  static restore(input: RestoreConversationInput): Conversation {
     return new Conversation(input);
   }
 
@@ -141,15 +180,12 @@ export class Conversation {
 
   /**
    * Extends the conversation expiration time.
-   *
-   * This supports the sliding TTL policy:
-   * every successful interaction refreshes the expiration time.
    */
   refreshExpiration(ttlSeconds: number, now = new Date()): void {
     this.assertAccessible();
 
-    if (!Number.isInteger(ttlSeconds) || ttlSeconds <= 0) {
-      throw new Error('TTL must be a positive integer.');
+    if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds <= 0) {
+      throw new Error('TTL must be a positive safe integer.');
     }
 
     if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
@@ -161,7 +197,7 @@ export class Conversation {
   }
 
   /**
-   * Closes the conversation permanently.
+   * Closes an active conversation permanently.
    */
   close(now = new Date()): void {
     this.assertAccessible();
