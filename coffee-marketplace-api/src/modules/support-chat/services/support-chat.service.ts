@@ -383,27 +383,22 @@ export class SupportChatService {
 
       /**
        * --------------------------------------------------------------------
-       * Resolve Product Follow-Up
+       * Resolve Product Selection
        * --------------------------------------------------------------------
        *
-       * Resolve references to previously mentioned products using
-       * product IDs stored in Redis.
-       *
-       * Product details are always retrieved from PostgreSQL.
+       * Resolve ordinal selections without overwriting the original
+       * referenced product list.
        * --------------------------------------------------------------------
        */
 
       if (productSelectionIndex !== null) {
-        /**
-         * Retrieve the previously referenced product IDs.
-         */
         referencedProductIds =
           await this.supportChatHistoryService.getReferencedProductIds(
             conversationSessionId,
           );
 
         /**
-         * Validate the requested selection against the original product list.
+         * Validate the requested index against the referenced product list.
          */
         if (productSelectionIndex >= referencedProductIds.length) {
           const reply =
@@ -430,7 +425,7 @@ export class SupportChatService {
           );
 
         /**
-         * Resolve the selected product using its original position.
+         * Resolve the selected product using its original list position.
          */
         const selectedProductId = referencedProductIds[productSelectionIndex];
 
@@ -439,6 +434,11 @@ export class SupportChatService {
         );
 
         if (!selectedProduct) {
+          await this.supportChatHistoryService.saveSelectedProductId(
+            conversationSessionId,
+            null,
+          );
+
           const reply =
             'این محصول دیگر در فهرست محصولات فعال فروشگاه قرار ندارد. لطفاً محصول دیگری را انتخاب کنید.';
 
@@ -455,95 +455,146 @@ export class SupportChatService {
         }
 
         /**
-         * Restrict the product context to the selected product.
+         * Store the selection separately.
+         * The original referenced product list remains unchanged.
          */
-        products = [selectedProduct];
-
-        await this.supportChatHistoryService.saveReferencedProductIds(
+        await this.supportChatHistoryService.saveSelectedProductId(
           conversationSessionId,
-          [selectedProduct.id],
+          selectedProduct.id,
         );
+
+        products = [selectedProduct];
 
         this.logger.log(`Customer selected product: ${selectedProduct.title}`);
       } else if (isProductFollowUp) {
         /**
-         * A follow-up question without product context cannot be
-         * reliably associated with a specific product.
+         * Load the original product list and the current selection.
          */
-        if (referencedProductIds.length === 0) {
-          const reply =
-            'برای پاسخ دقیق‌تر، لطفاً نام محصول موردنظرتان را مشخص کنید.';
-
-          await this.supportChatHistoryService.appendTurn(
+        referencedProductIds =
+          await this.supportChatHistoryService.getReferencedProductIds(
             conversationSessionId,
-            message,
-            reply,
           );
 
-          return {
-            reply,
-            sessionId: conversationSessionId,
-          };
-        }
-
-        /**
-         * Retrieve previously referenced products from PostgreSQL.
-         *
-         * Inactive or deleted products are excluded by ProductService.
-         */
-        products =
-          await this.productService.findProductsByIdsForSupportChat(
-            referencedProductIds,
+        const selectedProductId =
+          await this.supportChatHistoryService.getSelectedProductId(
+            conversationSessionId,
           );
 
         /**
-         * Previously referenced products may have become inactive
-         * or deleted since the last conversation turn.
+         * If a product has already been selected, resolve only that product.
          */
-        if (products.length === 0) {
-          await this.supportChatHistoryService.saveReferencedProductIds(
+        if (selectedProductId) {
+          products = await this.productService.findProductsByIdsForSupportChat([
+            selectedProductId,
+          ]);
+
+          if (products.length === 0) {
+            await this.supportChatHistoryService.saveSelectedProductId(
+              conversationSessionId,
+              null,
+            );
+
+            const reply =
+              'محصول انتخاب‌شده دیگر در فهرست محصولات فعال فروشگاه قرار ندارد. لطفاً محصول دیگری را انتخاب کنید.';
+
+            await this.supportChatHistoryService.appendTurn(
+              conversationSessionId,
+              message,
+              reply,
+            );
+
+            return {
+              reply,
+              sessionId: conversationSessionId,
+            };
+          }
+        } else {
+          /**
+           * No product has been selected yet.
+           */
+          if (referencedProductIds.length === 0) {
+            const reply =
+              'برای پاسخ دقیق‌تر، لطفاً نام محصول موردنظرتان را مشخص کنید.';
+
+            await this.supportChatHistoryService.appendTurn(
+              conversationSessionId,
+              message,
+              reply,
+            );
+
+            return {
+              reply,
+              sessionId: conversationSessionId,
+            };
+          }
+
+          products =
+            await this.productService.findProductsByIdsForSupportChat(
+              referencedProductIds,
+            );
+
+          /**
+           * Previously referenced products may have become inactive
+           * or deleted since the last conversation turn.
+           */
+          if (products.length === 0) {
+            await this.supportChatHistoryService.saveReferencedProductIds(
+              conversationSessionId,
+              [],
+            );
+
+            await this.supportChatHistoryService.saveSelectedProductId(
+              conversationSessionId,
+              null,
+            );
+
+            const reply =
+              'محصولی که قبلاً درباره آن صحبت کردیم، دیگر در فهرست محصولات فعال فروشگاه قرار ندارد. لطفاً محصول دیگری را انتخاب کنید.';
+
+            await this.supportChatHistoryService.appendTurn(
+              conversationSessionId,
+              message,
+              reply,
+            );
+
+            return {
+              reply,
+              sessionId: conversationSessionId,
+            };
+          }
+
+          /**
+           * Ask the customer to select a product when multiple products exist.
+           */
+          if (products.length > 1) {
+            const productTitles = products
+              .map((product, index) => `${index + 1}. ${product.title}`)
+              .join('\n');
+
+            const reply = `منظورتان کدام محصول است؟ لطفاً یکی از محصولات زیر را انتخاب کنید:\n${productTitles}`;
+
+            await this.supportChatHistoryService.appendTurn(
+              conversationSessionId,
+              message,
+              reply,
+            );
+
+            return {
+              reply,
+              sessionId: conversationSessionId,
+            };
+          }
+
+          /**
+           * A single matching product can be selected automatically.
+           */
+          await this.supportChatHistoryService.saveSelectedProductId(
             conversationSessionId,
-            [],
+            products[0].id,
           );
 
-          const reply =
-            'محصولی که قبلاً درباره آن صحبت کردیم، دیگر در فهرست محصولات فعال فروشگاه قرار ندارد. لطفاً محصول دیگری را انتخاب کنید.';
-
-          await this.supportChatHistoryService.appendTurn(
-            conversationSessionId,
-            message,
-            reply,
-          );
-
-          return {
-            reply,
-            sessionId: conversationSessionId,
-          };
+          this.logger.log(`Resolved follow-up product: ${products[0].title}`);
         }
-
-        /**
-         * If multiple products remain, never select one arbitrarily.
-         */
-        if (products.length > 1) {
-          const productTitles = products
-            .map((product) => `- ${product.title}`)
-            .join('\n');
-
-          const reply = `منظورتان کدام محصول است؟ لطفاً یکی از محصولات زیر را مشخص کنید:\n${productTitles}`;
-
-          await this.supportChatHistoryService.appendTurn(
-            conversationSessionId,
-            message,
-            reply,
-          );
-
-          return {
-            reply,
-            sessionId: conversationSessionId,
-          };
-        }
-
-        this.logger.log(`Resolved follow-up product: ${products[0].title}`);
       } else if (isCatalogQuestion) {
         /**
          * Retrieve all active products, including out-of-stock products.
@@ -551,13 +602,19 @@ export class SupportChatService {
         products = await this.productService.findAllForSupportChat();
 
         /**
-         * Store all products presented in the catalog response.
-         *
-         * Multiple products will require clarification in follow-up questions.
+         * Store the original catalog product list.
          */
         await this.supportChatHistoryService.saveReferencedProductIds(
           conversationSessionId,
           products.map((product) => product.id),
+        );
+
+        /**
+         * A new catalog request resets the previous selection.
+         */
+        await this.supportChatHistoryService.saveSelectedProductId(
+          conversationSessionId,
+          null,
         );
 
         if (products.length === 0) {
@@ -585,14 +642,19 @@ export class SupportChatService {
 
         /**
          * Update product context only when relevant products are found.
-         *
-         * General questions without matching products do not erase
-         * the previously established product context.
          */
         if (products.length > 0) {
           await this.supportChatHistoryService.saveReferencedProductIds(
             conversationSessionId,
             products.map((product) => product.id),
+          );
+
+          /**
+           * A new product search resets the previous selection.
+           */
+          await this.supportChatHistoryService.saveSelectedProductId(
+            conversationSessionId,
+            null,
           );
         }
       }

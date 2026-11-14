@@ -19,6 +19,12 @@ export const SUPPORT_CHAT_PRODUCT_CONTEXT_KEY_PREFIX =
   'support-chat:product-context:';
 
 /**
+ * Redis key prefix for the selected product in a support chat session.
+ */
+export const SUPPORT_CHAT_SELECTED_PRODUCT_KEY_PREFIX =
+  'support-chat:selected-product:';
+
+/**
  * Conversation history and product context expire after 24 hours of inactivity.
  */
 export const SUPPORT_CHAT_HISTORY_TTL_SECONDS = 60 * 60 * 24;

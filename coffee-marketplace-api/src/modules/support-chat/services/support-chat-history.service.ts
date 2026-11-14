@@ -7,6 +7,7 @@ import {
   SUPPORT_CHAT_HISTORY_MAX_MESSAGES,
   SUPPORT_CHAT_HISTORY_TTL_SECONDS,
   SUPPORT_CHAT_PRODUCT_CONTEXT_KEY_PREFIX,
+  SUPPORT_CHAT_SELECTED_PRODUCT_KEY_PREFIX,
 } from '../constants/support-chat-history.constants';
 import { SupportChatHistoryMessage } from '../interfaces/support-chat-history.interface';
 
@@ -54,6 +55,13 @@ export class SupportChatHistoryService {
   }
 
   /**
+   * Builds the Redis key for the selected product.
+   */
+  private buildSelectedProductKey(sessionId: string): string {
+    return `${SUPPORT_CHAT_SELECTED_PRODUCT_KEY_PREFIX}${sessionId}`;
+  }
+
+  /**
    * Loads conversation history for the given session.
    *
    * Returns an empty list when the session is new or Redis is unavailable.
@@ -66,7 +74,9 @@ export class SupportChatHistoryService {
         return [];
       }
 
-      const parsedHistory = JSON.parse(rawHistory) as SupportChatHistoryMessage[];
+      const parsedHistory = JSON.parse(
+        rawHistory,
+      ) as SupportChatHistoryMessage[];
 
       if (!Array.isArray(parsedHistory)) {
         return [];
@@ -153,12 +163,8 @@ export class SupportChatHistoryService {
         return [];
       }
 
-      const productIds = parsedProductIds.filter(
-        (productId): productId is string =>
-          typeof productId === 'string' &&
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-            productId,
-          ),
+      const productIds = parsedProductIds.filter((productId) =>
+        this.isValidProductId(productId),
       );
 
       return [...new Set(productIds)];
@@ -187,13 +193,7 @@ export class SupportChatHistoryService {
     try {
       const validProductIds = [
         ...new Set(
-          productIds.filter(
-            (productId) =>
-              typeof productId === 'string' &&
-              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-                productId,
-              ),
-          ),
+          productIds.filter((productId) => this.isValidProductId(productId)),
         ),
       ];
 
@@ -208,6 +208,78 @@ export class SupportChatHistoryService {
 
       this.logger.warn(
         `Failed to save referenced product IDs for session ${sessionId}: ${errorMessage}`,
+      );
+    }
+  }
+
+  /**
+   * Validates whether a value is a UUID product identifier.
+   */
+  private isValidProductId(productId: unknown): productId is string {
+    return (
+      typeof productId === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        productId,
+      )
+    );
+  }
+
+  /**
+   * Retrieves the selected product ID for a conversation.
+   *
+   * Returns null when no product is selected or the stored value is invalid.
+   */
+  async getSelectedProductId(sessionId: string): Promise<string | null> {
+    try {
+      const rawProductId = await this.redisService.get(
+        this.buildSelectedProductKey(sessionId),
+      );
+
+      if (!rawProductId) {
+        return null;
+      }
+
+      const parsedProductId: unknown = JSON.parse(rawProductId);
+
+      return this.isValidProductId(parsedProductId) ? parsedProductId : null;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      this.logger.warn(
+        `Failed to load selected product ID for session ${sessionId}: ${errorMessage}`,
+      );
+
+      return null;
+    }
+  }
+
+  /**
+   * Saves or clears the selected product ID for a conversation.
+   *
+   * Passing null clears the current selection.
+   */
+  async saveSelectedProductId(
+    sessionId: string,
+    productId: string | null,
+  ): Promise<void> {
+    try {
+      const validProductId =
+        productId !== null && this.isValidProductId(productId)
+          ? productId
+          : null;
+
+      await this.redisService.set(
+        this.buildSelectedProductKey(sessionId),
+        JSON.stringify(validProductId),
+        SUPPORT_CHAT_HISTORY_TTL_SECONDS,
+      );
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      this.logger.warn(
+        `Failed to save selected product ID for session ${sessionId}: ${errorMessage}`,
       );
     }
   }
