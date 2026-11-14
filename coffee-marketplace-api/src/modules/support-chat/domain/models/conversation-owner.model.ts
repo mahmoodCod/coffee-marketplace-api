@@ -1,4 +1,3 @@
-
 /**
  * Defines the supported ownership types for a conversation.
  *
