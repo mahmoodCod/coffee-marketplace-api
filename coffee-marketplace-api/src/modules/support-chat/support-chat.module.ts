@@ -10,6 +10,13 @@ import { AuthModule } from '../auth/auth.module';
 
 import { SUPPORT_CHAT_TOKENS } from './constants/support-chat.tokens';
 
+// Application use cases
+import { ConversationHistoryUseCase } from './domain/application/use-cases/conversation-history.use-case';
+import { ConversationLifecycleUseCase } from './domain/application/use-cases/conversation-lifecycle.use-case';
+import { ConversationStateUseCase } from './domain/application/use-cases/conversation-state.use-case';
+import { GuestIdentityUseCase } from './domain/application/use-cases/guest-identity.use-case';
+import { ProductReferenceUseCase } from './domain/application/use-cases/product-reference.use-case';
+
 // PostgreSQL entities
 import { ConversationOrmEntity } from './infrastructure/persistence/postgres/conversation.orm-entity';
 import { GuestIdentityOrmEntity } from './infrastructure/persistence/postgres/guest-identity.orm-entity';
@@ -35,6 +42,13 @@ import { RedisProductReferenceRepository } from './infrastructure/persistence/re
   providers: [
     SupportChatService,
     SupportChatHistoryService,
+
+    // Register application use cases.
+    ConversationHistoryUseCase,
+    ConversationLifecycleUseCase,
+    ConversationStateUseCase,
+    GuestIdentityUseCase,
+    ProductReferenceUseCase,
 
     // PostgreSQL repository bindings.
     {
@@ -66,6 +80,13 @@ import { RedisProductReferenceRepository } from './infrastructure/persistence/re
     SUPPORT_CHAT_TOKENS.CONVERSATION_TURN_REPOSITORY,
     SUPPORT_CHAT_TOKENS.CONVERSATION_STATE_REPOSITORY,
     SUPPORT_CHAT_TOKENS.PRODUCT_REFERENCE_REPOSITORY,
+
+    // Export use cases for other modules when needed.
+    ConversationHistoryUseCase,
+    ConversationLifecycleUseCase,
+    ConversationStateUseCase,
+    GuestIdentityUseCase,
+    ProductReferenceUseCase,
   ],
 })
 export class SupportChatModule {}
