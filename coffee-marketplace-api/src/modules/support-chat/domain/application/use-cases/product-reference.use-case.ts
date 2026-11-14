@@ -163,7 +163,11 @@ export class ProductReferenceUseCase {
     }
 
     // Validate the requester identity.
-    if (!requester?.id || !['guest', 'user'].includes(requester.type)) {
+    if (
+      typeof requester?.id !== 'string' ||
+      !requester.id.trim() ||
+      !['guest', 'user'].includes(requester.type)
+    ) {
       throw new Error('A valid requester identity is required.');
     }
 
@@ -175,8 +179,11 @@ export class ProductReferenceUseCase {
       throw new Error('Conversation not found.');
     }
 
-    // Validate both ownership and conversation expiration/status.
+    // Validate ownership before checking the conversation status.
     conversation.assertAccessible(requester);
+
+    // Reject operations on closed or expired conversations.
+    conversation.assertActive();
 
     return conversation;
   }
