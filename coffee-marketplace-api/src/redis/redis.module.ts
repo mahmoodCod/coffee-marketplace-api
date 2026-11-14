@@ -1,4 +1,4 @@
-import { Global, Module, OnApplicationShutdown } from '@nestjs/common';
+import { Global, Logger, Module, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
@@ -13,7 +13,8 @@ import { RedisService } from './redis.service';
       provide: REDIS_CLIENT,
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        return new Redis({
+        const logger = new Logger('Redis');
+        const redis = new Redis({
           host: configService.getOrThrow<string>('redis.host'),
           port: configService.getOrThrow<number>('redis.port'),
           maxRetriesPerRequest: 1,
@@ -21,6 +22,16 @@ import { RedisService } from './redis.service';
           lazyConnect: true,
           retryStrategy: () => null,
         });
+
+        /**
+         * ioredis emits connection failures as events.
+         * Without a listener, a stopped Redis server crashes the API.
+         */
+        redis.on('error', (error: Error) => {
+          logger.warn(`Redis connection error: ${error.message}`);
+        });
+
+        return redis;
       },
     },
     RedisService,
