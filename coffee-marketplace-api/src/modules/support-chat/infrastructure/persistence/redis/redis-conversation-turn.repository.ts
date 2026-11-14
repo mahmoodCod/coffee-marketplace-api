@@ -218,14 +218,35 @@ export class RedisConversationTurnRepository implements ConversationTurnReposito
   }
 
   /**
-   * Deletes all Redis keys belonging to a conversation history.
+   * Deletes all conversation history and associated idempotency keys.
+   *
+   * The operation is atomic to prevent partially deleted history.
    */
   async deleteAll(conversationId: string): Promise<void> {
     this.validateConversationId(conversationId);
 
     const keys = this.getKeys(conversationId);
 
-    await this.redisService.del(keys.list, keys.sequence, keys.requests);
+    const script = `
+      local requestIds = redis.call('SMEMBERS', KEYS[3])
+
+      for _, requestId in ipairs(requestIds) do
+        redis.call('DEL', ARGV[1] .. requestId)
+      end
+
+      redis.call('DEL', KEYS[1], KEYS[2], KEYS[3])
+
+      return #requestIds
+    `;
+
+    await this.redisService.eval(
+      script,
+      3,
+      keys.list,
+      keys.sequence,
+      keys.requests,
+      keys.request(''),
+    );
   }
 
   /**
