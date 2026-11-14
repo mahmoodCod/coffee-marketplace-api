@@ -6,6 +6,7 @@ import {
   SUPPORT_CHAT_HISTORY_KEY_PREFIX,
   SUPPORT_CHAT_HISTORY_MAX_MESSAGES,
   SUPPORT_CHAT_HISTORY_TTL_SECONDS,
+  SUPPORT_CHAT_PRODUCT_CONTEXT_KEY_PREFIX,
 } from '../constants/support-chat-history.constants';
 import { SupportChatHistoryMessage } from '../interfaces/support-chat-history.interface';
 
@@ -14,18 +15,21 @@ import { SupportChatHistoryMessage } from '../interfaces/support-chat-history.in
  * Support Chat History Service
  * ------------------------------------------------------------------------
  *
- * Persists short-lived support chat conversations in Redis.
+ * Persists short-lived support chat conversations and product context in Redis.
  *
  * Responsibilities
  * ------------------------------------------------------------------------
  * - Load previous messages for a conversation session.
  * - Append new customer and assistant messages.
- * - Limit history size and refresh expiration on each turn.
+ * - Store product IDs referenced during the conversation.
+ * - Retrieve previously referenced product IDs.
+ * - Limit history size and refresh expiration on each update.
  *
  * Business Rules
  * ------------------------------------------------------------------------
- * - History is scoped by sessionId.
+ * - History and product context are scoped by sessionId.
  * - Only the newest messages are kept.
+ * - Product IDs are stored separately from conversation messages.
  * - Redis failures must not crash the chatbot response flow.
  * ------------------------------------------------------------------------
  */
@@ -36,10 +40,17 @@ export class SupportChatHistoryService {
   constructor(private readonly redisService: RedisService) {}
 
   /**
-   * Builds the Redis key for one support chat session.
+   * Builds the Redis key for conversation history.
    */
   private buildKey(sessionId: string): string {
     return `${SUPPORT_CHAT_HISTORY_KEY_PREFIX}${sessionId}`;
+  }
+
+  /**
+   * Builds the Redis key for referenced product IDs.
+   */
+  private buildProductContextKey(sessionId: string): string {
+    return `${SUPPORT_CHAT_PRODUCT_CONTEXT_KEY_PREFIX}${sessionId}`;
   }
 
   /**
@@ -116,6 +127,87 @@ export class SupportChatHistoryService {
 
       this.logger.warn(
         `Failed to save support chat history for session ${sessionId}: ${errorMessage}`,
+      );
+    }
+  }
+
+  /**
+   * Retrieves product IDs previously referenced in a conversation.
+   *
+   * Invalid values are ignored to prevent corrupted Redis data from
+   * reaching product retrieval queries.
+   */
+  async getReferencedProductIds(sessionId: string): Promise<string[]> {
+    try {
+      const rawProductIds = await this.redisService.get(
+        this.buildProductContextKey(sessionId),
+      );
+
+      if (!rawProductIds) {
+        return [];
+      }
+
+      const parsedProductIds: unknown = JSON.parse(rawProductIds);
+
+      if (!Array.isArray(parsedProductIds)) {
+        return [];
+      }
+
+      const productIds = parsedProductIds.filter(
+        (productId): productId is string =>
+          typeof productId === 'string' &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            productId,
+          ),
+      );
+
+      return [...new Set(productIds)];
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      this.logger.warn(
+        `Failed to load referenced product IDs for session ${sessionId}: ${errorMessage}`,
+      );
+
+      return [];
+    }
+  }
+
+  /**
+   * Saves product IDs referenced during the conversation.
+   *
+   * The provided IDs replace the previous product context.
+   * An empty array clears the stored product context.
+   */
+  async saveReferencedProductIds(
+    sessionId: string,
+    productIds: string[],
+  ): Promise<void> {
+    try {
+      const validProductIds = [
+        ...new Set(
+          productIds.filter(
+            (productId) =>
+              typeof productId === 'string' &&
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+                productId,
+              ),
+          ),
+        ),
+      ];
+
+      await this.redisService.set(
+        this.buildProductContextKey(sessionId),
+        JSON.stringify(validProductIds),
+        SUPPORT_CHAT_HISTORY_TTL_SECONDS,
+      );
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+
+      this.logger.warn(
+        `Failed to save referenced product IDs for session ${sessionId}: ${errorMessage}`,
       );
     }
   }

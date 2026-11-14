@@ -3,7 +3,7 @@
  * Support Chat History Constants
  * ------------------------------------------------------------------------
  *
- * Controls how conversation history is stored in Redis.
+ * Controls how conversation history and product context are stored in Redis.
  * ------------------------------------------------------------------------
  */
 
@@ -13,7 +13,13 @@
 export const SUPPORT_CHAT_HISTORY_KEY_PREFIX = 'support-chat:session:';
 
 /**
- * Conversation history expires after 24 hours of inactivity.
+ * Redis key prefix for referenced product IDs in a support chat session.
+ */
+export const SUPPORT_CHAT_PRODUCT_CONTEXT_KEY_PREFIX =
+  'support-chat:product-context:';
+
+/**
+ * Conversation history and product context expire after 24 hours of inactivity.
  */
 export const SUPPORT_CHAT_HISTORY_TTL_SECONDS = 60 * 60 * 24;
 
