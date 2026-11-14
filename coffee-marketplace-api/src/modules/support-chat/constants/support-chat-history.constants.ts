@@ -30,6 +30,17 @@ export const SUPPORT_CHAT_SELECTED_PRODUCT_KEY_PREFIX =
 export const SUPPORT_CHAT_HISTORY_TTL_SECONDS = 60 * 60 * 24;
 
 /**
+ * Guest identity remains valid for 30 days.
+ */
+export const SUPPORT_CHAT_GUEST_IDENTITY_TTL_SECONDS =
+60 * 60 * 24 * 30;
+
+/**
+ * HTTP-only cookie name used to identify guest users.
+ */
+export const SUPPORT_CHAT_GUEST_COOKIE_NAME = 'support_chat_guest';
+
+/**
  * Keep only the newest messages to protect the AI context window.
  */
 export const SUPPORT_CHAT_HISTORY_MAX_MESSAGES = 20;
