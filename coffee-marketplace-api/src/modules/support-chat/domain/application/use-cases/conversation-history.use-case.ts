@@ -1,12 +1,26 @@
-import { ConversationOwner } from '../../../domain/models/conversation-owner.model';
-import { ConversationTurn } from '../../../domain/models/conversation-message.model';
-import type { ConversationRepository } from '../../../domain/repositories/conversation.repository';
-import type { ConversationTurnRepository } from '../../../domain/repositories/conversation-turn.repository';
 import { Inject, Injectable } from '@nestjs/common';
-import { SUPPORT_CHAT_TOKENS } from 'src/modules/support-chat/constants/support-chat.tokens';
+
+import { SUPPORT_CHAT_TOKENS } from '../../../constants/support-chat.tokens';
+
+import { ConversationOwner } from '../../models/conversation-owner.model';
+import { ConversationTurn } from '../../models/conversation-message.model';
+
+import type { ConversationRepository } from '../../repositories/conversation.repository';
+import type { ConversationTurnRepository } from '../../repositories/conversation-turn.repository';
 
 /**
+ * ------------------------------------------------------------------------
+ * Conversation History Use Case
+ * ------------------------------------------------------------------------
+ *
  * Handles conversation history operations.
+ *
+ * Responsibilities:
+ * - Retrieve recent conversation turns.
+ * - Retrieve a specific turn by request ID.
+ * - Append complete conversation turns.
+ * - Clear conversation history.
+ * ------------------------------------------------------------------------
  */
 @Injectable()
 export class ConversationHistoryUseCase {
@@ -28,7 +42,6 @@ export class ConversationHistoryUseCase {
   ): Promise<ConversationTurn[]> {
     await this.getAccessibleConversation(conversationId, requester);
 
-    // Validate the requested history size.
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
       throw new Error('History limit must be between 1 and 100.');
     }
@@ -46,7 +59,6 @@ export class ConversationHistoryUseCase {
   ): Promise<ConversationTurn | null> {
     await this.getAccessibleConversation(conversationId, requester);
 
-    // Validate the request identifier.
     if (typeof requestId !== 'string' || !requestId.trim()) {
       throw new Error('Request ID is required.');
     }
@@ -59,9 +71,6 @@ export class ConversationHistoryUseCase {
 
   /**
    * Appends a complete turn to the conversation history.
-   *
-   * The repository is responsible for atomic persistence,
-   * ordering, and duplicate request prevention.
    */
   async appendTurn(
     conversationId: string,
@@ -70,7 +79,6 @@ export class ConversationHistoryUseCase {
   ): Promise<boolean> {
     await this.getAccessibleConversation(conversationId, requester);
 
-    // Validate the turn structure.
     if (!turn || typeof turn !== 'object') {
       throw new Error('A valid conversation turn is required.');
     }
@@ -126,13 +134,11 @@ export class ConversationHistoryUseCase {
     conversationId: string,
     requester: ConversationOwner,
   ) {
-    // Validate the conversation identifier.
     if (typeof conversationId !== 'string' || !conversationId.trim()) {
       throw new Error('Conversation ID is required.');
     }
 
-    // Validate the requester identity.
-    if (!requester?.id || !['guest', 'user'].includes(requester.type)) {
+    if (!requester?.id?.trim() || !['guest', 'user'].includes(requester.type)) {
       throw new Error('A valid requester identity is required.');
     }
 
@@ -143,15 +149,7 @@ export class ConversationHistoryUseCase {
       throw new Error('Conversation not found.');
     }
 
-    // Prevent access to conversations owned by other identities.
-    if (
-      conversation.owner.id !== requester.id ||
-      conversation.owner.type !== requester.type
-    ) {
-      throw new Error('You are not allowed to access this conversation.');
-    }
-
-    conversation.assertActive();
+    conversation.assertAccessible(requester);
 
     return conversation;
   }
