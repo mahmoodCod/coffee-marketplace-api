@@ -1,4 +1,5 @@
 import {
+  HttpException,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -32,7 +33,7 @@ import {
  * Support Chat Service
  * ------------------------------------------------------------------------
  *
- * Coordinates support chat conversations and AI responses.
+ * Coordinates customer conversations and AI responses.
  *
  * Responsibilities:
  * - Resolve guest and authenticated conversation ownership.
@@ -226,6 +227,8 @@ export class SupportChatService {
 
   /**
    * Resolves ordinal product selections.
+   *
+   * The returned index is zero-based.
    */
   private getProductSelectionIndex(message: string): number | null {
     const normalized = this.normalizeCustomerMessage(message);
@@ -260,6 +263,29 @@ export class SupportChatService {
     const selection = normalized.replace(/^(مورد|محصول|گزینه)\s+/, '');
 
     return ordinalMap.get(selection) ?? null;
+  }
+
+  /**
+   * Returns product references in a predictable order.
+   */
+  private async getOrderedProductReferences(
+    conversationId: string,
+    owner: ConversationOwner,
+  ) {
+    const references = await this.productReferences.getAll(
+      conversationId,
+      owner,
+    );
+
+    return references.sort((first, second) => {
+      const timeDifference =
+        first.createdAt.getTime() - second.createdAt.getTime();
+
+      // Use the opaque reference as a deterministic fallback.
+      return timeDifference !== 0
+        ? timeDifference
+        : first.reference.localeCompare(second.reference);
+    });
   }
 
   /**
@@ -342,12 +368,15 @@ export class SupportChatService {
       createdAt: now,
     };
 
+    const lastTurn = previousTurns.reduce<ConversationTurn | null>(
+      (latest, current) =>
+        !latest || current.sequence > latest.sequence ? current : latest,
+      null,
+    );
+
     const turn: ConversationTurn = {
       requestId: randomUUID(),
-      sequence:
-        previousTurns.length > 0
-          ? previousTurns[previousTurns.length - 1].sequence + 1
-          : 1,
+      sequence: lastTurn ? lastTurn.sequence + 1 : 1,
       messages: [userMessage, assistantMessage],
       createdAt: now,
     };
@@ -382,7 +411,7 @@ export class SupportChatService {
     conversationId: string,
     owner: ConversationOwner,
   ): Promise<Product[]> {
-    const references = await this.productReferences.getAll(
+    const references = await this.getOrderedProductReferences(
       conversationId,
       owner,
     );
@@ -475,12 +504,14 @@ export class SupportChatService {
        * Resolve an ordinal selection from conversation-scoped references.
        */
       if (selectionIndex !== null) {
-        const referencedProducts = await this.loadReferencedProducts(
+        const references = await this.getOrderedProductReferences(
           activeConversationId,
           owner,
         );
 
-        if (selectionIndex >= referencedProducts.length) {
+        const selectedReference = references[selectionIndex];
+
+        if (!selectedReference) {
           return this.returnShortReply(
             activeConversationId,
             owner,
@@ -491,36 +522,30 @@ export class SupportChatService {
           );
         }
 
-        const selectedProduct = referencedProducts[selectionIndex];
+        // Resolve the selected product using its existing reference.
+        products = await this.productService.findProductsByIdsForSupportChat([
+          selectedReference.productId,
+        ]);
 
-        await this.productReferences.create(
-          activeConversationId,
-          owner,
-          selectedProduct.id,
-          'product_details',
-        );
+        const selectedProduct = products[0];
 
-        // The newly created reference is the active product for follow-up questions.
-        const references = await this.productReferences.getAll(
-          activeConversationId,
-          owner,
-        );
-
-        const selectedReference = references.find(
-          (reference) => reference.productId === selectedProduct.id,
-        );
-
-        if (!selectedReference) {
-          throw new Error('Selected product reference could not be created.');
+        if (!selectedProduct) {
+          return this.returnShortReply(
+            activeConversationId,
+            owner,
+            message,
+            'محصول انتخاب‌شده دیگر در فهرست محصولات فعال فروشگاه قرار ندارد. لطفاً محصول دیگری را انتخاب کنید.',
+            history,
+            guestToken,
+          );
         }
 
+        // Reuse the existing reference instead of creating a duplicate.
         await this.conversationState.update(activeConversationId, owner, {
           conversationId: activeConversationId,
           activeProductReference: selectedReference.reference,
           updatedAt: new Date(),
         });
-
-        products = [selectedProduct];
       } else if (followUpQuestion) {
         if (state?.activeProductReference) {
           const reference = await this.productReferences.getByReference(
@@ -581,18 +606,25 @@ export class SupportChatService {
             );
           }
 
-          const selectedProduct = products[0];
-
-          const reference = await this.productReferences.create(
+          // Reuse the existing reference for the only matching product.
+          const references = await this.getOrderedProductReferences(
             activeConversationId,
             owner,
-            selectedProduct.id,
-            'product_details',
           );
+
+          const selectedReference = references.find(
+            (reference) => reference.productId === products[0].id,
+          );
+
+          if (!selectedReference) {
+            throw new Error(
+              'The product reference for the selected product was not found.',
+            );
+          }
 
           await this.conversationState.update(activeConversationId, owner, {
             conversationId: activeConversationId,
-            activeProductReference: reference.reference,
+            activeProductReference: selectedReference.reference,
             updatedAt: new Date(),
           });
         }
@@ -648,7 +680,7 @@ export class SupportChatService {
       /**
        * Build product context using opaque references instead of database IDs.
        */
-      const references = await this.productReferences.getAll(
+      const references = await this.getOrderedProductReferences(
         activeConversationId,
         owner,
       );
@@ -725,6 +757,7 @@ export class SupportChatService {
               'For follow-up questions, use the retrieved product information rather than relying on previous AI responses.',
               'If product details are missing, clearly say that the information is unavailable.',
               'Product references are internal conversation references, not product IDs.',
+              'Never reveal internal references, UUIDs, or technical identifiers to customers.',
               'Respond naturally in Persian when the customer writes in Persian.',
             ].join(' '),
           },
@@ -767,14 +800,20 @@ export class SupportChatService {
         ...(guestToken ? { guestToken } : {}),
       };
     } catch (error: unknown) {
-      if (error instanceof ServiceUnavailableException) {
+      // Preserve intentional HTTP errors and their original status codes.
+      if (error instanceof HttpException) {
         throw error;
       }
 
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 
-      this.logger.error(`Support chat request failed: ${errorMessage}`);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+
+      this.logger.error(
+        `Support chat request failed: ${errorMessage}`,
+        errorStack,
+      );
 
       throw new ServiceUnavailableException(
         'The support chatbot is temporarily unavailable. Please try again later.',
