@@ -1,15 +1,19 @@
+import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
 import { Conversation } from '../../../domain/entities/conversation.entity';
 import { ConversationOwner } from '../../../domain/models/conversation-owner.model';
-import { ConversationRepository } from '../../../domain/repositories/conversation.repository';
+import * as conversationRepository_1 from '../../../domain/repositories/conversation.repository';
+import { SUPPORT_CHAT_TOKENS } from '../../../constants/support-chat.tokens';
 
 /**
  * Handles conversation creation, access, lifecycle, and ownership transfer.
  */
+@Injectable()
 export class ConversationLifecycleUseCase {
   constructor(
-    private readonly conversationRepository: ConversationRepository,
+    @Inject(SUPPORT_CHAT_TOKENS.CONVERSATION_REPOSITORY)
+    private readonly conversationRepository: conversationRepository_1.ConversationRepository,
   ) {}
 
   /**
@@ -19,10 +23,7 @@ export class ConversationLifecycleUseCase {
     owner: ConversationOwner,
     ttlSeconds: number,
   ): Promise<Conversation> {
-    // Validate the conversation owner.
     this.validateOwner(owner);
-
-    // Validate the conversation lifetime.
     this.validateTtl(ttlSeconds);
 
     const now = new Date();
@@ -100,7 +101,6 @@ export class ConversationLifecycleUseCase {
     newOwner: ConversationOwner,
     hasExplicitConsent: boolean,
   ): Promise<Conversation> {
-    // Only guest conversations can be transferred to user accounts.
     this.validateOwner(requester);
     this.validateOwner(newOwner);
 
@@ -131,7 +131,6 @@ export class ConversationLifecycleUseCase {
     conversationId: string,
     requester: ConversationOwner,
   ): Promise<Conversation> {
-    // Validate the conversation identifier.
     if (typeof conversationId !== 'string' || !conversationId.trim()) {
       throw new Error('Conversation ID is required.');
     }
