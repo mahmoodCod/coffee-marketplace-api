@@ -182,7 +182,7 @@ export class Conversation {
    * Extends the conversation expiration time.
    */
   refreshExpiration(ttlSeconds: number, now = new Date()): void {
-    this.assertAccessible();
+    this.assertActive();
 
     if (!Number.isSafeInteger(ttlSeconds) || ttlSeconds <= 0) {
       throw new Error('TTL must be a positive safe integer.');
@@ -200,7 +200,7 @@ export class Conversation {
    * Closes an active conversation permanently.
    */
   close(now = new Date()): void {
-    this.assertAccessible();
+    this.assertActive();
 
     if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
       throw new Error('A valid current date is required.');
@@ -217,7 +217,7 @@ export class Conversation {
    * layer before this domain operation is called.
    */
   transferOwnership(newOwner: ConversationOwner): void {
-    this.assertAccessible();
+    this.assertActive();
 
     if (!newOwner?.id?.trim()) {
       throw new Error('New conversation owner ID is required.');
@@ -233,5 +233,8 @@ export class Conversation {
 
     this._owner = Object.freeze({ ...newOwner });
     this._updatedAt = new Date();
+  }
+  assertActive() {
+    throw new Error('Method not implemented.');
   }
 }

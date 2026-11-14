@@ -152,7 +152,7 @@ export class ConversationLifecycleUseCase {
       throw new Error('You are not allowed to access this conversation.');
     }
 
-    conversation.assertAccessible();
+    conversation.assertActive();
 
     return conversation;
   }
