@@ -263,6 +263,65 @@ export class SupportChatService {
 
   /**
    * ------------------------------------------------------------------------
+   * Get Product Selection Index
+   * ------------------------------------------------------------------------
+   *
+   * Resolves ordinal product selections from customer messages.
+   *
+   * Examples:
+   * - اولی
+   * - دومی
+   * - مورد سوم
+   * - محصول چهارم
+   *
+   * @param message Customer's selection message.
+   * @returns Zero-based product index, or null if no selection is detected.
+   * ------------------------------------------------------------------------
+   */
+  private getProductSelectionIndex(message: string): number | null {
+    const normalizedMessage = this.normalizeCustomerMessage(message);
+
+    const ordinalMap = new Map<string, number>([
+      ['اول', 0],
+      ['اولی', 0],
+      ['اولین', 0],
+      ['یکم', 0],
+      ['1', 0],
+      ['۱', 0],
+
+      ['دوم', 1],
+      ['دومی', 1],
+      ['دومین', 1],
+      ['2', 1],
+      ['۲', 1],
+
+      ['سوم', 2],
+      ['سومی', 2],
+      ['سومین', 2],
+      ['3', 2],
+      ['۳', 2],
+
+      ['چهارم', 3],
+      ['چهارمی', 3],
+      ['4', 3],
+      ['۴', 3],
+
+      ['پنجم', 4],
+      ['پنجمی', 4],
+      ['5', 4],
+      ['۵', 4],
+    ]);
+
+    const normalizedSelection = normalizedMessage.replace(
+      /^(مورد|محصول|گزینه)\s+/,
+      '',
+    );
+
+    return ordinalMap.get(normalizedSelection) ?? null;
+  }
+
+  /**
+   * ------------------------------------------------------------------------
    * Send Message
    * ------------------------------------------------------------------------
    *
@@ -311,12 +370,16 @@ export class SupportChatService {
       );
 
       const isCatalogQuestion = this.isCatalogQuestion(message);
+
       const isProductFollowUp = this.isProductFollowUpQuestion(message);
+
+      const productSelectionIndex = this.getProductSelectionIndex(message);
 
       this.logger.log(`Catalog question detected: ${isCatalogQuestion}`);
       this.logger.log(`Product follow-up detected: ${isProductFollowUp}`);
 
       let products: Product[] = [];
+      let referencedProductIds: string[] = [];
 
       /**
        * --------------------------------------------------------------------
@@ -329,12 +392,80 @@ export class SupportChatService {
        * Product details are always retrieved from PostgreSQL.
        * --------------------------------------------------------------------
        */
-      if (isProductFollowUp) {
-        const referencedProductIds =
+
+      if (productSelectionIndex !== null) {
+        /**
+         * Retrieve the previously referenced product IDs.
+         */
+        referencedProductIds =
           await this.supportChatHistoryService.getReferencedProductIds(
             conversationSessionId,
           );
 
+        /**
+         * Validate the requested selection against the original product list.
+         */
+        if (productSelectionIndex >= referencedProductIds.length) {
+          const reply =
+            'این شماره در فهرست محصولات قبلی وجود ندارد. لطفاً یکی از محصولات نمایش‌داده‌شده را انتخاب کنید.';
+
+          await this.supportChatHistoryService.appendTurn(
+            conversationSessionId,
+            message,
+            reply,
+          );
+
+          return {
+            reply,
+            sessionId: conversationSessionId,
+          };
+        }
+
+        /**
+         * Retrieve active products from PostgreSQL.
+         */
+        const referencedProducts =
+          await this.productService.findProductsByIdsForSupportChat(
+            referencedProductIds,
+          );
+
+        /**
+         * Resolve the selected product using its original position.
+         */
+        const selectedProductId = referencedProductIds[productSelectionIndex];
+
+        const selectedProduct = referencedProducts.find(
+          (product) => product.id === selectedProductId,
+        );
+
+        if (!selectedProduct) {
+          const reply =
+            'این محصول دیگر در فهرست محصولات فعال فروشگاه قرار ندارد. لطفاً محصول دیگری را انتخاب کنید.';
+
+          await this.supportChatHistoryService.appendTurn(
+            conversationSessionId,
+            message,
+            reply,
+          );
+
+          return {
+            reply,
+            sessionId: conversationSessionId,
+          };
+        }
+
+        /**
+         * Restrict the product context to the selected product.
+         */
+        products = [selectedProduct];
+
+        await this.supportChatHistoryService.saveReferencedProductIds(
+          conversationSessionId,
+          [selectedProduct.id],
+        );
+
+        this.logger.log(`Customer selected product: ${selectedProduct.title}`);
+      } else if (isProductFollowUp) {
         /**
          * A follow-up question without product context cannot be
          * reliably associated with a specific product.
