@@ -116,8 +116,6 @@ export class Conversation {
 
   /**
    * Restores a conversation from persisted data.
-   *
-   * This method preserves its lifecycle status and timestamps.
    */
   static restore(input: RestoreConversationInput): Conversation {
     return new Conversation(input);
@@ -168,13 +166,31 @@ export class Conversation {
   /**
    * Ensures that the conversation is active and not expired.
    */
-  assertAccessible(requester: ConversationOwner): void {
+  assertActive(): void {
     if (this._status === 'closed') {
       throw new Error('Conversation is closed.');
     }
 
     if (this.isExpired) {
       throw new Error('Conversation has expired.');
+    }
+  }
+
+  /**
+   * Ensures that the requester owns an active conversation.
+   */
+  assertAccessible(requester: ConversationOwner): void {
+    this.assertActive();
+
+    if (!requester?.id?.trim()) {
+      throw new Error('Conversation requester is required.');
+    }
+
+    if (
+      this._owner.type !== requester.type ||
+      this._owner.id !== requester.id
+    ) {
+      throw new Error('Requester cannot access this conversation.');
     }
   }
 
@@ -233,8 +249,5 @@ export class Conversation {
 
     this._owner = Object.freeze({ ...newOwner });
     this._updatedAt = new Date();
-  }
-  assertActive() {
-    throw new Error('Method not implemented.');
   }
 }
