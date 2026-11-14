@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 
 import { Conversation } from '../../../domain/entities/conversation.entity';
+import type { ConversationOwner } from '../../../domain/models/conversation-owner.model';
 import type { ConversationRepository } from '../../../domain/repositories/conversation.repository';
 import { ConversationOrmEntity } from './conversation.orm-entity';
 
@@ -31,7 +32,7 @@ export class TypeOrmConversationRepository implements ConversationRepository {
     }
 
     const entity = await this.repository.findOne({
-      where: { id: conversationId },
+      where: { id: conversationId.trim() },
     });
 
     if (!entity) {
@@ -64,6 +65,40 @@ export class TypeOrmConversationRepository implements ConversationRepository {
   }
 
   /**
+   * Atomically transfers ownership using the expected current owner.
+   *
+   * Conditional database updates prevent concurrent requests
+   * from transferring a conversation after its ownership has changed.
+   */
+  async transferOwnership(
+    conversation: Conversation,
+    expectedOwner: ConversationOwner,
+  ): Promise<void> {
+    const entity = this.toOrmEntity(conversation);
+
+    const result = await this.repository.update(
+      {
+        id: conversation.id,
+        ownerType: expectedOwner.type,
+        ownerId: expectedOwner.id,
+        status: 'active',
+        expiresAt: MoreThan(new Date()),
+      },
+      {
+        ownerType: entity.ownerType,
+        ownerId: entity.ownerId,
+        updatedAt: entity.updatedAt,
+      },
+    );
+
+    if (result.affected !== 1) {
+      throw new Error(
+        'Conversation ownership transfer failed. The conversation may have changed or expired.',
+      );
+    }
+  }
+
+  /**
    * Deletes a conversation record.
    *
    * Related Redis data must be cleaned up by the application lifecycle layer.
@@ -74,7 +109,7 @@ export class TypeOrmConversationRepository implements ConversationRepository {
     }
 
     const result = await this.repository.delete({
-      id: conversationId,
+      id: conversationId.trim(),
     });
 
     if (result.affected !== 1) {
