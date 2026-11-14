@@ -124,7 +124,9 @@ export class SupportChatService {
    */
   private isCatalogQuestion(message: string): boolean {
     const normalizedMessage = this.normalizeCustomerMessage(message);
-    const tokens = normalizedMessage.split(' ').filter((token) => token.length > 0);
+    const tokens = normalizedMessage
+      .split(' ')
+      .filter((token) => token.length > 0);
 
     const isCatalogWord = (token: string): boolean =>
       token.startsWith('محصول') ||
@@ -224,6 +226,43 @@ export class SupportChatService {
 
   /**
    * ------------------------------------------------------------------------
+   * Is Product Follow-Up Question
+   * ------------------------------------------------------------------------
+   *
+   * Detects questions that refer to a product mentioned earlier
+   * in the conversation.
+   *
+   * Examples:
+   * - قیمتش چنده؟
+   * - موجوده؟
+   * - مشخصاتش چیه؟
+   * - وزنش چقدره؟
+   * ------------------------------------------------------------------------
+   */
+
+  private isProductFollowUpQuestion(message: string): boolean {
+    const normalizedMessage = this.normalizeCustomerMessage(message);
+
+    const followUpPatterns = [
+      /قیمتش/,
+      /قیمت\s+(این|اون|همون)/,
+      /^(چنده|چقدره|موجوده|موجود\s+هست)$/,
+      /^(این|اون|همون)(\s+(محصول|قهوه|کالا))?(\s+(چنده|چقدره|موجوده|موجود\s+هست))?$/,
+      /موجودی\s+(این|اون|همون)/,
+      /مشخصاتش/,
+      /ویژگی\s*هاش/,
+      /ترکیباتش/,
+      /طعمش/,
+      /وزنش/,
+      /کشورش/,
+      /درباره\s+(این|اون|همون)/,
+    ];
+
+    return followUpPatterns.some((pattern) => pattern.test(normalizedMessage));
+  }
+
+  /**
+   * ------------------------------------------------------------------------
    * Send Message
    * ------------------------------------------------------------------------
    *
@@ -253,23 +292,17 @@ export class SupportChatService {
    * @returns AI-generated customer support response and session identifier.
    * ------------------------------------------------------------------------
    */
+
   async sendMessage(
-message: string, sessionId?: string, user?: JwtPayload | null,
+    message: string,
+    sessionId?: string,
+    user?: JwtPayload | null,
   ): Promise<{ reply: string; sessionId: string }> {
-    /**
-     * Log incoming support chat requests.
-     */
     this.logger.log('Support chat request received');
 
-    /**
-     * Reuse the provided session or create a new conversation session.
-     */
     const conversationSessionId = sessionId ?? randomUUID();
 
     try {
-      /**
-       * Load previous turns for this conversation from Redis.
-       */
       const conversationHistory =
         await this.supportChatHistoryService.getHistory(conversationSessionId);
 
@@ -277,40 +310,125 @@ message: string, sessionId?: string, user?: JwtPayload | null,
         `Loaded conversation history messages: ${conversationHistory.length}`,
       );
 
-      /**
-       * Determine whether the customer is requesting the complete product catalog.
-       */
       const isCatalogQuestion = this.isCatalogQuestion(message);
+      const isProductFollowUp = this.isProductFollowUpQuestion(message);
 
       this.logger.log(`Catalog question detected: ${isCatalogQuestion}`);
+      this.logger.log(`Product follow-up detected: ${isProductFollowUp}`);
 
-      /**
-       * Stores products retrieved from the database.
-       */
       let products: Product[] = [];
 
       /**
-       * ------------------------------------------------------------------
-       * Retrieve Products
-       * ------------------------------------------------------------------
+       * --------------------------------------------------------------------
+       * Resolve Product Follow-Up
+       * --------------------------------------------------------------------
        *
-       * Uses different retrieval strategies depending on the
-       * customer's question.
-       * ------------------------------------------------------------------
+       * Resolve references to previously mentioned products using
+       * product IDs stored in Redis.
+       *
+       * Product details are always retrieved from PostgreSQL.
+       * --------------------------------------------------------------------
        */
-      if (isCatalogQuestion) {
+      if (isProductFollowUp) {
+        const referencedProductIds =
+          await this.supportChatHistoryService.getReferencedProductIds(
+            conversationSessionId,
+          );
+
         /**
-         * Retrieve all active products together with their inventory data.
+         * A follow-up question without product context cannot be
+         * reliably associated with a specific product.
+         */
+        if (referencedProductIds.length === 0) {
+          const reply =
+            'برای پاسخ دقیق‌تر، لطفاً نام محصول موردنظرتان را مشخص کنید.';
+
+          await this.supportChatHistoryService.appendTurn(
+            conversationSessionId,
+            message,
+            reply,
+          );
+
+          return {
+            reply,
+            sessionId: conversationSessionId,
+          };
+        }
+
+        /**
+         * Retrieve previously referenced products from PostgreSQL.
          *
-         * Out-of-stock products are also included in the catalog.
+         * Inactive or deleted products are excluded by ProductService.
+         */
+        products =
+          await this.productService.findProductsByIdsForSupportChat(
+            referencedProductIds,
+          );
+
+        /**
+         * Previously referenced products may have become inactive
+         * or deleted since the last conversation turn.
+         */
+        if (products.length === 0) {
+          await this.supportChatHistoryService.saveReferencedProductIds(
+            conversationSessionId,
+            [],
+          );
+
+          const reply =
+            'محصولی که قبلاً درباره آن صحبت کردیم، دیگر در فهرست محصولات فعال فروشگاه قرار ندارد. لطفاً محصول دیگری را انتخاب کنید.';
+
+          await this.supportChatHistoryService.appendTurn(
+            conversationSessionId,
+            message,
+            reply,
+          );
+
+          return {
+            reply,
+            sessionId: conversationSessionId,
+          };
+        }
+
+        /**
+         * If multiple products remain, never select one arbitrarily.
+         */
+        if (products.length > 1) {
+          const productTitles = products
+            .map((product) => `- ${product.title}`)
+            .join('\n');
+
+          const reply = `منظورتان کدام محصول است؟ لطفاً یکی از محصولات زیر را مشخص کنید:\n${productTitles}`;
+
+          await this.supportChatHistoryService.appendTurn(
+            conversationSessionId,
+            message,
+            reply,
+          );
+
+          return {
+            reply,
+            sessionId: conversationSessionId,
+          };
+        }
+
+        this.logger.log(`Resolved follow-up product: ${products[0].title}`);
+      } else if (isCatalogQuestion) {
+        /**
+         * Retrieve all active products, including out-of-stock products.
          */
         products = await this.productService.findAllForSupportChat();
 
         /**
-         * Return a predefined response when no active products exist.
+         * Store all products presented in the catalog response.
          *
-         * This prevents unnecessary AI requests when the catalog is empty.
+         * Multiple products will require clarification in follow-up questions.
          */
+        await this.supportChatHistoryService.saveReferencedProductIds(
+          conversationSessionId,
+          products.map((product) => product.id),
+        );
+
         if (products.length === 0) {
           const reply =
             'در حال حاضر هنوز محصولی در فروشگاه ثبت نشده است. ' +
@@ -330,69 +448,58 @@ message: string, sessionId?: string, user?: JwtPayload | null,
         }
       } else {
         /**
-         * Search for products related to the customer's specific question.
-         *
-         * Example:
-         * - Do you have Arabica coffee?
-         * - What products contain chocolate flavor notes?
+         * Search for products related to the current customer message.
          */
         products = await this.productService.searchForSupportChat(message);
+
+        /**
+         * Update product context only when relevant products are found.
+         *
+         * General questions without matching products do not erase
+         * the previously established product context.
+         */
+        if (products.length > 0) {
+          await this.supportChatHistoryService.saveReferencedProductIds(
+            conversationSessionId,
+            products.map((product) => product.id),
+          );
+        }
       }
 
       this.logger.log(`Retrieved products count: ${products.length}`);
 
       this.logger.debug(
-        `Retrieved product titles: ${products.map((product) => product.title).join(', ')}`,
+        `Retrieved product titles: ${products
+          .map((product) => product.title)
+          .join(', ')}`,
       );
 
       /**
-       * ------------------------------------------------------------------
+       * --------------------------------------------------------------------
        * Build Product Context
-       * ------------------------------------------------------------------
+       * --------------------------------------------------------------------
        *
-       * Converts retrieved products into structured JSON data.
-       *
-       * This information is provided to the AI model so that
-       * product-related answers are based on database records.
-       *
-       * Only the first 10 retrieved products are included in the context.
-       * ------------------------------------------------------------------
+       * Product and inventory information is retrieved from PostgreSQL.
+       * --------------------------------------------------------------------
        */
       const productContext =
         products.length > 0
           ? JSON.stringify(
               products.map((product) => {
-                /**
-                 * Retrieve the inventory relation associated with the product.
-                 */
                 const inventory = product.inventory;
 
-                /**
-                 * Calculate the quantity available for sale.
-                 *
-                 * Available Stock = Total Stock - Reserved Stock
-                 *
-                 * A null value indicates that inventory information
-                 * was not retrieved.
-                 */
                 const availableStock = inventory
                   ? inventory.stock - inventory.reservedStock
                   : null;
 
                 return {
-                  /**
-                   * Basic product information.
-                   */
+                  id: product.id,
                   title: product.title,
                   description: product.description,
                   price: Number(product.price),
                   originalPrice: product.originalPrice
                     ? Number(product.originalPrice)
                     : null,
-
-                  /**
-                   * Product specifications and characteristics.
-                   */
                   productType: product.productType,
                   weight: product.weight,
                   caffeineLevel: product.caffeineLevel,
@@ -401,22 +508,9 @@ message: string, sessionId?: string, user?: JwtPayload | null,
                   ingredients: product.ingredients,
                   benefits: product.benefits,
                   howToUse: product.howToUse,
-
-                  /**
-                   * Product inventory information.
-                   */
                   stock: inventory?.stock ?? null,
                   reservedStock: inventory?.reservedStock ?? null,
                   availableStock,
-
-                  /**
-                   * Convert the calculated available stock into
-                   * a human-readable availability status.
-                   *
-                   * - null: Inventory information is unavailable.
-                   * - greater than zero: Product is available.
-                   * - zero: Product is out of stock.
-                   */
                   availability:
                     availableStock === null
                       ? 'وضعیت موجودی نامشخص است'
@@ -431,77 +525,37 @@ message: string, sessionId?: string, user?: JwtPayload | null,
           : 'No matching products were found in the catalog.';
 
       /**
-       * ------------------------------------------------------------------
+       * --------------------------------------------------------------------
        * Generate AI Response
-       * ------------------------------------------------------------------
-       *
-       * Sends the conversation history, customer question, and retrieved
-       * product information to the local AI model.
-       *
-       * The system instructions define how the AI must use product
-       * and inventory information when generating responses.
-       * ------------------------------------------------------------------
+       * --------------------------------------------------------------------
        */
       const response = await this.ai.chat.completions.create({
         model: 'qwen3-4b-instruct-2507',
         messages: [
           {
-            /**
-             * System instructions define the AI's behavior and restrictions.
-             */
             role: 'system',
             content: [
-              /**
-               * Include all provided active products when answering
-               * product catalog questions.
-               */
-              'When the customer asks about the store catalog, list every provided product by its exact title, including products whose available stock is zero.',
-              'A provided product exists in the store. Available stock of zero means it is temporarily out of stock, not that the store has no products.',
-              'Never say that no product is registered, or that the catalog is empty, when product information is provided.',
-
-              /**
-               * Require the AI to clearly communicate product availability.
-               */
-              'For each product, clearly state its availability and available stock when that information is provided.',
-
-              /**
-               * Define how available stock is calculated.
-               */
-              'Available stock is the stock quantity minus the reserved stock quantity.',
-
-              /**
-               * Prevent incorrect availability claims.
-               */
+              'You are a customer support assistant for a coffee marketplace.',
+              'Use the conversation history to understand the customer question.',
+              'Use only the provided product information for product-related answers.',
+              'Never invent product names, prices, discounts, or inventory quantities.',
+              'Always use the exact product title provided by the database.',
+              'When answering catalog questions, list every provided product.',
+              'A product with zero available stock still exists in the catalog.',
+              'Never claim that the catalog is empty when product information is provided.',
+              'Available stock equals stock minus reserved stock.',
               'Never describe a product as available when its available stock is zero.',
-
-              /**
-               * Missing inventory information must be treated as unknown.
-               */
-              'If inventory information is missing, say that the availability is unknown.',
-
-              /**
-               * Prevent the AI from generating fictional inventory quantities.
-               */
-              'Never invent or estimate stock quantities.',
-
-              /**
-               * Use previous conversation turns for continuity.
-               */
-              'Use the previous conversation turns to answer follow-up questions accurately.',
+              'If inventory information is missing, say that availability is unknown.',
+              'For follow-up questions, use the retrieved product information rather than relying on previous AI responses.',
+              'If the provided product information does not contain the requested detail, clearly say that the information is unavailable.',
+              'Respond naturally in Persian when the customer writes in Persian.',
             ].join(' '),
           },
-          /**
-           * Previous customer and assistant turns from Redis.
-           */
           ...conversationHistory.map((historyMessage) => ({
             role: historyMessage.role,
             content: historyMessage.content,
           })),
           {
-            /**
-             * The user message contains the original question and
-             * the product information retrieved from the database.
-             */
             role: 'user',
             content: `
 Customer question:
@@ -511,26 +565,13 @@ Available product information:
 ${productContext}
 
 Please answer the customer naturally and accurately.
-            `.trim(),
+          `.trim(),
           },
         ],
       });
 
-      /**
-       * ------------------------------------------------------------------
-       * Extract AI Response
-       * ------------------------------------------------------------------
-       *
-       * Retrieves the generated text and removes unnecessary whitespace.
-       * ------------------------------------------------------------------
-       */
       const reply = response.choices[0]?.message?.content?.trim();
 
-      /**
-       * Validate the AI response.
-       *
-       * An empty response is treated as a service failure.
-       */
       if (!reply) {
         throw new ServiceUnavailableException(
           'The AI service returned an empty response.',
@@ -538,7 +579,7 @@ Please answer the customer naturally and accurately.
       }
 
       /**
-       * Persist the completed turn so follow-up questions keep context.
+       * Persist the completed conversation turn.
        */
       await this.supportChatHistoryService.appendTurn(
         conversationSessionId,
@@ -546,45 +587,20 @@ Please answer the customer naturally and accurately.
         reply,
       );
 
-      /**
-       * Return the generated response and conversation session identifier.
-       */
       return {
         reply,
         sessionId: conversationSessionId,
       };
     } catch (error: unknown) {
-      /**
-       * ------------------------------------------------------------------
-       * Handle Service Errors
-       * ------------------------------------------------------------------
-       *
-       * Prevents internal errors from being exposed directly
-       * to the customer.
-       * ------------------------------------------------------------------
-       */
-
-      /**
-       * Re-throw known service availability errors.
-       */
       if (error instanceof ServiceUnavailableException) {
         throw error;
       }
 
-      /**
-       * Extract a readable error message for logging.
-       */
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 
-      /**
-       * Record the AI service failure for debugging.
-       */
       this.logger.error(`Local AI request failed: ${errorMessage}`);
 
-      /**
-       * Return a generic service error to the customer.
-       */
       throw new ServiceUnavailableException(
         'The support chatbot is temporarily unavailable. Please try again later.',
       );
