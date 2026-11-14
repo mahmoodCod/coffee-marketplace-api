@@ -89,6 +89,29 @@ export class GuestIdentityUseCase {
   }
 
   /**
+   * Resolves an existing guest identity or creates a new one.
+   *
+   * A new identity is created only when no guest token is provided.
+   */
+  async resolve(
+    rawToken: string | undefined,
+    ttlSeconds: number,
+  ): Promise<CreateGuestIdentityResult> {
+    this.validateTtl(ttlSeconds);
+
+    if (rawToken === undefined || rawToken.length === 0) {
+      return this.create(ttlSeconds);
+    }
+
+    const guestIdentity = await this.getByToken(rawToken);
+
+    return {
+      guestIdentity,
+      rawToken,
+    };
+  }
+
+  /**
    * Extends the expiration time of an existing guest identity.
    */
   async refresh(rawToken: string, ttlSeconds: number): Promise<GuestIdentity> {
