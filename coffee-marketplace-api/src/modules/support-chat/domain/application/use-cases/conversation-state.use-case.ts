@@ -20,6 +20,7 @@ import { SUPPORT_CHAT_TOKENS } from '../../../constants/support-chat.tokens';
  * - Retrieve conversation state.
  * - Update the active product reference.
  * - Ensure referenced products belong to the same conversation.
+ * - Prevent access to closed or expired conversations.
  * ------------------------------------------------------------------------
  */
 @Injectable()
@@ -103,7 +104,11 @@ export class ConversationStateUseCase {
       throw new Error('Conversation not found.');
     }
 
+    // Verify ownership before checking the conversation status.
     conversation.assertAccessible(requester);
+
+    // Reject state access when the conversation is closed or expired.
+    conversation.assertActive();
 
     return conversation;
   }
