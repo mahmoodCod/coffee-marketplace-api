@@ -1,7 +1,11 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { Inject, Injectable } from '@nestjs/common';
 
-import { GuestIdentity } from '../../../domain/entities/guest-identity.entity';
-import { GuestIdentityRepository } from '../../../domain/repositories/guest-identity.repository';
+import { GuestIdentity } from '../../entities/guest-identity.entity';
+
+import type { GuestIdentityRepository } from '../../repositories/guest-identity.repository';
+
+import { SUPPORT_CHAT_TOKENS } from '../../../constants/support-chat.tokens';
 
 /**
  * Contains the result of guest identity creation.
@@ -14,10 +18,22 @@ export interface CreateGuestIdentityResult {
 }
 
 /**
+ * ------------------------------------------------------------------------
+ * Guest Identity Use Case
+ * ------------------------------------------------------------------------
+ *
  * Handles guest identity creation, retrieval, and expiration.
+ *
+ * Security:
+ * - Generates cryptographically secure access tokens.
+ * - Stores only SHA-256 token hashes.
+ * - Never persists or logs raw guest tokens.
+ * ------------------------------------------------------------------------
  */
+@Injectable()
 export class GuestIdentityUseCase {
   constructor(
+    @Inject(SUPPORT_CHAT_TOKENS.GUEST_IDENTITY_REPOSITORY)
     private readonly guestIdentityRepository: GuestIdentityRepository,
   ) {}
 
@@ -36,7 +52,8 @@ export class GuestIdentityUseCase {
     const now = new Date();
 
     const guestIdentity = GuestIdentity.create({
-      id: randomBytes(16).toString('hex'),
+      // Generate a UUID compatible with the PostgreSQL UUID column.
+      id: randomUUID(),
       tokenHash,
       createdAt: now,
       expiresAt: new Date(now.getTime() + ttlSeconds * 1000),
@@ -86,6 +103,9 @@ export class GuestIdentityUseCase {
     if (!guestIdentity) {
       throw new Error('Guest identity not found.');
     }
+
+    // Ensure expired guest identities cannot be refreshed.
+    guestIdentity.assertActive();
 
     guestIdentity.refreshExpiration(ttlSeconds);
 
