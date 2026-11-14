@@ -1,0 +1,201 @@
+import { ConversationOwner } from '../models/conversation-owner.model';
+
+/**
+ * Represents the lifecycle status of a conversation.
+ */
+export type ConversationStatus = 'active' | 'closed';
+
+/**
+ * Defines the required data for creating a conversation.
+ */
+export interface CreateConversationInput {
+  id: string;
+  owner: ConversationOwner;
+  expiresAt: Date;
+  createdAt?: Date;
+}
+
+/**
+ * Conversation Aggregate Root.
+ *
+ * Responsible for maintaining conversation ownership,
+ * lifecycle status, accessibility, and expiration rules.
+ */
+export class Conversation {
+  readonly id: string;
+
+  private _owner: ConversationOwner;
+  private _status: ConversationStatus;
+
+  readonly createdAt: Date;
+
+  private _updatedAt: Date;
+  private _expiresAt: Date;
+
+  private constructor(input: CreateConversationInput) {
+    // Validate the conversation identifier.
+    if (!input.id?.trim()) {
+      throw new Error('Conversation ID is required.');
+    }
+
+    // Validate the conversation owner.
+    if (!input.owner?.id?.trim()) {
+      throw new Error('Conversation owner ID is required.');
+    }
+
+    if (!['guest', 'user'].includes(input.owner.type)) {
+      throw new Error('Invalid conversation owner type.');
+    }
+
+    // Validate expiration date.
+    if (
+      !(input.expiresAt instanceof Date) ||
+      Number.isNaN(input.expiresAt.getTime())
+    ) {
+      throw new Error('A valid expiration date is required.');
+    }
+
+    // Use the current time when creation date is not provided.
+    const createdAt = input.createdAt ?? new Date();
+
+    if (!(createdAt instanceof Date) || Number.isNaN(createdAt.getTime())) {
+      throw new Error('A valid creation date is required.');
+    }
+
+    // A conversation must expire after its creation.
+    if (input.expiresAt.getTime() <= createdAt.getTime()) {
+      throw new Error('Expiration date must be after creation date.');
+    }
+
+    this.id = input.id;
+    this._owner = Object.freeze({ ...input.owner });
+    this._status = 'active';
+
+    // Store defensive copies to prevent external date mutations.
+    this.createdAt = new Date(createdAt);
+    this._updatedAt = new Date(createdAt);
+    this._expiresAt = new Date(input.expiresAt);
+  }
+
+  /**
+   * Creates a new conversation instance.
+   */
+  static create(input: CreateConversationInput): Conversation {
+    return new Conversation(input);
+  }
+
+  /**
+   * Returns a copy of the current conversation owner.
+   */
+  get owner(): ConversationOwner {
+    return { ...this._owner };
+  }
+
+  /**
+   * Returns the current conversation status.
+   */
+  get status(): ConversationStatus {
+    return this._status;
+  }
+
+  /**
+   * Returns the last update timestamp.
+   */
+  get updatedAt(): Date {
+    return new Date(this._updatedAt);
+  }
+
+  /**
+   * Returns the conversation expiration timestamp.
+   */
+  get expiresAt(): Date {
+    return new Date(this._expiresAt);
+  }
+
+  /**
+   * Checks whether the conversation has passed its expiration time.
+   */
+  get isExpired(): boolean {
+    return Date.now() >= this._expiresAt.getTime();
+  }
+
+  /**
+   * Checks whether the conversation can still be accessed.
+   */
+  get isAccessible(): boolean {
+    return this._status === 'active' && !this.isExpired;
+  }
+
+  /**
+   * Ensures that the conversation is active and not expired.
+   */
+  assertAccessible(): void {
+    if (this._status === 'closed') {
+      throw new Error('Conversation is closed.');
+    }
+
+    if (this.isExpired) {
+      throw new Error('Conversation has expired.');
+    }
+  }
+
+  /**
+   * Extends the conversation expiration time.
+   *
+   * This supports the sliding TTL policy:
+   * every successful interaction refreshes the expiration time.
+   */
+  refreshExpiration(ttlSeconds: number, now = new Date()): void {
+    this.assertAccessible();
+
+    if (!Number.isInteger(ttlSeconds) || ttlSeconds <= 0) {
+      throw new Error('TTL must be a positive integer.');
+    }
+
+    if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
+      throw new Error('A valid current date is required.');
+    }
+
+    this._updatedAt = new Date(now);
+    this._expiresAt = new Date(now.getTime() + ttlSeconds * 1000);
+  }
+
+  /**
+   * Closes the conversation permanently.
+   */
+  close(now = new Date()): void {
+    this.assertAccessible();
+
+    if (!(now instanceof Date) || Number.isNaN(now.getTime())) {
+      throw new Error('A valid current date is required.');
+    }
+
+    this._status = 'closed';
+    this._updatedAt = new Date(now);
+  }
+
+  /**
+   * Transfers conversation ownership.
+   *
+   * Explicit user consent must be verified by the application
+   * layer before this domain operation is called.
+   */
+  transferOwnership(newOwner: ConversationOwner): void {
+    this.assertAccessible();
+
+    if (!newOwner?.id?.trim()) {
+      throw new Error('New conversation owner ID is required.');
+    }
+
+    if (!['guest', 'user'].includes(newOwner.type)) {
+      throw new Error('Invalid conversation owner type.');
+    }
+
+    if (newOwner.type === this._owner.type && newOwner.id === this._owner.id) {
+      throw new Error('New owner must be different.');
+    }
+
+    this._owner = Object.freeze({ ...newOwner });
+    this._updatedAt = new Date();
+  }
+}
