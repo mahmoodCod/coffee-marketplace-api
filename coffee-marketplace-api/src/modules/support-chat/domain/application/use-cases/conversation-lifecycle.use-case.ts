@@ -123,9 +123,14 @@ export class ConversationLifecycleUseCase {
       requester,
     );
 
+    // Update ownership in the domain aggregate.
     conversation.transferOwnership(newOwner);
 
-    await this.conversationRepository.save(conversation);
+    // Persist ownership change only if the guest is still the current owner.
+    await this.conversationRepository.transferOwnership(
+      conversation,
+      requester,
+    );
 
     return conversation;
   }
