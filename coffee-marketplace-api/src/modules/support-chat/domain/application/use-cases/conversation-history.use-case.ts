@@ -1,14 +1,20 @@
 import { ConversationOwner } from '../../../domain/models/conversation-owner.model';
 import { ConversationTurn } from '../../../domain/models/conversation-message.model';
-import { ConversationRepository } from '../../../domain/repositories/conversation.repository';
-import { ConversationTurnRepository } from '../../../domain/repositories/conversation-turn.repository';
+import type { ConversationRepository } from '../../../domain/repositories/conversation.repository';
+import type { ConversationTurnRepository } from '../../../domain/repositories/conversation-turn.repository';
+import { Inject, Injectable } from '@nestjs/common';
+import { SUPPORT_CHAT_TOKENS } from 'src/modules/support-chat/constants/support-chat.tokens';
 
 /**
  * Handles conversation history operations.
  */
+@Injectable()
 export class ConversationHistoryUseCase {
   constructor(
+    @Inject(SUPPORT_CHAT_TOKENS.CONVERSATION_REPOSITORY)
     private readonly conversationRepository: ConversationRepository,
+
+    @Inject(SUPPORT_CHAT_TOKENS.CONVERSATION_TURN_REPOSITORY)
     private readonly conversationTurnRepository: ConversationTurnRepository,
   ) {}
 
