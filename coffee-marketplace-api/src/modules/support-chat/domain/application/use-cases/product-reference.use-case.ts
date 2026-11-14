@@ -1,19 +1,37 @@
 import { randomBytes } from 'node:crypto';
+import { Inject, Injectable } from '@nestjs/common';
 
-import { ConversationOwner } from '../../../domain/models/conversation-owner.model';
+import { ConversationOwner } from '../../models/conversation-owner.model';
 import {
   ConversationProductReference,
   ProductReferenceSource,
-} from '../../../domain/models/product-reference.model';
-import { ConversationRepository } from '../../../domain/repositories/conversation.repository';
-import { ProductReferenceRepository } from '../../../domain/repositories/product-reference.repository';
+} from '../../models/product-reference.model';
+
+import type { ConversationRepository } from '../../repositories/conversation.repository';
+import type { ProductReferenceRepository } from '../../repositories/product-reference.repository';
+
+import { SUPPORT_CHAT_TOKENS } from '../../../constants/support-chat.tokens';
 
 /**
+ * ------------------------------------------------------------------------
+ * Product Reference Use Case
+ * ------------------------------------------------------------------------
+ *
  * Groups all product reference operations related to a conversation.
+ *
+ * Security:
+ * - Product IDs are never exposed as public references.
+ * - References are unpredictable and scoped to a conversation.
+ * - Every operation validates conversation ownership.
+ * ------------------------------------------------------------------------
  */
+@Injectable()
 export class ProductReferenceUseCase {
   constructor(
+    @Inject(SUPPORT_CHAT_TOKENS.CONVERSATION_REPOSITORY)
     private readonly conversationRepository: ConversationRepository,
+
+    @Inject(SUPPORT_CHAT_TOKENS.PRODUCT_REFERENCE_REPOSITORY)
     private readonly productReferenceRepository: ProductReferenceRepository,
   ) {}
 
@@ -45,7 +63,7 @@ export class ProductReferenceUseCase {
     const productReference: ConversationProductReference = {
       reference: `prod_${randomBytes(16).toString('hex')}`,
       conversationId: conversation.id,
-      productId,
+      productId: productId.trim(),
       source,
       createdAt: new Date(),
     };
@@ -149,22 +167,16 @@ export class ProductReferenceUseCase {
       throw new Error('A valid requester identity is required.');
     }
 
-    const conversation =
-      await this.conversationRepository.findById(conversationId);
+    const conversation = await this.conversationRepository.findById(
+      conversationId.trim(),
+    );
 
     if (!conversation) {
       throw new Error('Conversation not found.');
     }
 
-    // Prevent access to another user's or guest's conversation.
-    if (
-      conversation.owner.id !== requester.id ||
-      conversation.owner.type !== requester.type
-    ) {
-      throw new Error('You are not allowed to access this conversation.');
-    }
-
-    conversation.assertActive();
+    // Validate both ownership and conversation expiration/status.
+    conversation.assertAccessible(requester);
 
     return conversation;
   }
