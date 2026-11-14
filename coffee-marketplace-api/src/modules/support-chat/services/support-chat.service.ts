@@ -3,83 +3,66 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { randomUUID } from 'crypto';
-
+import { randomUUID } from 'node:crypto';
 import OpenAI from 'openai';
 
 import { Product } from 'src/modules/products/entities/product.entity';
 import { ProductService } from 'src/modules/products/services/product.service';
-
-import { SupportChatHistoryService } from './support-chat-history.service';
 import { JwtPayload } from 'src/modules/auth/interfaces/jwt-payload.interface';
+
+import { ConversationOwner } from '../domain/models/conversation-owner.model';
+import {
+  ConversationMessage,
+  ConversationTurn,
+} from '../domain/models/conversation-message.model';
+
+import { ConversationLifecycleUseCase } from '../domain/application/use-cases/conversation-lifecycle.use-case';
+import { ConversationHistoryUseCase } from '../domain/application/use-cases/conversation-history.use-case';
+import { ConversationStateUseCase } from '../domain/application/use-cases/conversation-state.use-case';
+import { GuestIdentityUseCase } from '../domain/application/use-cases/guest-identity.use-case';
+import { ProductReferenceUseCase } from '../domain/application/use-cases/product-reference.use-case';
+
+import {
+  SUPPORT_CHAT_HISTORY_TTL_SECONDS,
+  SUPPORT_CHAT_GUEST_IDENTITY_TTL_SECONDS,
+} from '../constants/support-chat-history.constants';
 
 /**
  * ------------------------------------------------------------------------
  * Support Chat Service
  * ------------------------------------------------------------------------
  *
- * Handles customer support conversations using a local AI model.
+ * Coordinates support chat conversations and AI responses.
  *
- * Responsibilities
- * ------------------------------------------------------------------------
+ * Responsibilities:
+ * - Resolve guest and authenticated conversation ownership.
+ * - Create or retrieve conversations.
+ * - Manage conversation history and state.
+ * - Manage conversation-scoped product references.
+ * - Retrieve authoritative product information from PostgreSQL.
+ * - Generate responses using the local AI server.
  *
- * - Receive customer messages.
- * - Detect product catalog questions.
- * - Retrieve relevant products from the database.
- * - Retrieve product inventory information.
- * - Load and persist conversation history in Redis.
- * - Build product context for the AI model.
- * - Generate customer support responses.
- * - Handle AI service errors.
- *
- * AI Integration
- * ------------------------------------------------------------------------
- *
- * - Local AI server: LM Studio
- * - Model: Qwen3 4B Instruct
- * - API compatibility: OpenAI-compatible API
- *
- * Business Rules
- * ------------------------------------------------------------------------
- *
- * - Product-related answers must use database information.
- * - Active products are included in catalog responses.
- * - Out-of-stock products must not be excluded from the catalog.
- * - Available stock must exclude reserved quantities.
- * - Missing inventory information must not be treated as zero stock.
- * - The AI must never invent product or inventory information.
+ * Security:
+ * - Raw guest tokens are returned only to the HTTP layer.
+ * - Product UUIDs are never exposed to the AI model.
+ * - Conversation ownership is validated by the Use Cases.
  * ------------------------------------------------------------------------
  */
 @Injectable()
 export class SupportChatService {
-  /**
-   * Local AI client used to communicate with the LM Studio server.
-   */
-  private readonly ai: OpenAI;
-
-  /**
-   * Logger used to record support chat events and errors.
-   */
   private readonly logger = new Logger(SupportChatService.name);
+
+  private readonly ai: OpenAI;
 
   constructor(
     private readonly productService: ProductService,
-    private readonly supportChatHistoryService: SupportChatHistoryService,
+    private readonly conversationLifecycle: ConversationLifecycleUseCase,
+    private readonly conversationHistory: ConversationHistoryUseCase,
+    private readonly conversationState: ConversationStateUseCase,
+    private readonly guestIdentity: GuestIdentityUseCase,
+    private readonly productReferences: ProductReferenceUseCase,
   ) {
-    /**
-     * --------------------------------------------------------------------
-     * Initialize Local AI Client
-     * --------------------------------------------------------------------
-     *
-     * Configures the OpenAI SDK to communicate with the local LM Studio
-     * server instead of the official OpenAI API.
-     *
-     * Notes:
-     *
-     * - The API key is a placeholder for local development.
-     * - The base URL points to the local LM Studio server.
-     * --------------------------------------------------------------------
-     */
+    // Connect to the local OpenAI-compatible LM Studio server.
     this.ai = new OpenAI({
       apiKey: 'lm-studio',
       baseURL: 'http://127.0.0.1:5001/v1',
@@ -87,24 +70,8 @@ export class SupportChatService {
   }
 
   /**
-   * ------------------------------------------------------------------------
-   * Is Catalog Question
-   * ------------------------------------------------------------------------
-   *
-   * Determines whether the customer is requesting the store's product catalog.
-   *
-   * Responsibilities
-   * ------------------------------------------------------------------------
-   *
-   * - Normalize the customer's message.
-   * - Detect general product catalog requests.
-   * - Distinguish catalog requests from specific product searches.
-   *
-   * @param message Customer's original message.
-   * @returns True if the customer requests the product catalog.
-   * ------------------------------------------------------------------------
+   * Normalizes Persian and Arabic characters before intent detection.
    */
-
   private normalizeCustomerMessage(message: string): string {
     return message
       .trim()
@@ -119,14 +86,11 @@ export class SupportChatService {
   }
 
   /**
-   * JavaScript `\b` only matches ASCII word characters, so it never
-   * matches Persian words such as «محصولات» or «چیه».
+   * Detects general product catalog requests.
    */
   private isCatalogQuestion(message: string): boolean {
-    const normalizedMessage = this.normalizeCustomerMessage(message);
-    const tokens = normalizedMessage
-      .split(' ')
-      .filter((token) => token.length > 0);
+    const normalized = this.normalizeCustomerMessage(message);
+    const tokens = normalized.split(' ').filter(Boolean);
 
     const isCatalogWord = (token: string): boolean =>
       token.startsWith('محصول') ||
@@ -134,9 +98,7 @@ export class SupportChatService {
       token.startsWith('فروشگاه') ||
       token.startsWith('قهوه') ||
       token.startsWith('تجهیز') ||
-      token === 'اجناس' ||
-      token === 'فهرست' ||
-      token === 'لیست';
+      ['اجناس', 'فهرست', 'لیست'].includes(token);
 
     const questionWords = new Set([
       'کدام',
@@ -199,16 +161,12 @@ export class SupportChatService {
       'الان',
       'خودت',
       'بهم',
-      'وجود',
-      'است',
-      'برای',
       'فروش',
       'عرضه',
       'می',
       'خواهم',
       'میخواهم',
       'میخوام',
-      'رو',
       'هایی',
     ]);
 
@@ -217,12 +175,12 @@ export class SupportChatService {
     const hasListWord = tokens.some((token) =>
       ['لیست', 'فهرست', 'همه', 'تمام', 'تمامی'].includes(token),
     );
-    const asksToList = /(نشون بده|نشان بده|نمایش بده|لیست کن)/.test(
-      normalizedMessage,
-    );
+
+    const asksToList = /(نشون بده|نشان بده|نمایش بده|لیست کن)/.test(normalized);
+
     const asksWhatYouHave =
       /(چی دارین|چی دارید|چیا دارین|چیا دارید|چه دارید|چه دارین)/.test(
-        normalizedMessage,
+        normalized,
       );
 
     const specificTokens = tokens.filter(
@@ -243,25 +201,12 @@ export class SupportChatService {
   }
 
   /**
-   * ------------------------------------------------------------------------
-   * Is Product Follow-Up Question
-   * ------------------------------------------------------------------------
-   *
-   * Detects questions that refer to a product mentioned earlier
-   * in the conversation.
-   *
-   * Examples:
-   * - قیمتش چنده؟
-   * - موجوده؟
-   * - مشخصاتش چیه؟
-   * - وزنش چقدره؟
-   * ------------------------------------------------------------------------
+   * Detects questions referring to a previously discussed product.
    */
-
   private isProductFollowUpQuestion(message: string): boolean {
-    const normalizedMessage = this.normalizeCustomerMessage(message);
+    const normalized = this.normalizeCustomerMessage(message);
 
-    const followUpPatterns = [
+    const patterns = [
       /قیمتش/,
       /قیمت\s+(این|اون|همون)/,
       /^(چنده|چقدره|موجوده|موجود\s+هست)$/,
@@ -276,28 +221,14 @@ export class SupportChatService {
       /درباره\s+(این|اون|همون)/,
     ];
 
-    return followUpPatterns.some((pattern) => pattern.test(normalizedMessage));
+    return patterns.some((pattern) => pattern.test(normalized));
   }
 
   /**
-   * ------------------------------------------------------------------------
-   * Get Product Selection Index
-   * ------------------------------------------------------------------------
-   *
-   * Resolves ordinal product selections from customer messages.
-   *
-   * Examples:
-   * - اولی
-   * - دومی
-   * - مورد سوم
-   * - محصول چهارم
-   *
-   * @param message Customer's selection message.
-   * @returns Zero-based product index, or null if no selection is detected.
-   * ------------------------------------------------------------------------
+   * Resolves ordinal product selections.
    */
   private getProductSelectionIndex(message: string): number | null {
-    const normalizedMessage = this.normalizeCustomerMessage(message);
+    const normalized = this.normalizeCustomerMessage(message);
 
     const ordinalMap = new Map<string, number>([
       ['اول', 0],
@@ -306,393 +237,429 @@ export class SupportChatService {
       ['یکم', 0],
       ['1', 0],
       ['۱', 0],
-
       ['دوم', 1],
       ['دومی', 1],
       ['دومین', 1],
       ['2', 1],
       ['۲', 1],
-
       ['سوم', 2],
       ['سومی', 2],
       ['سومین', 2],
       ['3', 2],
       ['۳', 2],
-
       ['چهارم', 3],
       ['چهارمی', 3],
       ['4', 3],
       ['۴', 3],
-
       ['پنجم', 4],
       ['پنجمی', 4],
       ['5', 4],
       ['۵', 4],
     ]);
 
-    const normalizedSelection = normalizedMessage.replace(
-      /^(مورد|محصول|گزینه)\s+/,
-      '',
-    );
+    const selection = normalized.replace(/^(مورد|محصول|گزینه)\s+/, '');
 
-    return ordinalMap.get(normalizedSelection) ?? null;
+    return ordinalMap.get(selection) ?? null;
   }
 
   /**
-   * ------------------------------------------------------------------------
-   * Send Message
-   * ------------------------------------------------------------------------
-   *
-   * Processes a customer message and generates an AI-powered response.
-   *
-   * Workflow
-   * ------------------------------------------------------------------------
-   *
-   * 1. Normalize the customer message.
-   * 2. Detect whether the customer is asking for the product catalog.
-   * 3. Retrieve products from the database.
-   * 4. Build product and inventory context.
-   * 5. Send the context and customer question to the AI model.
-   * 6. Return the generated response.
-   *
-   * Business Rules
-   * ------------------------------------------------------------------------
-   *
-   * - Catalog questions retrieve all active products.
-   * - Specific product questions use product search.
-   * - Product availability is calculated using inventory data.
-   * - Conversation history is loaded from Redis when sessionId exists.
-   * - Empty AI responses are treated as service errors.
-   *
-   * @param message Customer's message.
-   * @param sessionId Optional conversation session identifier.
-   * @returns AI-generated customer support response and session identifier.
-   * ------------------------------------------------------------------------
+   * Resolves the requester and creates or retrieves their conversation.
    */
+  private async resolveConversation(
+    conversationId: string | undefined,
+    user: JwtPayload | null,
+    rawGuestToken?: string,
+  ) {
+    let owner: ConversationOwner;
+    let guestToken: string | undefined;
 
-  async sendMessage(
-    message: string,
-    sessionId?: string,
-    user?: JwtPayload | null,
-  ): Promise<{ reply: string; sessionId: string }> {
-    this.logger.log('Support chat request received');
-
-    const conversationSessionId = sessionId ?? randomUUID();
-
-    try {
-      const conversationHistory =
-        await this.supportChatHistoryService.getHistory(conversationSessionId);
-
-      this.logger.log(
-        `Loaded conversation history messages: ${conversationHistory.length}`,
+    if (user) {
+      owner = {
+        type: 'user',
+        id: user.sub,
+      };
+    } else {
+      const guest = await this.guestIdentity.resolve(
+        rawGuestToken,
+        SUPPORT_CHAT_GUEST_IDENTITY_TTL_SECONDS,
       );
 
-      const isCatalogQuestion = this.isCatalogQuestion(message);
+      owner = {
+        type: 'guest',
+        id: guest.guestIdentity.id,
+      };
 
-      const isProductFollowUp = this.isProductFollowUpQuestion(message);
+      guestToken = guest.rawToken;
+    }
 
-      const productSelectionIndex = this.getProductSelectionIndex(message);
+    // Existing conversations must belong to the resolved requester.
+    const conversation = conversationId
+      ? await this.conversationLifecycle.get(conversationId, owner)
+      : await this.conversationLifecycle.create(
+          owner,
+          SUPPORT_CHAT_HISTORY_TTL_SECONDS,
+        );
 
-      this.logger.log(`Catalog question detected: ${isCatalogQuestion}`);
-      this.logger.log(`Product follow-up detected: ${isProductFollowUp}`);
+    // Refresh the conversation expiration after a valid customer request.
+    await this.conversationLifecycle.refreshExpiration(
+      conversation.id,
+      owner,
+      SUPPORT_CHAT_HISTORY_TTL_SECONDS,
+    );
+
+    return {
+      conversationId: conversation.id,
+      owner,
+      guestToken,
+    };
+  }
+
+  /**
+   * Persists a completed user/assistant turn.
+   */
+  private async persistTurn(
+    conversationId: string,
+    owner: ConversationOwner,
+    message: string,
+    reply: string,
+    previousTurns: ConversationTurn[],
+  ): Promise<void> {
+    const now = new Date();
+
+    const userMessage: ConversationMessage = {
+      id: randomUUID(),
+      conversationId,
+      role: 'user',
+      content: message,
+      createdAt: now,
+    };
+
+    const assistantMessage: ConversationMessage = {
+      id: randomUUID(),
+      conversationId,
+      role: 'assistant',
+      content: reply,
+      createdAt: now,
+    };
+
+    const turn: ConversationTurn = {
+      requestId: randomUUID(),
+      sequence:
+        previousTurns.length > 0
+          ? previousTurns[previousTurns.length - 1].sequence + 1
+          : 1,
+      messages: [userMessage, assistantMessage],
+      createdAt: now,
+    };
+
+    await this.conversationHistory.appendTurn(conversationId, owner, turn);
+  }
+
+  /**
+   * Creates a short response and persists it as a conversation turn.
+   */
+  private async returnShortReply(
+    conversationId: string,
+    owner: ConversationOwner,
+    message: string,
+    reply: string,
+    history: ConversationTurn[],
+    guestToken?: string,
+  ) {
+    await this.persistTurn(conversationId, owner, message, reply, history);
+
+    return {
+      reply,
+      conversationId,
+      ...(guestToken ? { guestToken } : {}),
+    };
+  }
+
+  /**
+   * Loads products in the exact order of their conversation references.
+   */
+  private async loadReferencedProducts(
+    conversationId: string,
+    owner: ConversationOwner,
+  ): Promise<Product[]> {
+    const references = await this.productReferences.getAll(
+      conversationId,
+      owner,
+    );
+
+    if (references.length === 0) {
+      return [];
+    }
+
+    const products = await this.productService.findProductsByIdsForSupportChat(
+      references.map((item) => item.productId),
+    );
+
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
+
+    return references
+      .map((reference) => productMap.get(reference.productId))
+      .filter((product): product is Product => product !== undefined);
+  }
+
+  /**
+   * Replaces the conversation's product references with the supplied products.
+   */
+  private async replaceProductReferences(
+    conversationId: string,
+    owner: ConversationOwner,
+    products: Product[],
+    source: 'catalog_search' | 'product_details',
+  ): Promise<void> {
+    await this.productReferences.deleteAll(conversationId, owner);
+
+    for (const product of products) {
+      await this.productReferences.create(
+        conversationId,
+        owner,
+        product.id,
+        source,
+      );
+    }
+  }
+
+  /**
+   * Processes a customer message and generates an AI response.
+   */
+  async sendMessage(
+    message: string,
+    conversationId?: string,
+    user?: JwtPayload | null,
+    rawGuestToken?: string,
+  ): Promise<{
+    reply: string;
+    conversationId: string;
+    guestToken?: string;
+  }> {
+    this.logger.log('Support chat request received');
+
+    try {
+      const resolved = await this.resolveConversation(
+        conversationId,
+        user ?? null,
+        rawGuestToken,
+      );
+
+      const {
+        conversationId: activeConversationId,
+        owner,
+        guestToken,
+      } = resolved;
+
+      const history = await this.conversationHistory.getHistory(
+        activeConversationId,
+        owner,
+      );
+
+      const previousMessages = history.flatMap((turn) => turn.messages);
+
+      const catalogQuestion = this.isCatalogQuestion(message);
+      const followUpQuestion = this.isProductFollowUpQuestion(message);
+      const selectionIndex = this.getProductSelectionIndex(message);
 
       let products: Product[] = [];
-      let referencedProductIds: string[] = [];
+
+      const state = await this.conversationState.get(
+        activeConversationId,
+        owner,
+      );
 
       /**
-       * --------------------------------------------------------------------
-       * Resolve Product Selection
-       * --------------------------------------------------------------------
-       *
-       * Resolve ordinal selections without overwriting the original
-       * referenced product list.
-       * --------------------------------------------------------------------
+       * Resolve an ordinal selection from conversation-scoped references.
        */
-
-      if (productSelectionIndex !== null) {
-        referencedProductIds =
-          await this.supportChatHistoryService.getReferencedProductIds(
-            conversationSessionId,
-          );
-
-        /**
-         * Validate the requested index against the referenced product list.
-         */
-        if (productSelectionIndex >= referencedProductIds.length) {
-          const reply =
-            'این شماره در فهرست محصولات قبلی وجود ندارد. لطفاً یکی از محصولات نمایش‌داده‌شده را انتخاب کنید.';
-
-          await this.supportChatHistoryService.appendTurn(
-            conversationSessionId,
-            message,
-            reply,
-          );
-
-          return {
-            reply,
-            sessionId: conversationSessionId,
-          };
-        }
-
-        /**
-         * Retrieve active products from PostgreSQL.
-         */
-        const referencedProducts =
-          await this.productService.findProductsByIdsForSupportChat(
-            referencedProductIds,
-          );
-
-        /**
-         * Resolve the selected product using its original list position.
-         */
-        const selectedProductId = referencedProductIds[productSelectionIndex];
-
-        const selectedProduct = referencedProducts.find(
-          (product) => product.id === selectedProductId,
+      if (selectionIndex !== null) {
+        const referencedProducts = await this.loadReferencedProducts(
+          activeConversationId,
+          owner,
         );
 
-        if (!selectedProduct) {
-          await this.supportChatHistoryService.saveSelectedProductId(
-            conversationSessionId,
-            null,
-          );
-
-          const reply =
-            'این محصول دیگر در فهرست محصولات فعال فروشگاه قرار ندارد. لطفاً محصول دیگری را انتخاب کنید.';
-
-          await this.supportChatHistoryService.appendTurn(
-            conversationSessionId,
+        if (selectionIndex >= referencedProducts.length) {
+          return this.returnShortReply(
+            activeConversationId,
+            owner,
             message,
-            reply,
+            'این شماره در فهرست محصولات قبلی وجود ندارد. لطفاً یکی از محصولات نمایش‌داده‌شده را انتخاب کنید.',
+            history,
+            guestToken,
           );
-
-          return {
-            reply,
-            sessionId: conversationSessionId,
-          };
         }
 
-        /**
-         * Store the selection separately.
-         * The original referenced product list remains unchanged.
-         */
-        await this.supportChatHistoryService.saveSelectedProductId(
-          conversationSessionId,
+        const selectedProduct = referencedProducts[selectionIndex];
+
+        await this.productReferences.create(
+          activeConversationId,
+          owner,
           selectedProduct.id,
+          'product_details',
         );
+
+        // The newly created reference is the active product for follow-up questions.
+        const references = await this.productReferences.getAll(
+          activeConversationId,
+          owner,
+        );
+
+        const selectedReference = references.find(
+          (reference) => reference.productId === selectedProduct.id,
+        );
+
+        if (!selectedReference) {
+          throw new Error('Selected product reference could not be created.');
+        }
+
+        await this.conversationState.update(activeConversationId, owner, {
+          conversationId: activeConversationId,
+          activeProductReference: selectedReference.reference,
+          updatedAt: new Date(),
+        });
 
         products = [selectedProduct];
-
-        this.logger.log(`Customer selected product: ${selectedProduct.title}`);
-      } else if (isProductFollowUp) {
-        /**
-         * Load the original product list and the current selection.
-         */
-        referencedProductIds =
-          await this.supportChatHistoryService.getReferencedProductIds(
-            conversationSessionId,
+      } else if (followUpQuestion) {
+        if (state?.activeProductReference) {
+          const reference = await this.productReferences.getByReference(
+            activeConversationId,
+            owner,
+            state.activeProductReference,
           );
 
-        const selectedProductId =
-          await this.supportChatHistoryService.getSelectedProductId(
-            conversationSessionId,
-          );
-
-        /**
-         * If a product has already been selected, resolve only that product.
-         */
-        if (selectedProductId) {
           products = await this.productService.findProductsByIdsForSupportChat([
-            selectedProductId,
+            reference.productId,
           ]);
 
           if (products.length === 0) {
-            await this.supportChatHistoryService.saveSelectedProductId(
-              conversationSessionId,
-              null,
-            );
+            await this.conversationState.update(activeConversationId, owner, {
+              conversationId: activeConversationId,
+              activeProductReference: null,
+              updatedAt: new Date(),
+            });
 
-            const reply =
-              'محصول انتخاب‌شده دیگر در فهرست محصولات فعال فروشگاه قرار ندارد. لطفاً محصول دیگری را انتخاب کنید.';
-
-            await this.supportChatHistoryService.appendTurn(
-              conversationSessionId,
+            return this.returnShortReply(
+              activeConversationId,
+              owner,
               message,
-              reply,
+              'محصول انتخاب‌شده دیگر در فهرست محصولات فعال فروشگاه قرار ندارد. لطفاً محصول دیگری را انتخاب کنید.',
+              history,
+              guestToken,
             );
-
-            return {
-              reply,
-              sessionId: conversationSessionId,
-            };
           }
         } else {
-          /**
-           * No product has been selected yet.
-           */
-          if (referencedProductIds.length === 0) {
-            const reply =
-              'برای پاسخ دقیق‌تر، لطفاً نام محصول موردنظرتان را مشخص کنید.';
+          products = await this.loadReferencedProducts(
+            activeConversationId,
+            owner,
+          );
 
-            await this.supportChatHistoryService.appendTurn(
-              conversationSessionId,
-              message,
-              reply,
-            );
-
-            return {
-              reply,
-              sessionId: conversationSessionId,
-            };
-          }
-
-          products =
-            await this.productService.findProductsByIdsForSupportChat(
-              referencedProductIds,
-            );
-
-          /**
-           * Previously referenced products may have become inactive
-           * or deleted since the last conversation turn.
-           */
           if (products.length === 0) {
-            await this.supportChatHistoryService.saveReferencedProductIds(
-              conversationSessionId,
-              [],
-            );
-
-            await this.supportChatHistoryService.saveSelectedProductId(
-              conversationSessionId,
-              null,
-            );
-
-            const reply =
-              'محصولی که قبلاً درباره آن صحبت کردیم، دیگر در فهرست محصولات فعال فروشگاه قرار ندارد. لطفاً محصول دیگری را انتخاب کنید.';
-
-            await this.supportChatHistoryService.appendTurn(
-              conversationSessionId,
+            return this.returnShortReply(
+              activeConversationId,
+              owner,
               message,
-              reply,
+              'برای پاسخ دقیق‌تر، لطفاً نام محصول موردنظرتان را مشخص کنید.',
+              history,
+              guestToken,
             );
-
-            return {
-              reply,
-              sessionId: conversationSessionId,
-            };
           }
 
-          /**
-           * Ask the customer to select a product when multiple products exist.
-           */
           if (products.length > 1) {
             const productTitles = products
               .map((product, index) => `${index + 1}. ${product.title}`)
               .join('\n');
 
-            const reply = `منظورتان کدام محصول است؟ لطفاً یکی از محصولات زیر را انتخاب کنید:\n${productTitles}`;
-
-            await this.supportChatHistoryService.appendTurn(
-              conversationSessionId,
+            return this.returnShortReply(
+              activeConversationId,
+              owner,
               message,
-              reply,
+              `منظورتان کدام محصول است؟ لطفاً یکی از محصولات زیر را انتخاب کنید:\n${productTitles}`,
+              history,
+              guestToken,
             );
-
-            return {
-              reply,
-              sessionId: conversationSessionId,
-            };
           }
 
-          /**
-           * A single matching product can be selected automatically.
-           */
-          await this.supportChatHistoryService.saveSelectedProductId(
-            conversationSessionId,
-            products[0].id,
+          const selectedProduct = products[0];
+
+          const reference = await this.productReferences.create(
+            activeConversationId,
+            owner,
+            selectedProduct.id,
+            'product_details',
           );
 
-          this.logger.log(`Resolved follow-up product: ${products[0].title}`);
+          await this.conversationState.update(activeConversationId, owner, {
+            conversationId: activeConversationId,
+            activeProductReference: reference.reference,
+            updatedAt: new Date(),
+          });
         }
-      } else if (isCatalogQuestion) {
-        /**
-         * Retrieve all active products, including out-of-stock products.
-         */
+      } else if (catalogQuestion) {
+        // Include all active products, including products with zero stock.
         products = await this.productService.findAllForSupportChat();
 
-        /**
-         * Store the original catalog product list.
-         */
-        await this.supportChatHistoryService.saveReferencedProductIds(
-          conversationSessionId,
-          products.map((product) => product.id),
+        await this.replaceProductReferences(
+          activeConversationId,
+          owner,
+          products,
+          'catalog_search',
         );
 
-        /**
-         * A new catalog request resets the previous selection.
-         */
-        await this.supportChatHistoryService.saveSelectedProductId(
-          conversationSessionId,
-          null,
-        );
+        await this.conversationState.update(activeConversationId, owner, {
+          conversationId: activeConversationId,
+          activeProductReference: null,
+          updatedAt: new Date(),
+        });
 
         if (products.length === 0) {
-          const reply =
-            'در حال حاضر هنوز محصولی در فروشگاه ثبت نشده است. ' +
-            'به‌محض اضافه شدن محصولات، می‌توانید آن‌ها را در اینجا مشاهده کنید. ' +
-            'اگر درباره انواع قهوه، تفاوت دانه‌ها یا روش‌های دم‌آوری سؤالی دارید، خوشحال می‌شوم راهنمایی‌تان کنم.';
-
-          await this.supportChatHistoryService.appendTurn(
-            conversationSessionId,
+          return this.returnShortReply(
+            activeConversationId,
+            owner,
             message,
-            reply,
+            'در حال حاضر هنوز محصولی در فروشگاه ثبت نشده است. به‌محض اضافه شدن محصولات، می‌توانید آن‌ها را در اینجا مشاهده کنید. اگر درباره انواع قهوه، تفاوت دانه‌ها یا روش‌های دم‌آوری سؤالی دارید، خوشحال می‌شوم راهنمایی‌تان کنم.',
+            history,
+            guestToken,
           );
-
-          return {
-            reply,
-            sessionId: conversationSessionId,
-          };
         }
       } else {
-        /**
-         * Search for products related to the current customer message.
-         */
+        // Search results replace the previous product list only when matches exist.
         products = await this.productService.searchForSupportChat(message);
 
-        /**
-         * Update product context only when relevant products are found.
-         */
         if (products.length > 0) {
-          await this.supportChatHistoryService.saveReferencedProductIds(
-            conversationSessionId,
-            products.map((product) => product.id),
+          await this.replaceProductReferences(
+            activeConversationId,
+            owner,
+            products,
+            'catalog_search',
           );
 
-          /**
-           * A new product search resets the previous selection.
-           */
-          await this.supportChatHistoryService.saveSelectedProductId(
-            conversationSessionId,
-            null,
-          );
+          await this.conversationState.update(activeConversationId, owner, {
+            conversationId: activeConversationId,
+            activeProductReference: null,
+            updatedAt: new Date(),
+          });
         }
       }
 
       this.logger.log(`Retrieved products count: ${products.length}`);
 
-      this.logger.debug(
-        `Retrieved product titles: ${products
-          .map((product) => product.title)
-          .join(', ')}`,
+      /**
+       * Build product context using opaque references instead of database IDs.
+       */
+      const references = await this.productReferences.getAll(
+        activeConversationId,
+        owner,
       );
 
-      /**
-       * --------------------------------------------------------------------
-       * Build Product Context
-       * --------------------------------------------------------------------
-       *
-       * Product and inventory information is retrieved from PostgreSQL.
-       * --------------------------------------------------------------------
-       */
+      const referenceByProductId = new Map(
+        references.map((reference) => [
+          reference.productId,
+          reference.reference,
+        ]),
+      );
+
       const productContext =
         products.length > 0
           ? JSON.stringify(
@@ -704,7 +671,7 @@ export class SupportChatService {
                   : null;
 
                 return {
-                  id: product.id,
+                  reference: referenceByProductId.get(product.id) ?? null,
                   title: product.title,
                   description: product.description,
                   price: Number(product.price),
@@ -736,9 +703,7 @@ export class SupportChatService {
           : 'No matching products were found in the catalog.';
 
       /**
-       * --------------------------------------------------------------------
-       * Generate AI Response
-       * --------------------------------------------------------------------
+       * Generate the AI response using persisted conversation history.
        */
       const response = await this.ai.chat.completions.create({
         model: 'qwen3-4b-instruct-2507',
@@ -758,25 +723,24 @@ export class SupportChatService {
               'Never describe a product as available when its available stock is zero.',
               'If inventory information is missing, say that availability is unknown.',
               'For follow-up questions, use the retrieved product information rather than relying on previous AI responses.',
-              'If the provided product information does not contain the requested detail, clearly say that the information is unavailable.',
+              'If product details are missing, clearly say that the information is unavailable.',
+              'Product references are internal conversation references, not product IDs.',
               'Respond naturally in Persian when the customer writes in Persian.',
             ].join(' '),
           },
-          ...conversationHistory.map((historyMessage) => ({
-            role: historyMessage.role,
-            content: historyMessage.content,
-          })),
+          ...previousMessages
+            .filter((item) => item.role === 'user' || item.role === 'assistant')
+            .map((item) => ({
+              role: item.role,
+              content: item.content,
+            })),
           {
             role: 'user',
-            content: `
-Customer question:
-${message}
-
-Available product information:
-${productContext}
-
-Please answer the customer naturally and accurately.
-          `.trim(),
+            content: [
+              `Customer question:\n${message}`,
+              `Available product information:\n${productContext}`,
+              'Please answer the customer naturally and accurately.',
+            ].join('\n\n'),
           },
         ],
       });
@@ -789,18 +753,18 @@ Please answer the customer naturally and accurately.
         );
       }
 
-      /**
-       * Persist the completed conversation turn.
-       */
-      await this.supportChatHistoryService.appendTurn(
-        conversationSessionId,
+      await this.persistTurn(
+        activeConversationId,
+        owner,
         message,
         reply,
+        history,
       );
 
       return {
         reply,
-        sessionId: conversationSessionId,
+        conversationId: activeConversationId,
+        ...(guestToken ? { guestToken } : {}),
       };
     } catch (error: unknown) {
       if (error instanceof ServiceUnavailableException) {
@@ -810,7 +774,7 @@ Please answer the customer naturally and accurately.
       const errorMessage =
         error instanceof Error ? error.message : String(error);
 
-      this.logger.error(`Local AI request failed: ${errorMessage}`);
+      this.logger.error(`Support chat request failed: ${errorMessage}`);
 
       throw new ServiceUnavailableException(
         'The support chatbot is temporarily unavailable. Please try again later.',
