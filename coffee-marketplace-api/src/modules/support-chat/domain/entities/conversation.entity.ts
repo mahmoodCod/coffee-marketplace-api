@@ -168,7 +168,7 @@ export class Conversation {
   /**
    * Ensures that the conversation is active and not expired.
    */
-  assertAccessible(): void {
+  assertAccessible(requester: ConversationOwner): void {
     if (this._status === 'closed') {
       throw new Error('Conversation is closed.');
     }

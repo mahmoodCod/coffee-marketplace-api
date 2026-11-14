@@ -1,16 +1,37 @@
-import { ConversationOwner } from '../../../domain/models/conversation-owner.model';
-import { ConversationState } from '../../../domain/models/conversation-state.model';
-import { ConversationRepository } from '../../../domain/repositories/conversation.repository';
-import { ConversationStateRepository } from '../../../domain/repositories/conversation-state.repository';
-import { ProductReferenceRepository } from '../../../domain/repositories/product-reference.repository';
+import { Inject, Injectable } from '@nestjs/common';
+
+import { ConversationOwner } from '../../models/conversation-owner.model';
+import { ConversationState } from '../../models/conversation-state.model';
+
+import type { ConversationRepository } from '../../repositories/conversation.repository';
+import type { ConversationStateRepository } from '../../repositories/conversation-state.repository';
+import type { ProductReferenceRepository } from '../../repositories/product-reference.repository';
+
+import { SUPPORT_CHAT_TOKENS } from '../../../constants/support-chat.tokens';
 
 /**
- * Handles conversation state retrieval and updates.
+ * ------------------------------------------------------------------------
+ * Conversation State Use Case
+ * ------------------------------------------------------------------------
+ *
+ * Manages temporary state associated with a support chat conversation.
+ *
+ * Responsibilities:
+ * - Retrieve conversation state.
+ * - Update the active product reference.
+ * - Ensure referenced products belong to the same conversation.
+ * ------------------------------------------------------------------------
  */
+@Injectable()
 export class ConversationStateUseCase {
   constructor(
+    @Inject(SUPPORT_CHAT_TOKENS.CONVERSATION_REPOSITORY)
     private readonly conversationRepository: ConversationRepository,
+
+    @Inject(SUPPORT_CHAT_TOKENS.CONVERSATION_STATE_REPOSITORY)
     private readonly conversationStateRepository: ConversationStateRepository,
+
+    @Inject(SUPPORT_CHAT_TOKENS.PRODUCT_REFERENCE_REPOSITORY)
     private readonly productReferenceRepository: ProductReferenceRepository,
   ) {}
 
@@ -29,66 +50,50 @@ export class ConversationStateUseCase {
   }
 
   /**
-   * Updates the active product reference of a conversation.
-   *
-   * Passing null clears the currently selected product.
+   * Updates the conversation state after validating its product reference.
    */
   async update(
     conversationId: string,
     requester: ConversationOwner,
-    activeProductReference: string | null,
-  ): Promise<ConversationState> {
+    state: ConversationState,
+  ): Promise<void> {
     await this.getAccessibleConversation(conversationId, requester);
 
-    // Validate the supplied product reference.
-    if (activeProductReference !== null) {
-      if (
-        typeof activeProductReference !== 'string' ||
-        !/^prod_[a-f0-9]{32}$/.test(activeProductReference)
-      ) {
-        throw new Error('A valid product reference is required.');
-      }
+    if (state.conversationId !== conversationId) {
+      throw new Error('Conversation state does not match the conversation.');
+    }
 
-      // Ensure that the reference belongs to this conversation.
+    if (state.activeProductReference) {
       const productReference =
         await this.productReferenceRepository.findByReference(
           conversationId,
-          activeProductReference,
+          state.activeProductReference,
         );
 
-      if (!productReference) {
-        throw new Error(
-          'The product reference does not belong to this conversation.',
-        );
+      if (
+        !productReference ||
+        productReference.conversationId !== conversationId
+      ) {
+        throw new Error('Product reference is not accessible.');
       }
     }
 
-    const state: ConversationState = {
-      conversationId,
-      activeProductReference,
-      updatedAt: new Date(),
-    };
-
     await this.conversationStateRepository.save(state);
-
-    return state;
   }
 
   /**
-   * Retrieves a conversation after validating requester ownership.
+   * Ensures the requester owns an active conversation.
    */
   private async getAccessibleConversation(
     conversationId: string,
     requester: ConversationOwner,
   ) {
-    // Validate the conversation identifier.
-    if (typeof conversationId !== 'string' || !conversationId.trim()) {
+    if (!conversationId?.trim()) {
       throw new Error('Conversation ID is required.');
     }
 
-    // Validate the requester identity.
-    if (!requester?.id || !['guest', 'user'].includes(requester.type)) {
-      throw new Error('A valid requester identity is required.');
+    if (!requester?.id?.trim()) {
+      throw new Error('Conversation requester is required.');
     }
 
     const conversation =
@@ -98,15 +103,7 @@ export class ConversationStateUseCase {
       throw new Error('Conversation not found.');
     }
 
-    // Prevent access to another owner's conversation.
-    if (
-      conversation.owner.id !== requester.id ||
-      conversation.owner.type !== requester.type
-    ) {
-      throw new Error('You are not allowed to access this conversation.');
-    }
-
-    conversation.assertAccessible();
+    conversation.assertAccessible(requester);
 
     return conversation;
   }
