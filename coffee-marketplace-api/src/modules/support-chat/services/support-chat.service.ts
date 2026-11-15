@@ -779,46 +779,54 @@ export class SupportChatService {
       /**
        * Generate the AI response using persisted conversation history.
        */
-      const response = await this.ai.chat.completions.create({
-        model: 'qwen3-4b-instruct-2507',
-        messages: [
-          {
-            role: 'system',
-            content: [
-              'You are a customer support assistant for a coffee marketplace.',
-              'Use the conversation history to understand the customer question.',
-              'Use only the provided product information for product-related answers.',
-              'Never invent product names, prices, discounts, or inventory quantities.',
-              'Always use the exact product title provided by the database.',
-              'When answering catalog questions, list every provided product.',
-              'A product with zero available stock still exists in the catalog.',
-              'Never claim that the catalog is empty when product information is provided.',
-              'Available stock equals stock minus reserved stock.',
-              'Never describe a product as available when its available stock is zero.',
-              'If inventory information is missing, say that availability is unknown.',
-              'For follow-up questions, use the retrieved product information rather than relying on previous AI responses.',
-              'If product details are missing, clearly say that the information is unavailable.',
-              'Product references are internal conversation references, not product IDs.',
-              'Never reveal internal references, UUIDs, or technical identifiers to customers.',
-              'Respond naturally in Persian when the customer writes in Persian.',
-            ].join(' '),
-          },
-          ...previousMessages
-            .filter((item) => item.role === 'user' || item.role === 'assistant')
-            .map((item) => ({
-              role: item.role,
-              content: item.content,
-            })),
-          {
-            role: 'user',
-            content: [
-              `Customer question:\n${message}`,
-              `Available product information:\n${productContext}`,
-              'Please answer the customer naturally and accurately.',
-            ].join('\n\n'),
-          },
-        ],
-      });
+      const response = await this.ai.chat.completions.create(
+        {
+          model: 'qwen3-4b-instruct-2507',
+          messages: [
+            {
+              role: 'system',
+              content: [
+                'You are a customer support assistant for a coffee marketplace.',
+                'Use the conversation history to understand the customer question.',
+                'Use only the provided product information for product-related answers.',
+                'Never invent product names, prices, discounts, or inventory quantities.',
+                'Always use the exact product title provided by the database.',
+                'When answering catalog questions, list every provided product.',
+                'A product with zero available stock still exists in the catalog.',
+                'Never claim that the catalog is empty when product information is provided.',
+                'Available stock equals stock minus reserved stock.',
+                'Never describe a product as available when its available stock is zero.',
+                'If inventory information is missing, say that availability is unknown.',
+                'For follow-up questions, use the retrieved product information rather than relying on previous AI responses.',
+                'If product details are missing, clearly say that the information is unavailable.',
+                'Product references are internal conversation references, not product IDs.',
+                'Never reveal internal references, UUIDs, or technical identifiers to customers.',
+                'Respond naturally in Persian when the customer writes in Persian.',
+              ].join(' '),
+            },
+            ...previousMessages
+              .filter(
+                (item) => item.role === 'user' || item.role === 'assistant',
+              )
+              .map((item) => ({
+                role: item.role,
+                content: item.content,
+              })),
+            {
+              role: 'user',
+              content: [
+                `Customer question:\n${message}`,
+                `Available product information:\n${productContext}`,
+                'Please answer the customer naturally and accurately.',
+              ].join('\n\n'),
+            },
+          ],
+        },
+        {
+          timeout: 60_000,
+          maxRetries: 0,
+        },
+      );
 
       const reply = response.choices[0]?.message?.content?.trim();
 
