@@ -802,6 +802,13 @@ export class SupportChatService {
                 'Product references are internal conversation references, not product IDs.',
                 'Never reveal internal references, UUIDs, or technical identifiers to customers.',
                 'Respond naturally in Persian when the customer writes in Persian.',
+                'Format every response using clean and readable Markdown.',
+                'Use actual line breaks instead of escaped newline characters.',
+                'Use proper headings, paragraphs, and bullet lists when appropriate.',
+                'Keep Persian words intact and never split words into separate lines.',
+                'Use natural, fluent, grammatically correct Persian.',
+                'Use Persian digits for numbers in Persian responses.',
+                'Never output literal escape sequences such as \\n or \\r.',
               ].join(' '),
             },
             ...previousMessages
@@ -828,7 +835,14 @@ export class SupportChatService {
         },
       );
 
-      const reply = response.choices[0]?.message?.content?.trim();
+      // Normalize escaped line breaks returned as literal text by the AI model.
+      const rawReply = response.choices[0]?.message?.content;
+
+      const reply = rawReply
+        ?.replace(/\\r\\n/g, '\n')
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '')
+        .trim();
 
       if (!reply) {
         throw new ServiceUnavailableException(
