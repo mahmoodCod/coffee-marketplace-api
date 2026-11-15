@@ -91,134 +91,78 @@ export class SupportChatService {
    */
   private isCatalogQuestion(message: string): boolean {
     const normalized = this.normalizeCustomerMessage(message);
+
+    // Detect common Persian catalog questions directly.
+    const catalogPatterns = [
+      /چه\s+محصولی/,
+      /چه\s+محصولاتی/,
+      /چه\s+قهوه/,
+      /چه\s+کالا/,
+      /چه\s+اجناسی/,
+      /چه\s+چیزی\s+دارید/,
+      /چی\s+دارید/,
+      /چی\s+دارین/,
+      /چیا\s+دارید/,
+      /چیا\s+دارین/,
+      /محصولات\s+(شما|فروشگاه|فروشگاهت)/,
+      /محصولی\s+در\s+(فروشگاه|فروشگاهت)/,
+      /لیست\s+محصولات/,
+      /فهرست\s+محصولات/,
+      /همه\s+محصولات/,
+      /تمام\s+محصولات/,
+      /محصولات\s+موجود/,
+    ];
+
+    if (catalogPatterns.some((pattern) => pattern.test(normalized))) {
+      return true;
+    }
+
     const tokens = normalized.split(' ').filter(Boolean);
 
-    /**
-     * Identifies words related to the product catalog.
-     */
-    const isCatalogWord = (token: string): boolean =>
-      token.startsWith('محصول') ||
-      token.startsWith('کالا') ||
-      token.startsWith('فروشگاه') ||
-      token.startsWith('قهوه') ||
-      token.startsWith('تجهیز') ||
-      ['اجناس', 'فهرست', 'لیست'].includes(token);
+    const catalogWords = new Set([
+      'محصول',
+      'محصولات',
+      'محصولی',
+      'کالا',
+      'کالاها',
+      'فروشگاه',
+      'قهوه',
+      'قهوه‌ها',
+      'تجهیزات',
+      'اجناس',
+      'فهرست',
+      'لیست',
+    ]);
 
-    /**
-     * Identifies question words and common conversational expressions.
-     */
     const questionWords = new Set([
+      'چی',
+      'چیا',
+      'چه',
       'کدام',
       'کدوم',
       'همه',
       'تمام',
       'تمامی',
-      'هست',
-      'هستن',
-      'هستش',
       'دارید',
       'دارین',
       'داری',
       'داره',
-      'دارد',
       'دارند',
       'دارن',
       'موجود',
       'موجوده',
-      'موجودی',
       'نشون',
       'نشان',
       'نمایش',
-      'وجود',
-      'است',
-      'هستند',
-      'میباشد',
       'معرفی',
     ]);
 
-    const isQuestionWord = (token: string): boolean =>
-      token.startsWith('چی') ||
-      token.startsWith('چه') ||
-      token.startsWith('دار') ||
-      questionWords.has(token);
+    const hasCatalogWord = tokens.some((token) => catalogWords.has(token));
 
-    /**
-     * Removes common filler words before detecting specific product searches.
-     */
-    const fillerWords = new Set([
-      'سلام',
-      'درود',
-      'ببخشید',
-      'لطفا',
-      'من',
-      'ما',
-      'شما',
-      'در',
-      'از',
-      'به',
-      'برای',
-      'را',
-      'رو',
-      'این',
-      'آن',
-      'اون',
-      'یک',
-      'یه',
-      'توی',
-      'تو',
-      'بده',
-      'کن',
-      'کنید',
-      'بگو',
-      'بگید',
-      'بگین',
-      'الان',
-      'خودت',
-      'بهم',
-      'فروش',
-      'عرضه',
-      'می',
-      'خواهم',
-      'میخواهم',
-      'میخوام',
-      'هایی',
-    ]);
+    const hasQuestionWord = tokens.some((token) => questionWords.has(token));
 
-    const hasCatalogWord = tokens.some(isCatalogWord);
-    const hasQuestionWord = tokens.some(isQuestionWord);
-
-    const hasListWord = tokens.some((token) =>
-      ['لیست', 'فهرست', 'همه', 'تمام', 'تمامی'].includes(token),
-    );
-
-    const asksToList = /(نشون بده|نشان بده|نمایش بده|لیست کن)/.test(normalized);
-
-    const asksWhatYouHave =
-      /(چی دارین|چی دارید|چیا دارین|چیا دارید|چه دارید|چه دارین)/.test(
-        normalized,
-      );
-
-    /**
-     * Specific product names should be handled by product search,
-     * not by the general catalog listing flow.
-     */
-    const specificTokens = tokens.filter(
-      (token) =>
-        !isCatalogWord(token) &&
-        !isQuestionWord(token) &&
-        !fillerWords.has(token),
-    );
-
-    if (specificTokens.length > 0) {
-      return false;
-    }
-
-    return (
-      asksWhatYouHave ||
-      (hasCatalogWord && (hasQuestionWord || hasListWord || asksToList))
-    );
+    return hasCatalogWord && hasQuestionWord;
   }
-
   /**
    * Detects questions referring to a previously discussed product.
    */
