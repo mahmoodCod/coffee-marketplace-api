@@ -445,7 +445,7 @@ export class SupportChatService {
   }
 
   /**
-   * Replaces the conversation's product references with the supplied products.
+   * Replaces all product references while preserving product display order.
    */
   private async replaceProductReferences(
     conversationId: string,
@@ -453,20 +453,16 @@ export class SupportChatService {
     products: Product[],
     source: 'catalog_search' | 'product_details',
   ): Promise<void> {
-    await this.productReferences.deleteAll(conversationId, owner);
-
-    // Create references while preserving the original product display order.
-    for (const [position, product] of products.entries()) {
-      await this.productReferences.create(
-        conversationId,
-        owner,
-        product.id,
+    await this.productReferences.replaceAll(
+      conversationId,
+      owner,
+      products.map((product, position) => ({
+        productId: product.id,
         source,
         position,
-      );
-    }
+      })),
+    );
   }
-
   /**
    * Processes a customer message and generates an AI response.
    */

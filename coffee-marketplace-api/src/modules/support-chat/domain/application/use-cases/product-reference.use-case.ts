@@ -4,6 +4,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ConversationOwner } from '../../models/conversation-owner.model';
 import {
   ConversationProductReference,
+  CreateProductReferenceInput,
   ProductReferenceSource,
 } from '../../models/product-reference.model';
 
@@ -207,5 +208,63 @@ export class ProductReferenceUseCase {
     ) {
       throw new Error('A valid product reference is required.');
     }
+  }
+
+  /**
+   * Atomically replaces all product references for a conversation.
+   */
+  async replaceAll(
+    conversationId: string,
+    requester: ConversationOwner,
+    inputs: Array<
+      Pick<CreateProductReferenceInput, 'productId' | 'source' | 'position'>
+    >,
+  ): Promise<ConversationProductReference[]> {
+    const conversation = await this.getAccessibleConversation(
+      conversationId,
+      requester,
+    );
+
+    if (!Array.isArray(inputs)) {
+      throw new Error('Product references must be an array.');
+    }
+
+    const references: ConversationProductReference[] = inputs.map((input) => {
+      if (
+        !input ||
+        typeof input.productId !== 'string' ||
+        !input.productId.trim()
+      ) {
+        throw new Error('Invalid product ID.');
+      }
+
+      if (
+        input.source !== 'catalog_search' &&
+        input.source !== 'product_details'
+      ) {
+        throw new Error('Invalid product reference source.');
+      }
+
+      if (!Number.isSafeInteger(input.position) || input.position < 0) {
+        throw new Error('Invalid product reference position.');
+      }
+
+      return {
+        reference: `prod_${randomBytes(16).toString('hex')}`,
+        conversationId: conversation.id,
+        productId: input.productId,
+        source: input.source,
+        position: input.position,
+        createdAt: new Date(),
+      };
+    });
+
+    // Replace the complete reference list in one repository operation.
+    await this.productReferenceRepository.replaceAll(
+      conversation.id,
+      references,
+    );
+
+    return references;
   }
 }

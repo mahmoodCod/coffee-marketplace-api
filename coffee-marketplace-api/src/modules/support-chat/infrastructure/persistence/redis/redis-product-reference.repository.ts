@@ -5,6 +5,7 @@ import type {
   ConversationProductReference,
   ProductReferenceSource,
 } from '../../../domain/models/product-reference.model';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class RedisProductReferenceRepository implements ProductReferenceRepository {
@@ -143,6 +144,85 @@ export class RedisProductReferenceRepository implements ProductReferenceReposito
 
     if (Number(result) !== 1) {
       throw new Error('Failed to save product reference.');
+    }
+  }
+
+  /**
+   * Atomically replaces all product references for a conversation.
+   *
+   * New references are prepared in a temporary Redis hash.
+   * The existing hash is replaced only after preparation succeeds.
+   */
+  async replaceAll(
+    conversationId: string,
+    references: ConversationProductReference[],
+  ): Promise<void> {
+    this.validateConversationId(conversationId);
+
+    if (!Array.isArray(references)) {
+      throw new Error('Product references must be an array.');
+    }
+
+    // Validate all references before executing the Redis script.
+    const uniqueReferences = new Set<string>();
+
+    for (const reference of references) {
+      this.validateProductReference(reference);
+
+      if (reference.conversationId !== conversationId) {
+        throw new Error('Product reference belongs to another conversation.');
+      }
+
+      if (uniqueReferences.has(reference.reference)) {
+        throw new Error('Duplicate product reference detected.');
+      }
+
+      uniqueReferences.add(reference.reference);
+    }
+
+    const targetKey = this.getKey(conversationId);
+
+    // Use the same Redis Cluster hash tag for both keys.
+    const temporaryKey = `${targetKey}:replacement:${randomBytes(8).toString('hex')}`;
+
+    const serializedReferences = references.map((reference) =>
+      this.serialize(reference),
+    );
+
+    const result = await this.redisService.eval(
+      `
+      -- An empty list means the previous references should be removed.
+      if #ARGV == 1 then
+        return redis.call('DEL', KEYS[1])
+      end
+
+      -- Build the replacement hash without touching the current hash.
+      redis.call('DEL', KEYS[2])
+
+      for i = 2, #ARGV, 2 do
+        redis.call('HSET', KEYS[2], ARGV[i], ARGV[i + 1])
+      end
+
+      -- Set expiration before making the replacement visible.
+      redis.call('EXPIRE', KEYS[2], ARGV[1])
+
+      -- Replace the old hash in one Redis operation.
+      redis.call('RENAME', KEYS[2], KEYS[1])
+
+      return (#ARGV - 1) / 2
+    `,
+      2,
+      targetKey,
+      temporaryKey,
+      this.ttlSeconds,
+      ...references.flatMap((reference, index) => [
+        reference.reference,
+        serializedReferences[index],
+      ]),
+    );
+
+    if (Number(result) !== references.length) {
+      throw new Error('Failed to replace conversation product references.');
     }
   }
 

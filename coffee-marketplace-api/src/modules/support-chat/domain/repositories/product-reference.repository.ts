@@ -51,4 +51,12 @@ export interface ProductReferenceRepository {
    * @param conversationId - Conversation identifier.
    */
   deleteAllByConversationId(conversationId: string): Promise<void>;
+
+  /**
+   * Atomically replaces all product references for a conversation.
+   */
+  replaceAll(
+    conversationId: string,
+    references: ConversationProductReference[],
+  ): Promise<void>;
 }
