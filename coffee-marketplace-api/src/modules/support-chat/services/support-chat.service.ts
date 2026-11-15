@@ -93,6 +93,9 @@ export class SupportChatService {
     const normalized = this.normalizeCustomerMessage(message);
     const tokens = normalized.split(' ').filter(Boolean);
 
+    /**
+     * Identifies words related to the product catalog.
+     */
     const isCatalogWord = (token: string): boolean =>
       token.startsWith('محصول') ||
       token.startsWith('کالا') ||
@@ -101,6 +104,9 @@ export class SupportChatService {
       token.startsWith('تجهیز') ||
       ['اجناس', 'فهرست', 'لیست'].includes(token);
 
+    /**
+     * Identifies question words and common conversational expressions.
+     */
     const questionWords = new Set([
       'کدام',
       'کدوم',
@@ -114,6 +120,9 @@ export class SupportChatService {
       'دارین',
       'داری',
       'داره',
+      'دارد',
+      'دارند',
+      'دارن',
       'موجود',
       'موجوده',
       'موجودی',
@@ -130,8 +139,12 @@ export class SupportChatService {
     const isQuestionWord = (token: string): boolean =>
       token.startsWith('چی') ||
       token.startsWith('چه') ||
+      token.startsWith('دار') ||
       questionWords.has(token);
 
+    /**
+     * Removes common filler words before detecting specific product searches.
+     */
     const fillerWords = new Set([
       'سلام',
       'درود',
@@ -173,6 +186,7 @@ export class SupportChatService {
 
     const hasCatalogWord = tokens.some(isCatalogWord);
     const hasQuestionWord = tokens.some(isQuestionWord);
+
     const hasListWord = tokens.some((token) =>
       ['لیست', 'فهرست', 'همه', 'تمام', 'تمامی'].includes(token),
     );
@@ -184,6 +198,10 @@ export class SupportChatService {
         normalized,
       );
 
+    /**
+     * Specific product names should be handled by product search,
+     * not by the general catalog listing flow.
+     */
     const specificTokens = tokens.filter(
       (token) =>
         !isCatalogWord(token) &&
@@ -200,7 +218,6 @@ export class SupportChatService {
       (hasCatalogWord && (hasQuestionWord || hasListWord || asksToList))
     );
   }
-
   /**
    * Detects questions referring to a previously discussed product.
    */
