@@ -218,6 +218,7 @@ export class SupportChatService {
       (hasCatalogWord && (hasQuestionWord || hasListWord || asksToList))
     );
   }
+
   /**
    * Detects questions referring to a previously discussed product.
    */
@@ -225,11 +226,29 @@ export class SupportChatService {
     const normalized = this.normalizeCustomerMessage(message);
 
     const patterns = [
+      // Price questions.
       /قیمتش/,
       /قیمت\s+(این|اون|همون)/,
+
+      // Inventory and availability questions.
+      /موجودی/,
+      /موجوده/,
+      /ناموجود/,
+      /موجود\s+هست/,
+      /چقدر\s+موجود/,
+      /چه\s+مقدار\s+موجود/,
+      /چند\s+تا\s+موجود/,
+      /چند\s+عدد\s+موجود/,
+      /ازش\s+چقدر/,
+      /ازش\s+چند/,
+
+      // Short follow-up questions.
       /^(چنده|چقدره|موجوده|موجود\s+هست)$/,
+
+      // Product references.
       /^(این|اون|همون)(\s+(محصول|قهوه|کالا))?(\s+(چنده|چقدره|موجوده|موجود\s+هست))?$/,
-      /موجودی\s+(این|اون|همون)/,
+
+      // Product detail questions.
       /مشخصاتش/,
       /ویژگی\s*هاش/,
       /ترکیباتش/,
@@ -241,7 +260,6 @@ export class SupportChatService {
 
     return patterns.some((pattern) => pattern.test(normalized));
   }
-
   /**
    * Resolves ordinal product selections.
    *
@@ -510,11 +528,26 @@ export class SupportChatService {
       const followUpQuestion = this.isProductFollowUpQuestion(message);
       const selectionIndex = this.getProductSelectionIndex(message);
 
+      this.logger.debug(
+        JSON.stringify({
+          message,
+          catalogQuestion,
+          followUpQuestion,
+          selectionIndex,
+        }),
+      );
+
       let products: Product[] = [];
 
       const state = await this.conversationState.get(
         activeConversationId,
         owner,
+      );
+
+      this.logger.debug(
+        JSON.stringify({
+          activeProductReference: state?.activeProductReference ?? null,
+        }),
       );
 
       /**
@@ -596,6 +629,8 @@ export class SupportChatService {
             activeConversationId,
             owner,
           );
+
+          this.logger.debug(`Follow-up products retrieved: ${products.length}`);
 
           if (products.length === 0) {
             return this.returnShortReply(
