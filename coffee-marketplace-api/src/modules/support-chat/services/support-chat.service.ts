@@ -208,7 +208,7 @@ export class SupportChatService {
   /**
    * Resolves ordinal product selections.
    *
-   * Supports direct ordinal messages and natural Persian expressions.
+   * Supports direct selections and natural Persian expressions.
    * The returned index is zero-based.
    */
   private getProductSelectionIndex(message: string): number | null {
@@ -221,46 +221,74 @@ export class SupportChatService {
       ['یکم', 0],
       ['1', 0],
       ['۱', 0],
+
       ['دوم', 1],
       ['دومی', 1],
       ['دومین', 1],
       ['2', 1],
       ['۲', 1],
+
       ['سوم', 2],
       ['سومی', 2],
       ['سومین', 2],
       ['3', 2],
       ['۳', 2],
+
       ['چهارم', 3],
       ['چهارمی', 3],
+      ['چهارمین', 3],
       ['4', 3],
       ['۴', 3],
+
       ['پنجم', 4],
       ['پنجمی', 4],
+      ['پنجمین', 4],
       ['5', 4],
       ['۵', 4],
     ]);
 
+    const selectionWords = new Set(['مورد', 'محصول', 'گزینه']);
+
     // Handle direct ordinal selections.
-    const directSelection = normalized.replace(/^(مورد|محصول|گزینه)\s+/, '');
+    const tokens = normalized.split(/\s+/).filter(Boolean);
 
-    const directIndex = ordinalMap.get(directSelection);
-
-    if (directIndex !== undefined) {
-      return directIndex;
+    if (tokens.length === 1) {
+      return ordinalMap.get(tokens[0]) ?? null;
     }
 
-    // Handle ordinal selections inside natural Persian sentences.
-    const ordinalPattern =
-      /(?:مورد|محصول|گزینه)\s*(اولی|اولین|اول|یکم|دومی|دومین|دوم|سومی|سومین|سوم|چهارمی|چهارم|پنجمی|پنجم|[1-5۱-۵])(?:\s|$)/;
+    // Handle expressions such as "محصول دوم" and "گزینه سوم".
+    if (tokens.length >= 2 && selectionWords.has(tokens[0])) {
+      const index = ordinalMap.get(tokens[1]);
 
-    const match = normalized.match(ordinalPattern);
-
-    if (!match) {
-      return null;
+      if (index !== undefined) {
+        return index;
+      }
     }
 
-    return ordinalMap.get(match[1]) ?? null;
+    // Handle expressions such as "دومی رو می‌خوام".
+    for (let i = 0; i < tokens.length; i++) {
+      const index = ordinalMap.get(tokens[i]);
+
+      if (index === undefined) {
+        continue;
+      }
+
+      const previousToken = tokens[i - 1];
+      const nextToken = tokens[i + 1];
+
+      const hasSelectionContext =
+        selectionWords.has(previousToken) ||
+        selectionWords.has(nextToken) ||
+        ['رو', 'را', 'میخوام', 'میخواهم', 'انتخاب', 'می‌خوام'].includes(
+          nextToken,
+        );
+
+      if (hasSelectionContext) {
+        return index;
+      }
+    }
+
+    return null;
   }
   /**
    * Returns product references in their original display order.
