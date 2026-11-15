@@ -61,6 +61,13 @@ export class RedisProductReferenceRepository implements ProductReferenceReposito
     }
 
     if (
+      !Number.isSafeInteger(productReference.position) ||
+      productReference.position < 0
+    ) {
+      throw new Error('Product reference position is invalid.');
+    }
+
+    if (
       !(productReference.createdAt instanceof Date) ||
       Number.isNaN(productReference.createdAt.getTime())
     ) {
@@ -100,6 +107,10 @@ export class RedisProductReferenceRepository implements ProductReferenceReposito
       conversationId: String(data.conversationId ?? ''),
       productId: String(data.productId ?? ''),
       source: data.source as ProductReferenceSource,
+
+      // Support references created before the position field was introduced.
+      position: data.position === undefined ? 0 : Number(data.position),
+
       createdAt: new Date(String(data.createdAt ?? '')),
     };
 
@@ -189,7 +200,7 @@ export class RedisProductReferenceRepository implements ProductReferenceReposito
       throw new Error('Failed to retrieve conversation product references.');
     }
 
-    return serializedReferences.map((value) => {
+    const productReferences = serializedReferences.map((value) => {
       if (typeof value !== 'string') {
         throw new Error('Stored product reference has an invalid Redis value.');
       }
@@ -203,6 +214,21 @@ export class RedisProductReferenceRepository implements ProductReferenceReposito
       }
 
       return productReference;
+    });
+
+    // Redis hash values have no guaranteed order, so sort explicitly.
+    return productReferences.sort((a, b) => {
+      if (a.position !== b.position) {
+        return a.position - b.position;
+      }
+
+      const createdAtDifference = a.createdAt.getTime() - b.createdAt.getTime();
+
+      if (createdAtDifference !== 0) {
+        return createdAtDifference;
+      }
+
+      return a.reference.localeCompare(b.reference);
     });
   }
 

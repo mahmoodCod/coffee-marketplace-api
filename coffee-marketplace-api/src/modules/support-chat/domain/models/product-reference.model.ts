@@ -25,6 +25,9 @@ export interface ConversationProductReference {
   /** Indicates how this reference was created. */
   readonly source: ProductReferenceSource;
 
+  /** Position of the product in the displayed result list. */
+  readonly position: number;
+
   /** Reference creation timestamp. */
   readonly createdAt: Date;
 }
@@ -36,6 +39,7 @@ export interface CreateProductReferenceInput {
   conversationId: string;
   productId: string;
   source: ProductReferenceSource;
+  position: number;
   reference?: string;
   createdAt?: Date;
 }

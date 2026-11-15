@@ -43,6 +43,7 @@ export class ProductReferenceUseCase {
     requester: ConversationOwner,
     productId: string,
     source: ProductReferenceSource,
+    position = 0,
   ): Promise<ConversationProductReference> {
     const conversation = await this.getAccessibleConversation(
       conversationId,
@@ -59,12 +60,20 @@ export class ProductReferenceUseCase {
       throw new Error('Invalid product reference source.');
     }
 
+    // Ensure the display position is a non-negative integer.
+    if (!Number.isSafeInteger(position) || position < 0) {
+      throw new Error(
+        'Product reference position must be a non-negative integer.',
+      );
+    }
+
     // Generate an unpredictable reference without exposing the product ID.
     const productReference: ConversationProductReference = {
       reference: `prod_${randomBytes(16).toString('hex')}`,
       conversationId: conversation.id,
       productId: productId.trim(),
       source,
+      position,
       createdAt: new Date(),
     };
 

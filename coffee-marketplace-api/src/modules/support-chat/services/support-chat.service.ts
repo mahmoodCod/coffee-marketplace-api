@@ -423,12 +423,14 @@ export class SupportChatService {
   ): Promise<void> {
     await this.productReferences.deleteAll(conversationId, owner);
 
-    for (const product of products) {
+    // Create references while preserving the original product display order.
+    for (const [position, product] of products.entries()) {
       await this.productReferences.create(
         conversationId,
         owner,
         product.id,
         source,
+        position,
       );
     }
   }
