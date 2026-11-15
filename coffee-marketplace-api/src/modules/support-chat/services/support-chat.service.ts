@@ -809,6 +809,14 @@ export class SupportChatService {
                 'Use natural, fluent, grammatically correct Persian.',
                 'Use Persian digits for numbers in Persian responses.',
                 'Never output literal escape sequences such as \\n or \\r.',
+                'Write fluent, natural, and professional Persian.',
+                'Use standard Markdown formatting.',
+                'Use actual paragraphs and line breaks.',
+                'Use bullet lists for multiple products or specifications.',
+                'Use Persian digits when responding in Persian.',
+                'Keep Persian words intact and avoid unnatural line breaks.',
+                'Never expose internal references, UUIDs, or technical details.',
+                'Do not reveal reserved stock or internal inventory calculations unless explicitly requested.',
               ].join(' '),
             },
             ...previousMessages
@@ -835,14 +843,14 @@ export class SupportChatService {
         },
       );
 
-      // Normalize escaped line breaks returned as literal text by the AI model.
+      // Convert English digits to Persian digits in customer-facing responses.
       const rawReply = response.choices[0]?.message?.content;
 
+      const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
+
       const reply = rawReply
-        ?.replace(/\\r\\n/g, '\n')
-        .replace(/\\n/g, '\n')
-        .replace(/\\r/g, '')
-        .trim();
+        ?.trim()
+        .replace(/[0-9]/g, (digit) => persianDigits[Number(digit)]);
 
       if (!reply) {
         throw new ServiceUnavailableException(
