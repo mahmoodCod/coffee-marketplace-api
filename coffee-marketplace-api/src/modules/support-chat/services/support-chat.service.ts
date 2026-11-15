@@ -205,6 +205,15 @@ export class SupportChatService {
       /رزرو\s+شده/,
       /چند\s+تا\s+رزرو/,
       /تعداد\s+رزرو/,
+      /رزرو/,
+      /رزرو\s+شده/,
+      /چند\s+تا\s+رزرو/,
+      /تعداد\s+رزرو/,
+      /باقی\s*مونده/,
+      /باقی\s*مانده/,
+      /چند\s+عدد/,
+      /چند\s+تا/,
+      /ازش\s+(چند|چه)/,
     ];
 
     return patterns.some((pattern) => pattern.test(normalized));
