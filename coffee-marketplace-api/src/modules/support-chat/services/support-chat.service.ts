@@ -27,6 +27,7 @@ import {
   SUPPORT_CHAT_HISTORY_TTL_SECONDS,
   SUPPORT_CHAT_GUEST_IDENTITY_TTL_SECONDS,
 } from '../constants/support-chat-history.constants';
+import { ConversationProductReference } from '../domain/models/product-reference.model';
 
 /**
  * ------------------------------------------------------------------------
@@ -207,6 +208,7 @@ export class SupportChatService {
   /**
    * Resolves ordinal product selections.
    *
+   * Supports direct ordinal messages and natural Persian expressions.
    * The returned index is zero-based.
    */
   private getProductSelectionIndex(message: string): number | null {
@@ -239,34 +241,36 @@ export class SupportChatService {
       ['۵', 4],
     ]);
 
-    const selection = normalized.replace(/^(مورد|محصول|گزینه)\s+/, '');
+    // Handle direct ordinal selections.
+    const directSelection = normalized.replace(/^(مورد|محصول|گزینه)\s+/, '');
 
-    return ordinalMap.get(selection) ?? null;
+    const directIndex = ordinalMap.get(directSelection);
+
+    if (directIndex !== undefined) {
+      return directIndex;
+    }
+
+    // Handle ordinal selections inside natural Persian sentences.
+    const ordinalPattern =
+      /(?:مورد|محصول|گزینه)\s*(اولی|اولین|اول|یکم|دومی|دومین|دوم|سومی|سومین|سوم|چهارمی|چهارم|پنجمی|پنجم|[1-5۱-۵])(?:\s|$)/;
+
+    const match = normalized.match(ordinalPattern);
+
+    if (!match) {
+      return null;
+    }
+
+    return ordinalMap.get(match[1]) ?? null;
   }
-
   /**
-   * Returns product references in a predictable order.
+   * Returns product references in their original display order.
    */
   private async getOrderedProductReferences(
     conversationId: string,
     owner: ConversationOwner,
-  ) {
-    const references = await this.productReferences.getAll(
-      conversationId,
-      owner,
-    );
-
-    return references.sort((first, second) => {
-      const timeDifference =
-        first.createdAt.getTime() - second.createdAt.getTime();
-
-      // Use the opaque reference as a deterministic fallback.
-      return timeDifference !== 0
-        ? timeDifference
-        : first.reference.localeCompare(second.reference);
-    });
+  ): Promise<ConversationProductReference[]> {
+    return this.productReferences.getAll(conversationId, owner);
   }
-
   /**
    * Resolves the requester and creates or retrieves their conversation.
    */
