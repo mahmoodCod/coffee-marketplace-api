@@ -503,7 +503,10 @@ export class SupportChatService {
       const previousMessages = history.flatMap((turn) => turn.messages);
 
       const catalogQuestion = this.isCatalogQuestion(message);
-      const followUpQuestion = this.isProductFollowUpQuestion(message);
+
+      // Catalog questions must never be treated as product follow-up questions.
+      const followUpQuestion =
+        !catalogQuestion && this.isProductFollowUpQuestion(message);
       const selectionIndex = this.getProductSelectionIndex(message);
 
       this.logger.debug(
