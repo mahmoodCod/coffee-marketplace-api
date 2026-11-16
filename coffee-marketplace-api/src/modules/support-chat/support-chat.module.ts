@@ -29,6 +29,7 @@ import { TypeOrmGuestIdentityRepository } from './infrastructure/persistence/pos
 import { RedisConversationTurnRepository } from './infrastructure/persistence/redis/redis-conversation-turn.repository';
 import { RedisConversationStateRepository } from './infrastructure/persistence/redis/redis-conversation-state.repository';
 import { RedisProductReferenceRepository } from './infrastructure/persistence/redis/redis-product-reference.repository';
+import { ToolRegistryService } from './tools/tool-registry.service';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { RedisProductReferenceRepository } from './infrastructure/persistence/re
   providers: [
     SupportChatService,
     SupportChatHistoryService,
+    ToolRegistryService,
 
     // Register application use cases.
     ConversationHistoryUseCase,
