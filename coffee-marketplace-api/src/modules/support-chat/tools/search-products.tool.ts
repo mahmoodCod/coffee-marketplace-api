@@ -11,7 +11,7 @@ export class SearchProductsTool implements SupportTool<SearchProductsArguments> 
   readonly name = 'search_products';
 
   readonly description =
-    'Search the active product catalog for products matching the customer query. Use this tool when the customer asks about a specific product, product type, origin, flavor, ingredients, or product features.';
+    'Search active marketplace products by name, type, origin, flavor, ingredients, or product features.';
 
   readonly parameters = {
     type: 'object',
@@ -20,7 +20,7 @@ export class SearchProductsTool implements SupportTool<SearchProductsArguments> 
         type: 'string',
         minLength: 1,
         maxLength: 200,
-        description: 'The customer search query.',
+        description: 'The product search query.',
       },
     },
     required: ['query'],
@@ -30,7 +30,7 @@ export class SearchProductsTool implements SupportTool<SearchProductsArguments> 
   constructor(private readonly productService: ProductService) {}
 
   /**
-   * Searches active products and returns only customer-safe information.
+   * Searches active products and returns customer-safe product information.
    */
   async execute(arguments_: SearchProductsArguments): Promise<unknown> {
     const products = await this.productService.searchForSupportChat(
@@ -38,21 +38,24 @@ export class SearchProductsTool implements SupportTool<SearchProductsArguments> 
     );
 
     return {
+      success: true,
       count: products.length,
       products: products.map((product) => {
-        // Calculate sellable stock without exposing reserved inventory.
+        // Calculate sellable stock only when inventory information exists.
         const availableStock = product.inventory
           ? Math.max(
               product.inventory.stock - product.inventory.reservedStock,
               0,
             )
-          : 0;
+          : null;
 
         return {
           title: product.title,
           description: product.description,
-          price: product.price,
-          originalPrice: product.originalPrice,
+          price: Number(product.price),
+          originalPrice: product.originalPrice
+            ? Number(product.originalPrice)
+            : null,
           type: product.productType,
           weight: product.weight,
           caffeineLevel: product.caffeineLevel,
@@ -63,7 +66,12 @@ export class SearchProductsTool implements SupportTool<SearchProductsArguments> 
           howToUse: product.howToUse,
           recommended: product.recommended,
           availableStock,
-          isAvailable: availableStock > 0,
+          availability:
+            availableStock === null
+              ? 'unknown'
+              : availableStock > 0
+                ? 'available'
+                : 'unavailable',
         };
       }),
     };
