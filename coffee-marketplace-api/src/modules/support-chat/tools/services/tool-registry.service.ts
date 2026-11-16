@@ -46,7 +46,7 @@ export class ToolRegistryService {
     function: {
       name: string;
       description: string;
-      parameters: Record<string, unknown>;
+      parameters: SupportTool['parameters'];
     };
   }> {
     return this.getAll().map((tool) => ({

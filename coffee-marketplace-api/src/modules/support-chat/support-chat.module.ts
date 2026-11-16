@@ -31,6 +31,8 @@ import { RedisConversationStateRepository } from './infrastructure/persistence/r
 import { RedisProductReferenceRepository } from './infrastructure/persistence/redis/redis-product-reference.repository';
 import { ToolRegistryService } from './tools/services/tool-registry.service';
 import { ToolExecutorService } from './tools/services/tool-executor.service';
+import { SupportChatToolsBootstrap } from './tools/support-chat-tools.bootstrap';
+import { SearchProductsTool } from './tools/search-products.tool';
 
 @Module({
   imports: [
@@ -46,6 +48,8 @@ import { ToolExecutorService } from './tools/services/tool-executor.service';
     SupportChatHistoryService,
     ToolRegistryService,
     ToolExecutorService,
+    SearchProductsTool,
+    SupportChatToolsBootstrap,
 
     // Register application use cases.
     ConversationHistoryUseCase,
