@@ -41,12 +41,13 @@ export class ToolRegistryService {
   /**
    * Returns tool definitions in a format suitable for AI providers.
    */
+
   getDefinitions(): Array<{
     type: 'function';
     function: {
       name: string;
       description: string;
-      parameters: SupportTool['parameters'];
+      parameters: Record<string, unknown>;
     };
   }> {
     return this.getAll().map((tool) => ({
@@ -54,7 +55,7 @@ export class ToolRegistryService {
       function: {
         name: tool.name,
         description: tool.description,
-        parameters: tool.parameters,
+        parameters: tool.parameters as Record<string, unknown>,
       },
     }));
   }
