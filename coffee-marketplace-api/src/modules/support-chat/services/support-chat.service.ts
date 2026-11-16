@@ -874,6 +874,14 @@ export class SupportChatService {
 
         const assistantMessage = response.choices[0]?.message;
 
+        this.logger.debug(
+          JSON.stringify({
+            toolCallsRequested: assistantMessage?.tool_calls?.length ?? 0,
+            finishReason: response.choices[0]?.finish_reason,
+            responseContent: assistantMessage?.content,
+          }),
+        );
+
         if (!assistantMessage) {
           throw new ServiceUnavailableException(
             'The AI service returned an empty response.',
