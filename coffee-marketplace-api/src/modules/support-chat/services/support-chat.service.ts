@@ -480,6 +480,67 @@ export class SupportChatService {
       })),
     );
   }
+
+  /**
+   * Executes product search through the registered support tool.
+   *
+   * Internal product IDs are used only to create conversation references.
+   */
+  private async searchProductsUsingTool(query: string): Promise<Product[]> {
+    const result = (await this.toolExecutor.execute(
+      'search_products',
+      JSON.stringify({ query }),
+    )) as {
+      success?: boolean;
+      productIds?: unknown;
+    };
+
+    if (
+      !result.success ||
+      !Array.isArray(result.productIds) ||
+      result.productIds.length === 0
+    ) {
+      return [];
+    }
+
+    const productIds = result.productIds.filter(
+      (id): id is string => typeof id === 'string',
+    );
+
+    if (productIds.length === 0) {
+      return [];
+    }
+
+    // Load authoritative product entities without exposing their IDs to the AI.
+    const loadedProducts =
+      await this.productService.findProductsByIdsForSupportChat(productIds);
+
+    const productMap = new Map(
+      loadedProducts.map((product) => [product.id, product]),
+    );
+
+    // Preserve the exact order returned by the search tool.
+    return productIds
+      .map((productId) => productMap.get(productId))
+      .filter((product): product is Product => product !== undefined);
+  }
+
+  /**
+   * Removes internal fields before tool results are sent to the AI model.
+   */
+  private toModelSafeToolResult(result: unknown): unknown {
+    if (
+      result === null ||
+      typeof result !== 'object' ||
+      Array.isArray(result)
+    ) {
+      return result;
+    }
+
+    return Object.fromEntries(
+      Object.entries(result).filter(([key]) => key !== 'productIds'),
+    );
+  }
   /**
    * Processes a customer message and generates an AI response.
    */
@@ -702,8 +763,8 @@ export class SupportChatService {
           );
         }
       } else {
-        // Search results replace the previous product list only when matches exist.
-        products = await this.productService.searchForSupportChat(message);
+        // Execute product searches through the registered support tool.
+        products = await this.searchProductsUsingTool(message);
 
         if (products.length > 0) {
           await this.replaceProductReferences(
@@ -912,7 +973,8 @@ export class SupportChatService {
               toolCall.function.arguments,
             );
 
-            toolResult = JSON.stringify(result);
+            // Never expose internal product IDs to the AI model.
+            toolResult = JSON.stringify(this.toModelSafeToolResult(result));
           } catch (error: unknown) {
             const errorMessage =
               error instanceof Error ? error.message : 'Tool execution failed.';

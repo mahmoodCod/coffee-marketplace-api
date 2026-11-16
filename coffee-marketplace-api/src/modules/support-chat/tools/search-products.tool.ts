@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ProductService } from '../../products/services/product.service';
 import { SupportTool } from '../tools/interfaces/support-tool.interface';
-
 interface SearchProductsArguments {
   query: string;
 }
@@ -30,7 +29,8 @@ export class SearchProductsTool implements SupportTool<SearchProductsArguments> 
   constructor(private readonly productService: ProductService) {}
 
   /**
-   * Searches active products and returns customer-safe product information.
+   * Searches active products and returns internal IDs separately
+   * from customer-safe product information.
    */
   async execute(arguments_: SearchProductsArguments): Promise<unknown> {
     const products = await this.productService.searchForSupportChat(
@@ -39,7 +39,12 @@ export class SearchProductsTool implements SupportTool<SearchProductsArguments> 
 
     return {
       success: true,
+
+      // Internal field: SupportChatService must never send this to the AI.
+      productIds: products.map((product) => product.id),
+
       count: products.length,
+
       products: products.map((product) => {
         // Calculate sellable stock only when inventory information exists.
         const availableStock = product.inventory
