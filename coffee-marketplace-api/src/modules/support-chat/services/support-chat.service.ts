@@ -28,6 +28,8 @@ import {
   SUPPORT_CHAT_GUEST_IDENTITY_TTL_SECONDS,
 } from '../constants/support-chat-history.constants';
 import { ConversationProductReference } from '../domain/models/product-reference.model';
+import { ToolRegistryService } from '../tools/services/tool-registry.service';
+import { ToolExecutorService } from '../tools/services/tool-executor.service';
 
 /**
  * ------------------------------------------------------------------------
@@ -63,6 +65,8 @@ export class SupportChatService {
     private readonly conversationState: ConversationStateUseCase,
     private readonly guestIdentity: GuestIdentityUseCase,
     private readonly productReferences: ProductReferenceUseCase,
+    private readonly toolRegistry: ToolRegistryService,
+    private readonly toolExecutor: ToolExecutorService,
   ) {
     // Connect to the local OpenAI-compatible LM Studio server.
     this.ai = new OpenAI({
@@ -777,79 +781,154 @@ export class SupportChatService {
           : 'No matching products were found in the catalog.';
 
       /**
-       * Generate the AI response using persisted conversation history.
+       * Build the conversation messages using persisted history.
        */
-      const response = await this.ai.chat.completions.create(
+      const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
         {
-          model: 'qwen3-4b-instruct-2507',
-          messages: [
-            {
-              role: 'system',
-              content: [
-                // Role and language
-                'You are a professional customer support assistant for a coffee marketplace.',
-                'Respond in natural, fluent, grammatically correct Persian when the customer writes in Persian.',
-                'Use a polite, friendly, and professional tone.',
+          role: 'system',
+          content: [
+            // Role and language
+            'You are a professional customer support assistant for a coffee marketplace.',
+            'Respond in natural, fluent, grammatically correct Persian when the customer writes in Persian.',
+            'Use a polite, friendly, and professional tone.',
 
-                // Product data accuracy
-                'Use only the provided product information for product-related answers.',
-                'Never invent product names, prices, discounts, inventory quantities, or product specifications.',
-                'Always use the exact product title provided by the database.',
-                'Never claim that the catalog is empty when product information is provided.',
-                'List every provided product when answering catalog questions.',
-                'A product with zero available stock still exists in the catalog.',
-                'Available stock equals stock minus reserved stock.',
-                'Never describe a product as available when its available stock is zero.',
-                'If inventory information is missing, say that availability is unknown.',
-                'Do not reveal reserved stock or internal inventory calculations unless explicitly requested.',
-                'If product details are missing, clearly state that the information is unavailable.',
-                'Never use general knowledge as verified information about a specific product.',
+            // Product data accuracy
+            'Use only the provided product information and tool results for product-related answers.',
+            'Never invent product names, prices, discounts, inventory quantities, or product specifications.',
+            'Always use the exact product title provided by the database or tools.',
+            'Never claim that the catalog is empty when product information is provided.',
+            'List every provided product when answering catalog questions.',
+            'A product with zero available stock still exists in the catalog.',
+            'Available stock equals stock minus reserved stock.',
+            'Never describe a product as available when its available stock is zero.',
+            'If inventory information is missing, say that availability is unknown.',
+            'Do not reveal reserved stock or internal inventory calculations unless explicitly requested.',
+            'If product details are missing, clearly state that the information is unavailable.',
+            'Never use general knowledge as verified information about a specific product.',
 
-                // Conversation understanding
-                'Use conversation history to understand follow-up questions.',
-                'For follow-up questions, use retrieved product information rather than relying on previous AI responses.',
-                'Never reveal internal references, UUIDs, or technical identifiers.',
+            // Tool usage
+            'Use the search_products tool when you need to search for products or retrieve product details.',
+            'Do not invent product information when a tool can retrieve it.',
+            'After receiving tool results, answer the customer using those results.',
+            'If a tool returns no matching products, clearly explain that no matching products were found.',
 
-                // Response quality
-                'Keep answers concise, clear, and directly relevant to the customer question.',
-                'Avoid repeating the same information in multiple sentences or paragraphs.',
-                'When multiple details are requested, organize them using bullet lists.',
-                'Use clean and readable standard Markdown formatting.',
-                'Use proper paragraphs and actual line breaks.',
-                'Never output literal escaped newline sequences such as \\n or \\r.',
-                'Keep Persian words intact and never split words unnaturally.',
-                'Use Persian digits when responding in Persian.',
-                'Never mention internal technical terms such as database, catalog implementation, or inventory records.',
-                'When information is unavailable, mention it once without unnecessary repetition.',
-              ].join(' '),
-            },
-            ...previousMessages
-              .filter(
-                (item) => item.role === 'user' || item.role === 'assistant',
-              )
-              .map((item) => ({
-                role: item.role,
-                content: item.content,
-              })),
-            {
-              role: 'user',
-              content: [
-                `Customer question:\n${message}`,
-                `Available product information:\n${productContext}`,
-                'Please answer the customer naturally and accurately.',
-              ].join('\n\n'),
-            },
-          ],
+            // Conversation understanding
+            'Use conversation history to understand follow-up questions.',
+            'For follow-up questions, use retrieved product information rather than relying on previous AI responses.',
+            'Never reveal internal references, UUIDs, or technical identifiers.',
+
+            // Response quality
+            'Keep answers concise, clear, and directly relevant to the customer question.',
+            'Avoid repeating the same information in multiple sentences or paragraphs.',
+            'When multiple details are requested, organize them using bullet lists.',
+            'Use clean and readable standard Markdown formatting.',
+            'Use proper paragraphs and actual line breaks.',
+            'Never output literal escaped newline sequences such as \\n or \\r.',
+            'Keep Persian words intact and never split words unnaturally.',
+            'Use Persian digits when responding in Persian.',
+            'Never mention internal technical terms such as database, catalog implementation, or inventory records.',
+            'When information is unavailable, mention it once without unnecessary repetition.',
+          ].join(' '),
         },
+        ...previousMessages
+          .filter((item) => item.role === 'user' || item.role === 'assistant')
+          .map((item) => ({
+            role: item.role,
+            content: item.content,
+          })),
         {
-          timeout: 60_000,
-          maxRetries: 0,
+          role: 'user',
+          content: [
+            `Customer question:\n${message}`,
+            `Available product information:\n${productContext}`,
+            'Please answer the customer naturally and accurately.',
+          ].join('\n\n'),
         },
-      );
+      ];
+
+      /**
+       * Allow the AI to call registered tools when necessary.
+       */
+      const MAX_TOOL_ROUNDS = 3;
+      let rawReply: string | null = null;
+
+      for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+        const canCallTools = round < MAX_TOOL_ROUNDS;
+
+        const response = await this.ai.chat.completions.create(
+          {
+            model: 'qwen3-4b-instruct-2507',
+            messages,
+            ...(canCallTools
+              ? {
+                  tools: this.toolRegistry.getDefinitions(),
+                  tool_choice: 'auto' as const,
+                }
+              : {}),
+          },
+          {
+            timeout: 60_000,
+            maxRetries: 0,
+          },
+        );
+
+        const assistantMessage = response.choices[0]?.message;
+
+        if (!assistantMessage) {
+          throw new ServiceUnavailableException(
+            'The AI service returned an empty response.',
+          );
+        }
+
+        const toolCalls = assistantMessage.tool_calls ?? [];
+
+        // Stop when the AI has generated its final customer-facing response.
+        if (toolCalls.length === 0) {
+          rawReply = assistantMessage.content;
+          break;
+        }
+
+        // Preserve the assistant tool-call message in the conversation.
+        messages.push(assistantMessage);
+
+        for (const toolCall of toolCalls) {
+          if (toolCall.type !== 'function') {
+            continue;
+          }
+
+          let toolResult: string;
+
+          try {
+            const result = await this.toolExecutor.execute(
+              toolCall.function.name,
+              toolCall.function.arguments,
+            );
+
+            toolResult = JSON.stringify(result);
+          } catch (error: unknown) {
+            const errorMessage =
+              error instanceof Error ? error.message : 'Tool execution failed.';
+
+            this.logger.warn(
+              `Tool "${toolCall.function.name}" failed: ${errorMessage}`,
+            );
+
+            // Avoid exposing internal errors to the AI conversation.
+            toolResult = JSON.stringify({
+              success: false,
+              message: 'The requested operation could not be completed.',
+            });
+          }
+
+          messages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: toolResult,
+          });
+        }
+      }
 
       // Convert English digits to Persian digits in customer-facing responses.
-      const rawReply = response.choices[0]?.message?.content;
-
       const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
 
       const reply = rawReply
