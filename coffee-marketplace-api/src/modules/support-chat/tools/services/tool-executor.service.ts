@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import Ajv, { type ValidateFunction } from 'ajv';
@@ -9,6 +10,8 @@ import { ToolRegistryService } from './tool-registry.service';
 
 @Injectable()
 export class ToolExecutorService {
+  private readonly logger = new Logger(ToolExecutorService.name);
+
   private readonly ajv = new Ajv({
     allErrors: true,
     strict: true,
@@ -60,7 +63,12 @@ export class ToolExecutorService {
       try {
         validate = this.ajv.compile(tool.parameters);
         this.validators.set(toolName, validate);
-      } catch {
+      } catch (error) {
+        this.logger.error(
+          `Failed to compile the JSON Schema for tool "${toolName}".`,
+          error instanceof Error ? error.stack : undefined,
+        );
+
         throw new InternalServerErrorException(
           'The registered tool has an invalid JSON Schema.',
         );
@@ -84,6 +92,18 @@ export class ToolExecutorService {
     }
 
     // Execute the backend function only after successful validation.
-    return tool.execute(parsedArguments);
+    try {
+      return await tool.execute(parsedArguments);
+    } catch (error) {
+      // Log internal details without exposing them to the API consumer.
+      this.logger.error(
+        `Execution failed for support tool "${toolName}".`,
+        error instanceof Error ? error.stack : undefined,
+      );
+
+      throw new InternalServerErrorException(
+        'The requested support tool could not be executed.',
+      );
+    }
   }
 }
