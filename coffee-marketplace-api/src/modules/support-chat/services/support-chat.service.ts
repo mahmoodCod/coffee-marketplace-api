@@ -962,6 +962,11 @@ export class SupportChatService {
             'After receiving tool results, answer the customer using those results.',
             'If a tool returns no matching products, clearly explain that no matching products were found.',
 
+            // Handle tool execution failures safely.
+            'If a tool result contains success: false, treat the requested operation as unsuccessful.',
+            'Never invent or guess information when a tool execution fails.',
+            'If a tool fails, politely inform the customer that the information is temporarily unavailable. Do not repeatedly call the same failed tool without a valid reason.',
+
             // Conversation understanding
             'Use conversation history to understand follow-up questions.',
             'For follow-up questions, use retrieved product information rather than relying on previous AI responses.',
