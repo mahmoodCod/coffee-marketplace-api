@@ -882,6 +882,10 @@ export class SupportChatService {
         ]),
       );
 
+      // Track whether the current message actually triggered a product search.
+      const productSearchWasPerformed =
+        catalogQuestion || productSearchQuestion;
+
       const productContext =
         products.length > 0
           ? JSON.stringify(
@@ -922,7 +926,9 @@ export class SupportChatService {
               null,
               2,
             )
-          : 'No matching products were found in the catalog.';
+          : productSearchWasPerformed
+            ? 'A product search was performed, but no matching products were found.'
+            : 'No product search was performed for this message. Answer general questions without making assumptions about catalog availability.';
 
       /**
        * Build the conversation messages using persisted history.
@@ -972,6 +978,7 @@ export class SupportChatService {
             'Use Persian digits when responding in Persian.',
             'Never mention internal technical terms such as database, catalog implementation, or inventory records.',
             'When information is unavailable, mention it once without unnecessary repetition.',
+            'When no product search was performed, never claim that the product catalog is empty or that no matching products exist.',
           ].join(' '),
         },
         ...previousMessages
