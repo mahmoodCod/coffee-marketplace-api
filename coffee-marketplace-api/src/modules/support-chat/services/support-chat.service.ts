@@ -168,6 +168,79 @@ export class SupportChatService {
 
     return hasCatalogWord && hasQuestionWord;
   }
+
+  /**
+   * Detects explicit product search and product information requests.
+   */
+  private isProductSearchQuestion(message: string): boolean {
+    const normalized = this.normalizeCustomerMessage(message);
+    const tokens = normalized.split(' ').filter(Boolean);
+
+    // Identify messages that explicitly mention marketplace products.
+    const productWords = new Set([
+      'قهوه',
+      'قهوه‌ها',
+      'محصول',
+      'محصولات',
+      'کالا',
+      'کالاها',
+      'دانه',
+      'دانه‌ها',
+      'اسپرسو',
+      'روبوستا',
+      'عربیکا',
+      'آسیاب',
+      'فرنچ',
+      'موکاپات',
+      'قهوه‌ساز',
+      'قهوهساز',
+      'دم‌افزار',
+      'دم‌افزارها',
+    ]);
+
+    const hasProductKeyword = tokens.some((token) => productWords.has(token));
+
+    if (!hasProductKeyword) {
+      return false;
+    }
+
+    // Detect explicit search and discovery actions.
+    const searchPatterns = [
+      /جستجو/,
+      /جست و جو/,
+      /سرچ/,
+      /پیدا کن/,
+      /پیداش کن/,
+      /نمایش بده/,
+      /نشون بده/,
+      /نشان بده/,
+      /معرفی کن/,
+      /معرفی کنید/,
+      /دنبال .*(میگردم|می گردم)/,
+      /(میخوام|می خواهم).*(بخرم|تهیه کنم)/,
+    ];
+
+    if (searchPatterns.some((pattern) => pattern.test(normalized))) {
+      return true;
+    }
+
+    // Detect requests for specific product information.
+    const informationWords = new Set([
+      'اطلاعات',
+      'مشخصات',
+      'ویژگی',
+      'ویژگیها',
+      'جزئیات',
+      'قیمت',
+      'موجودی',
+      'ترکیبات',
+      'طعم',
+      'وزن',
+      'کشور',
+    ]);
+
+    return tokens.some((token) => informationWords.has(token));
+  }
   /**
    * Detects questions referring to a previously discussed product.
    */
@@ -581,6 +654,12 @@ export class SupportChatService {
       // Catalog questions must never be treated as product follow-up questions.
       const followUpQuestion =
         !catalogQuestion && this.isProductFollowUpQuestion(message);
+
+      const productSearchQuestion =
+        !catalogQuestion &&
+        !followUpQuestion &&
+        this.isProductSearchQuestion(message);
+
       const selectionIndex = this.getProductSelectionIndex(message);
 
       this.logger.debug(
@@ -588,6 +667,7 @@ export class SupportChatService {
           message,
           catalogQuestion,
           followUpQuestion,
+          productSearchQuestion,
           selectionIndex,
         }),
       );
@@ -762,8 +842,8 @@ export class SupportChatService {
             guestToken,
           );
         }
-      } else {
-        // Execute product searches through the registered support tool.
+      } else if (productSearchQuestion) {
+        // Execute the product search tool only for product-related requests.
         products = await this.searchProductsUsingTool(message);
 
         if (products.length > 0) {
@@ -780,6 +860,9 @@ export class SupportChatService {
             updatedAt: new Date(),
           });
         }
+      } else {
+        // General conversations should not trigger unnecessary product searches.
+        products = [];
       }
 
       this.logger.log(`Retrieved products count: ${products.length}`);
@@ -928,7 +1011,7 @@ export class SupportChatService {
               : {}),
           },
           {
-            timeout: 60_000,
+            timeout: 120_000,
             maxRetries: 0,
           },
         );
